@@ -10,8 +10,8 @@ on:
       - main
 
 jobs:
-  sonar:
-    name: SonarQube Scan
+  ci:
+    name: CI Pipeline
     runs-on: [self-hosted, cicd]
 
     steps:
@@ -30,11 +30,15 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      - name: Trivy filesystem scan
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} .
+          docker tag ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
+
+      - name: Trivy image vulnerability scan
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: fs
-          scan-ref: .
+          image-ref: ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           format: table
@@ -42,11 +46,6 @@ jobs:
 
       - name: Log in to Harbor
         run: echo "${{ secrets.HARBOR_PASSWORD }}" | docker login "${{ secrets.HARBOR_URL }}" -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin
-
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} .
-          docker tag ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
 
       - name: Push Docker image to Harbor
         run: |
