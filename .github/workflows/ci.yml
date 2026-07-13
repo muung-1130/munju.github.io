@@ -30,24 +30,31 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      - name: Build Docker image
+      - name: Build Docker image with commit SHA tag
         run: |
           docker build -t ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} .
-          docker tag ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
 
       - name: Trivy image vulnerability scan
         uses: aquasecurity/trivy-action@master
         with:
+          scan-type: image
           image-ref: ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           format: table
           exit-code: '0'
 
+      - name: Tag latest image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker tag ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
+
       - name: Log in to Harbor
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: echo "${{ secrets.HARBOR_PASSWORD }}" | docker login "${{ secrets.HARBOR_URL }}" -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin
 
       - name: Push Docker image to Harbor
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker push ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
           docker push ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
@@ -81,6 +88,7 @@ jobs:
           done
 
           echo "Health check failed"
+          cd ~/dai-run-deploy
           docker compose ps
           docker compose logs --tail=50
           exit 1
