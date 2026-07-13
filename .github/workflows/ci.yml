@@ -24,6 +24,12 @@ jobs:
           hostname
           docker --version
 
+      - name: Read image version
+        run: |
+          IMAGE_VERSION=$(cat VERSION)
+          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
+          echo "Image version is $IMAGE_VERSION"
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
@@ -44,9 +50,10 @@ jobs:
           format: table
           exit-code: '0'
 
-      - name: Tag latest image
+      - name: Tag version and latest image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          docker tag ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ env.IMAGE_VERSION }}
           docker tag ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
 
       - name: Log in to Harbor
@@ -57,6 +64,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker push ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
+          docker push ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ env.IMAGE_VERSION }}
           docker push ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
 
   deploy:
