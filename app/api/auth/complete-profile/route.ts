@@ -33,14 +33,25 @@ export async function POST(request: NextRequest) {
 
     let finalNickname = nickname;
     if (nickname !== session.user.name) {
+<<<<<<< HEAD
+      const taken = await pool.query('SELECT 1 FROM auth_user.users WHERE nickname = $1 AND user_id <> $2', [
+        nickname,
+        userId
+      ]);
+=======
       const taken = await pool.query('SELECT 1 FROM "user" WHERE nickname = $1 AND user_id <> $2', [nickname, userId]);
+>>>>>>> origin/main
       if (taken.rows.length > 0) {
         finalNickname = await resolveUniqueField(pool, 'nickname', nickname, nickname);
       }
     }
 
     await pool.query(
+<<<<<<< HEAD
+      `UPDATE auth_user.users SET gender = $1, birth_year = $2, dong = $3, nickname = $4, updated_at = now() WHERE user_id = $5`,
+=======
       `UPDATE "user" SET gender = $1, birth_year = $2, dong = $3, nickname = $4, updated_at = now() WHERE user_id = $5`,
+>>>>>>> origin/main
       [gender, birthYear, dong, finalNickname, userId]
     );
 

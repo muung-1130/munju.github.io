@@ -1,0 +1,64 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getPool } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = request.nextUrl;
+  const lat = Number(searchParams.get('lat'));
+  const lng = Number(searchParams.get('lng'));
+  const radiusM = Number(searchParams.get('radius_m') ?? '5000');
+  const showAll = searchParams.get('all') === 'true';
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || (!showAll && (!Number.isFinite(radiusM) || radiusM <= 0))) {
+    return NextResponse.json({ error: 'lat, lng, radius_m 파라미터가 올바르지 않아요.' }, { status: 400 });
+  }
+
+  const pool = getPool();
+
+  // 전체보기(all=true)일 땐 반경 조건 없이 공개된 모든 코스를, 아니면 반경 내 코스만 가져온다.
+  const { rows: nearby } = await pool.query<{
+    course_id: string;
+    course_name: string;
+    region: string | null;
+    difficulty: number | null;
+    distance_m: number | null;
+    distance_from_user_m: number;
+    route_geojson: { coordinates: [number, number][] } | null;
+    review_average: string | null;
+    review_count: number | null;
+    view_count: string | null;
+  }>(
+    `SELECT c.course_id, c.course_name, c.region, c.difficulty, c.distance_m,
+            ST_Distance(w.location::geography, ST_MakePoint($2, $1)::geography) AS distance_from_user_m,
+            ST_AsGeoJSON(c.route_geom) AS route_geojson,
+            s.review_average, s.review_count, s.view_count
+       FROM course.course_waypoints w
+       JOIN course.courses c ON c.course_id = w.course_id
+       LEFT JOIN course.course_statistics s ON s.course_id = c.course_id
+      WHERE w.waypoint_type = 'START'
+        AND c.visibility = 'PUBLIC' AND c.status = 'ACTIVE' AND c.deleted_at IS NULL
+        ${showAll ? '' : 'AND ST_DWithin(w.location::geography, ST_MakePoint($2, $1)::geography, $3)'}
+      ORDER BY distance_from_user_m`,
+    showAll ? [lat, lng] : [lat, lng, radiusM]
+  );
+
+  const courses = nearby.map((row) => {
+    const geojson = typeof row.route_geojson === 'string' ? JSON.parse(row.route_geojson) : row.route_geojson;
+    return {
+      courseId: row.course_id,
+      name: row.course_name,
+      region: row.region,
+      difficulty: row.difficulty,
+      distanceM: row.distance_m ?? 0,
+      distanceFromUserM: Math.round(row.distance_from_user_m),
+      reviewAverage: Number(row.review_average ?? 0),
+      reviewCount: row.review_count ?? 0,
+      viewCount: Number(row.view_count ?? 0),
+      // route_geom(정밀 도보 경로)이 있으면 그걸 쓰고, 없으면 빈 배열(지도에 선을 못 그림).
+      positions: (geojson?.coordinates ?? []).map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
+    };
+  });
+
+  return NextResponse.json({ courses });
+}

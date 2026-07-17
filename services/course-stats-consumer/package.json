@@ -1,0 +1,14 @@
+{
+  "name": "course-stats-consumer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "pg": "^8.22.0"
+  }
+}

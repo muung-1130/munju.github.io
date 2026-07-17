@@ -13,6 +13,10 @@
     "@types/react": "18.2.67",
     "@types/react-dom": "18.2.22",
     "bcryptjs": "^3.0.3",
+<<<<<<< HEAD
+    "kafkajs": "^2.2.4",
+=======
+>>>>>>> origin/main
     "leaflet": "^1.9.4",
     "next": "14.2.4",
     "next-auth": "^4.24.14",

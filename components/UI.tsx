@@ -48,6 +48,8 @@ export function MiniLineChart() {
   );
 }
 
+<<<<<<< HEAD
+=======
 const hourlyHours = ['지금', '12시', '15시', '18시', '21시', '24시', '03시'];
 const hourlyTemps = [18, 21, 23, 20, 17, 15, 13];
 const hourlyIcons = ['🌤️', '☀️', '☀️', '🌤️', '🌥️', '🌙', '🌙'];
@@ -92,6 +94,7 @@ export function HourlyWeatherChart() {
   );
 }
 
+>>>>>>> origin/main
 export function Donut({ value = 62, label = '62%' }: { value?: number; label?: string }) {
   const radius = 44;
   const circumference = 2 * Math.PI * radius;

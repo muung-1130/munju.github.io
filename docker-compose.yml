@@ -29,6 +29,21 @@ services:
       retries: 20
       start_period: 20s
 
+<<<<<<< HEAD
+  course-stats-consumer:
+    build:
+      context: ./services/course-stats-consumer
+      dockerfile: Dockerfile
+    image: dai-run-course-stats-consumer:latest
+    container_name: dai-run-course-stats-consumer
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - dai-run-net
+
+=======
+>>>>>>> origin/main
   nginx:
     image: nginx:1.27-alpine
     container_name: dai-run-nginx

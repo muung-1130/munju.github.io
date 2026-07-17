@@ -17,6 +17,10 @@ out/
 # build outputs
 dist/
 build/
+<<<<<<< HEAD
+*.tsbuildinfo
+=======
+>>>>>>> origin/main
 
 # logs
 npm-debug.log*
@@ -26,3 +30,13 @@ pnpm-debug.log*
 
 # OS
 .DS_Store
+<<<<<<< HEAD
+
+# Figma용 디자인 페이지 스크린샷 내보내기
+design-export/
+
+# Next.js
+.next/
+out/
+=======
+>>>>>>> origin/main

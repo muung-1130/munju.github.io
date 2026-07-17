@@ -1,4 +1,25 @@
 import { Card, PageTitle } from '@/components/UI';
+<<<<<<< HEAD
+import { AiRecoPanel } from '@/components/AiRecoPanel';
+import { CourseNearbyExplorer } from '@/components/CourseNearbyExplorer';
+import { getRandomCourses } from '@/lib/course';
+
+export const dynamic = 'force-dynamic';
+
+export default async function CoursePage() {
+  const recoCourses = await getRandomCourses(3);
+
+  return (
+    <div className="content-grid course-layout">
+      <section className="main-column">
+        <PageTitle title="코스 탐색" subtitle="내 위치 반경 안의 코스를 찾아드려요." />
+        <Card className="map-card-large course-nearby-wrap">
+          <CourseNearbyExplorer />
+        </Card>
+      </section>
+      <aside className="side-column">
+        <AiRecoPanel courses={recoCourses} />
+=======
 import { CourseRouteSection } from '@/components/CourseRouteSection';
 
 const courses = [
@@ -39,6 +60,7 @@ export default function CoursePage() {
       </section>
       <aside className="side-column">
         <Card className="dark-panel"><div className="card-head"><h3>오늘의 AI 추천 코스</h3><span>AI 추천</span></div><p>오늘의 날씨와 컨디션을 고려한 맞춤 코스를 추천해드릴게요!</p><div className="dark-inner"><strong>여의도 한강공원 코스</strong><span>3.2km · 예상 시간 32분</span><button>코스 자세히 보기</button></div></Card>
+>>>>>>> origin/main
         <Card><h3>코스 통계</h3><div className="three-stats"><span><b>126.8</b>km</span><span><b>24</b>개</span><span><b>4.7</b>/5</span></div></Card>
         <Card><h3>인기 키워드</h3><div className="chip-wrap">{['한강','공원','야경','업힐','탄천','벚꽃길','조깅','초보추천'].map((x)=><span key={x}>{x}</span>)}</div></Card>
       </aside>
