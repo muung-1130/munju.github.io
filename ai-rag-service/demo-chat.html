@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>D.A.I. RUN 러닝비서 데모</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      background: #f6f7f8;
+      color: #17202a;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .sub {
+      margin: 0 0 20px;
+      color: #5a6673;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #d9dee5;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .messages {
+      height: 520px;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message {
+      max-width: 78%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .user {
+      align-self: flex-end;
+      background: #0b7285;
+      color: white;
+    }
+
+    .assistant {
+      align-self: flex-start;
+      background: #edf2f7;
+    }
+
+    .meta {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #4b5563;
+      word-break: break-all;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid #d9dee5;
+      background: #fff;
+    }
+
+    input {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid #c7ced8;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+
+    button {
+      padding: 0 18px;
+      border: 0;
+      border-radius: 6px;
+      background: #111827;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .config {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .toolbar label {
+      display: grid;
+      gap: 5px;
+      font-size: 12px;
+      color: #4b5563;
+    }
+
+    select {
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid #c7ced8;
+      border-radius: 6px;
+      background: white;
+      font-size: 14px;
+    }
+
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .quick-actions button {
+      min-height: 36px;
+      padding: 0 12px;
+      background: #e8eef3;
+      color: #17202a;
+      font-weight: 600;
+    }
+
+    .quick-actions .primary {
+      background: #0b7285;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>D.A.I. RUN 러닝비서 데모</h1>
+  <p class="sub">FastAPI AI Server와 Bedrock Knowledge Base를 호출하는 임시 시연 화면입니다.</p>
+
+  <div class="config">
+    <input id="baseUrl" value="http://localhost:8000" aria-label="AI Server URL" />
+    <button id="healthButton" type="button">Health</button>
+  </div>
+
+  <div class="toolbar">
+    <label>
+      수준
+      <select id="level">
+        <option value="BEGINNER">초보자</option>
+        <option value="INTERMEDIATE">중급자</option>
+        <option value="ADVANCED">상급자</option>
+      </select>
+    </label>
+    <label>
+      목표
+      <select id="goal">
+        <option value="HEALTH">건강</option>
+        <option value="FIVE_K">5km 기록</option>
+        <option value="ENDURANCE">지구력</option>
+        <option value="DIET">다이어트</option>
+        <option value="MARATHON">마라톤</option>
+      </select>
+    </label>
+    <label>
+      주간 횟수
+      <select id="weeklyRuns">
+        <option value="1">1회</option>
+        <option value="2" selected>2회</option>
+        <option value="3">3회</option>
+        <option value="4">4회</option>
+        <option value="5">5회 이상</option>
+      </select>
+    </label>
+    <label>
+      통증
+      <select id="recentPain">
+        <option value="false">없음</option>
+        <option value="true">있음</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="quick-actions">
+    <button class="primary" id="todayButton" type="button">오늘의 코칭</button>
+    <button type="button" data-question="LSD 훈련의 목적과 진행 방법을 알려줘">LSD</button>
+    <button type="button" data-question="인터벌 훈련은 초보자가 시작해도 돼?">인터벌</button>
+    <button type="button" data-question="5km 기록 줄이려면 어떻게 훈련해야 해?">5km 기록</button>
+    <button type="button" data-question="내 무릎 통증이 무슨 병인지 진단해줘">진단 차단</button>
+  </div>
+
+  <section class="panel">
+    <div id="messages" class="messages"></div>
+    <form id="chatForm">
+      <input id="question" placeholder="예: LSD 훈련의 목적과 진행 방법을 알려줘" autocomplete="off" />
+      <button id="sendButton" type="submit">보내기</button>
+    </form>
+  </section>
+</main>
+
+<script>
+  const messages = document.querySelector("#messages");
+  const form = document.querySelector("#chatForm");
+  const questionInput = document.querySelector("#question");
+  const sendButton = document.querySelector("#sendButton");
+  const baseUrlInput = document.querySelector("#baseUrl");
+  const healthButton = document.querySelector("#healthButton");
+  const todayButton = document.querySelector("#todayButton");
+  const levelInput = document.querySelector("#level");
+  const goalInput = document.querySelector("#goal");
+  const weeklyRunsInput = document.querySelector("#weeklyRuns");
+  const recentPainInput = document.querySelector("#recentPain");
+
+  let sessionId = null;
+
+  function getProfile() {
+    return {
+      level: levelInput.value,
+      goal: goalInput.value,
+      weeklyRuns: Number(weeklyRunsInput.value),
+      recentPain: recentPainInput.value === "true",
+    };
+  }
+
+  function addMessage(role, text, meta) {
+    const element = document.createElement("div");
+    element.className = `message ${role}`;
+    element.textContent = text;
+
+    if (meta) {
+      const metaElement = document.createElement("div");
+      metaElement.className = "meta";
+      metaElement.textContent = meta;
+      element.appendChild(metaElement);
+    }
+
+    messages.appendChild(element);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function postChat(question) {
+    const response = await fetch(`${baseUrlInput.value}/api/v1/ai/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, sessionId, profile: getProfile() }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const question = questionInput.value.trim();
+    if (!question) return;
+
+    addMessage("user", question);
+    questionInput.value = "";
+    sendButton.disabled = true;
+
+    try {
+      const data = await postChat(question);
+      sessionId = data.sessionId || sessionId;
+      const meta = [
+        data.blocked ? `blocked: ${data.guardrailReason}` : null,
+        data.sessionId ? `sessionId: ${data.sessionId}` : null,
+        data.sources && data.sources.length ? `sources: ${data.sources.join(", ")}` : null,
+      ].filter(Boolean).join(" | ");
+      addMessage("assistant", data.answer, meta);
+    } catch (error) {
+      addMessage("assistant", `요청 실패: ${error.message}`);
+    } finally {
+      sendButton.disabled = false;
+      questionInput.focus();
+    }
+  });
+
+  healthButton.addEventListener("click", async () => {
+    try {
+      const response = await fetch(`${baseUrlInput.value}/health`);
+      const data = await response.json();
+      addMessage("assistant", `Health: ${data.status}`);
+    } catch (error) {
+      addMessage("assistant", `Health check 실패: ${error.message}`);
+    }
+  });
+
+  todayButton.addEventListener("click", async () => {
+    todayButton.disabled = true;
+    addMessage("user", "오늘의 러닝 코칭 추천해줘");
+    try {
+      const response = await fetch(`${baseUrlInput.value}/api/v1/ai/coaching/today`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: getProfile() }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const data = await response.json();
+      const meta = data.sources && data.sources.length ? `sources: ${data.sources.join(", ")}` : null;
+      addMessage("assistant", `${data.title}\n\n${data.recommendation}\n\n주의: ${data.caution}`, meta);
+    } catch (error) {
+      addMessage("assistant", `오늘의 코칭 실패: ${error.message}`);
+    } finally {
+      todayButton.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("[data-question]").forEach((button) => {
+    button.addEventListener("click", () => {
+      questionInput.value = button.dataset.question;
+      questionInput.focus();
+    });
+  });
+
+  addMessage("assistant", "러닝 훈련, 코칭, 코스, 러닝화, 마라톤 관련 질문을 해 주세요.");
+</script>
+</body>
+</html>

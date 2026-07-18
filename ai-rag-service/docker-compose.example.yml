@@ -1,0 +1,14 @@
+services:
+  ai-rag-service:
+    build:
+      context: .
+    container_name: dairun-ai-rag-service
+    ports:
+      - "8000:8000"
+    environment:
+      AWS_REGION: ap-northeast-2
+      BEDROCK_KNOWLEDGE_BASE_ID: CPDWCKU24Y
+      BEDROCK_MODEL_ARN: arn:aws:bedrock:ap-northeast-2:311233338510:inference-profile/global.anthropic.claude-haiku-4-5-20251001-v1:0
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001,http://192.168.0.201:3000
+    volumes:
+      - ${USERPROFILE}/.aws:/root/.aws:ro
