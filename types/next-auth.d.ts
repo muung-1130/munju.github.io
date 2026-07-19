@@ -10,21 +10,17 @@ declare module 'next-auth' {
       userName: string;
       createdAt: string;
       profileComplete: boolean;
-<<<<<<< HEAD
       dong: string | null;
-=======
->>>>>>> origin/main
     };
+    sessionId?: string;
   }
 
   interface User {
     userName?: string;
     createdAt?: string;
     profileComplete?: boolean;
-<<<<<<< HEAD
     dong?: string | null;
-=======
->>>>>>> origin/main
+    sessionId?: string;
   }
 }
 
@@ -34,9 +30,7 @@ declare module 'next-auth/jwt' {
     userName?: string;
     createdAt?: string;
     profileComplete?: boolean;
-<<<<<<< HEAD
     dong?: string | null;
-=======
->>>>>>> origin/main
+    sessionId?: string;
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { validateEmail, validateNickname, validatePassword, validateUsername } from '@/lib/validators';
+import { ForgotCredentialsModal } from './ForgotCredentialsModal';
 
 type Mode = 'login' | 'signup';
 type CheckStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
@@ -28,6 +29,7 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   const [username, setUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState<CheckStatus>('idle');
@@ -37,6 +39,7 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [gender, setGender] = useState<'M' | 'F' | ''>('');
+  const [weightKg, setWeightKg] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [nickname, setNickname] = useState('');
   const [nicknameStatus, setNicknameStatus] = useState<CheckStatus>('idle');
@@ -190,7 +193,17 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, email, name, gender, birthYear: Number(birthYear), nickname, dong: dongSelected })
+        body: JSON.stringify({
+          username,
+          password,
+          email,
+          name,
+          gender,
+          weightKg: weightKg.trim() === '' ? '' : Number(weightKg),
+          birthYear: Number(birthYear),
+          nickname,
+          dong: dongSelected
+        })
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -223,7 +236,10 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
           <button type="submit" className="primary-btn full-width" disabled={loginLoading}>
             {loginLoading ? '로그인 중...' : '로그인'}
           </button>
-          <button type="button" className="auth-link" onClick={() => setMode('signup')}>회원가입</button>
+          <div className="auth-form-links">
+            <button type="button" className="auth-link" onClick={() => setMode('signup')}>회원가입</button>
+            <button type="button" className="auth-link" onClick={() => setForgotOpen(true)}>아이디/비밀번호 찾기</button>
+          </div>
           <button type="button" className="auth-google-btn" onClick={() => signIn('google')}>
             <GoogleIcon /> Google로 계속하기
           </button>
@@ -285,6 +301,20 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
                 <button type="button" className={gender === 'M' ? 'active' : ''} onClick={() => setGender('M')}>남성</button>
                 <button type="button" className={gender === 'F' ? 'active' : ''} onClick={() => setGender('F')}>여성</button>
               </div>
+            </label>
+          )}
+
+          {isVisible('gender') && gender && (
+            <label className="wizard-step">
+              몸무게 <span className="muted">(선택, 비우면 성별 평균으로 채워져요 · 러닝 칼로리 계산에 쓰여요)</span>
+              <input
+                type="number"
+                min="20"
+                max="250"
+                value={weightKg}
+                onChange={(event) => setWeightKg(event.target.value)}
+                placeholder={gender === 'M' ? '예: 74' : '예: 58'}
+              />
             </label>
           )}
 
@@ -366,6 +396,8 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
           </div>
         </div>
       )}
+
+      {forgotOpen && <ForgotCredentialsModal onClose={() => setForgotOpen(false)} />}
     </>
   );
 }

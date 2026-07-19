@@ -28,11 +28,12 @@ export async function GET(request: NextRequest) {
     review_average: string | null;
     review_count: number | null;
     view_count: string | null;
+    like_count: string | null;
   }>(
     `SELECT c.course_id, c.course_name, c.region, c.difficulty, c.distance_m,
             ST_Distance(w.location::geography, ST_MakePoint($2, $1)::geography) AS distance_from_user_m,
             ST_AsGeoJSON(c.route_geom) AS route_geojson,
-            s.review_average, s.review_count, s.view_count
+            s.review_average, s.review_count, s.view_count, s.like_count
        FROM course.course_waypoints w
        JOIN course.courses c ON c.course_id = w.course_id
        LEFT JOIN course.course_statistics s ON s.course_id = c.course_id
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
       reviewAverage: Number(row.review_average ?? 0),
       reviewCount: row.review_count ?? 0,
       viewCount: Number(row.view_count ?? 0),
+      likeCount: Number(row.like_count ?? 0),
       // route_geom(정밀 도보 경로)이 있으면 그걸 쓰고, 없으면 빈 배열(지도에 선을 못 그림).
       positions: (geojson?.coordinates ?? []).map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
     };

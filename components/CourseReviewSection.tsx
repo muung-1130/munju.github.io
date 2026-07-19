@@ -20,6 +20,7 @@ export function CourseReviewSection({ courseId, initialReviews }: { courseId: st
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
 
   async function handleSubmit() {
     if (!session?.user) {
@@ -47,6 +48,7 @@ export function CourseReviewSection({ courseId, initialReviews }: { courseId: st
       setReviews((prev) => [
         {
           reviewId: `local-${Date.now()}`,
+          userId: session.user!.id,
           nickname: session.user?.name ?? '나',
           overallRating,
           surfaceRating,
@@ -65,6 +67,14 @@ export function CourseReviewSection({ courseId, initialReviews }: { courseId: st
       addMessage({ from: 'ai', text: '평점 감사합니다! 앞으로 러너님의 코스 추천에 참고할게요! 🐶' });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(reviewId: string) {
+    if (!window.confirm('이 리뷰를 삭제할까요?')) return;
+    const res = await fetch(`/api/courses/${courseId}/reviews/${reviewId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setReviews((prev) => prev.filter((review) => review.reviewId !== reviewId));
     }
   }
 
@@ -118,16 +128,116 @@ export function CourseReviewSection({ courseId, initialReviews }: { courseId: st
         {reviews.length === 0 ? (
           <p className="muted">아직 리뷰가 없어요. 첫 리뷰를 남겨보세요!</p>
         ) : (
-          reviews.map((review) => (
-            <div key={review.reviewId} className="course-review-item">
-              <div className="review-head">
-                <strong>{review.nickname}</strong>
-                <span>★ {review.overallRating.toFixed(1)}</span>
+          reviews.map((review) =>
+            editingReviewId === review.reviewId ? (
+              <EditReviewCard
+                key={review.reviewId}
+                courseId={courseId}
+                review={review}
+                onCancel={() => setEditingReviewId(null)}
+                onSaved={(updated) => {
+                  setReviews((prev) => prev.map((r) => (r.reviewId === updated.reviewId ? updated : r)));
+                  setEditingReviewId(null);
+                }}
+              />
+            ) : (
+              <div key={review.reviewId} className="course-review-item">
+                <div className="review-head">
+                  <strong>{review.nickname}</strong>
+                  <span>★ {review.overallRating.toFixed(1)}</span>
+                  {session?.user?.id === review.userId && (
+                    <div className="review-owner-actions">
+                      <button type="button" onClick={() => setEditingReviewId(review.reviewId)}>
+                        수정
+                      </button>
+                      <button type="button" onClick={() => handleDelete(review.reviewId)}>
+                        삭제
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {review.content && <p>{review.content}</p>}
               </div>
-              {review.content && <p>{review.content}</p>}
-            </div>
-          ))
+            )
+          )
         )}
+      </div>
+    </div>
+  );
+}
+
+function EditReviewCard({
+  courseId,
+  review,
+  onCancel,
+  onSaved
+}: {
+  courseId: string;
+  review: CourseReview;
+  onCancel: () => void;
+  onSaved: (updated: CourseReview) => void;
+}) {
+  const [overallRating, setOverallRating] = useState(review.overallRating);
+  const [surfaceRating, setSurfaceRating] = useState(review.surfaceRating ?? 0);
+  const [sceneryRating, setSceneryRating] = useState(review.sceneryRating ?? 0);
+  const [slopeRating, setSlopeRating] = useState(review.slopeRating ?? 0);
+  const [content, setContent] = useState(review.content ?? '');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    if (overallRating === 0) {
+      setError('전체 평점을 선택해주세요.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/reviews/${review.reviewId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ overallRating, surfaceRating, sceneryRating, slopeRating, content })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? '리뷰 수정에 실패했어요.');
+        return;
+      }
+      onSaved({ ...review, overallRating, surfaceRating, sceneryRating, slopeRating, content });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="course-review-item editing">
+      <div className="review-rating-grid">
+        <div className="review-rating-field">
+          <label>전체 평점</label>
+          <StarRating value={overallRating} onChange={setOverallRating} />
+        </div>
+        <div className="review-rating-field">
+          <label>노면</label>
+          <StarRating value={surfaceRating} onChange={setSurfaceRating} />
+        </div>
+        <div className="review-rating-field">
+          <label>경치</label>
+          <StarRating value={sceneryRating} onChange={setSceneryRating} />
+        </div>
+        <div className="review-rating-field">
+          <label>경사</label>
+          <StarRating value={slopeRating} onChange={setSlopeRating} />
+        </div>
+      </div>
+      <textarea className="review-textarea" value={content} onChange={(event) => setContent(event.target.value)} />
+      {error && <p style={{ color: '#e5484d', fontWeight: 700, margin: 0 }}>{error}</p>}
+      <div className="review-owner-actions" style={{ marginTop: 10 }}>
+        <button type="button" className="primary-btn" onClick={handleSave} disabled={submitting}>
+          {submitting ? '저장 중...' : '저장'}
+        </button>
+        <button type="button" className="ghost-btn" onClick={onCancel}>
+          취소
+        </button>
       </div>
     </div>
   );

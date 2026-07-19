@@ -107,6 +107,7 @@ export async function getCourseStatisticsMap(courseIds: string[]): Promise<Map<s
 
 export type CourseReview = {
   reviewId: string;
+  userId: string;
   nickname: string;
   overallRating: number;
   surfaceRating: number | null;
@@ -119,7 +120,7 @@ export type CourseReview = {
 export async function getCourseReviews(courseId: string): Promise<CourseReview[]> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT r.review_id, u.nickname, r.overall_rating, r.surface_rating, r.scenery_rating, r.slope_rating,
+    `SELECT r.review_id, r.user_id, u.nickname, r.overall_rating, r.surface_rating, r.scenery_rating, r.slope_rating,
             r.content, r.created_at
        FROM course.course_reviews r
        JOIN auth_user.users u ON u.user_id = r.user_id
@@ -129,6 +130,7 @@ export async function getCourseReviews(courseId: string): Promise<CourseReview[]
   );
   return rows.map((row) => ({
     reviewId: row.review_id,
+    userId: row.user_id,
     nickname: row.nickname,
     overallRating: Number(row.overall_rating),
     surfaceRating: row.surface_rating === null ? null : Number(row.surface_rating),
@@ -180,4 +182,66 @@ export async function createCourseReview(input: CreateCourseReviewInput) {
            updated_at = now()`,
     [input.courseId, input.overallRating]
   );
+}
+
+export type UpdateCourseReviewInput = {
+  reviewId: string;
+  userId: string;
+  overallRating: number;
+  surfaceRating: number;
+  sceneryRating: number;
+  slopeRating: number;
+  content: string;
+};
+
+// 본인 리뷰만(WHERE user_id로 소유자 검증) 별점을 바꾸고, course_statistics.review_average는
+// "이전 별점을 빼고 새 별점을 더하는" 식으로 재계산한다(review_count는 그대로).
+export async function updateCourseReview(input: UpdateCourseReviewInput): Promise<boolean> {
+  const pool = getPool();
+  const { rowCount } = await pool.query(
+    `WITH old AS (
+       SELECT course_id, overall_rating FROM course.course_reviews
+        WHERE review_id = $1 AND user_id = $2
+     ),
+     updated AS (
+       UPDATE course.course_reviews r
+          SET overall_rating = $3, surface_rating = $4, scenery_rating = $5, slope_rating = $6,
+              content = $7, updated_at = now()
+        WHERE r.review_id = $1 AND r.user_id = $2
+        RETURNING r.course_id
+     )
+     UPDATE course.course_statistics s
+        SET review_average = CASE WHEN s.review_count > 0
+              THEN (s.review_average * s.review_count - old.overall_rating + $3) / s.review_count
+              ELSE $3 END,
+            updated_at = now()
+       FROM old, updated
+      WHERE s.course_id = updated.course_id
+      RETURNING s.course_id`,
+    [input.reviewId, input.userId, input.overallRating, input.surfaceRating, input.sceneryRating, input.slopeRating, input.content]
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+// 본인 리뷰만 삭제하고, course_statistics.review_count를 줄이고 review_average를 그 리뷰의
+// 별점을 뺀 값으로 재계산한다(0개가 되면 평균은 0으로).
+export async function deleteCourseReview(reviewId: string, userId: string): Promise<boolean> {
+  const pool = getPool();
+  const { rowCount } = await pool.query(
+    `WITH deleted AS (
+       DELETE FROM course.course_reviews WHERE review_id = $1 AND user_id = $2
+       RETURNING course_id, overall_rating
+     )
+     UPDATE course.course_statistics s
+        SET review_count = GREATEST(s.review_count - 1, 0),
+            review_average = CASE WHEN s.review_count - 1 > 0
+              THEN (s.review_average * s.review_count - deleted.overall_rating) / (s.review_count - 1)
+              ELSE 0 END,
+            updated_at = now()
+       FROM deleted
+      WHERE s.course_id = deleted.course_id
+      RETURNING s.course_id`,
+    [reviewId, userId]
+  );
+  return (rowCount ?? 0) > 0;
 }

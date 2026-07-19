@@ -17,7 +17,7 @@ export function FeatureBanner() {
   useEffect(() => {
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % slides.length);
-    }, 2000);
+    }, 5000);
     return () => clearInterval(timer);
   }, []);
 

@@ -4,10 +4,19 @@ on:
   push:
     branches:
       - main
-      - "feature/**"
+
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+# 같은 브랜치에서 새 커밋이 올라오면 이전 실행은 취소
+concurrency:
+  group: dai-run-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
@@ -17,6 +26,8 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check runner environment
         run: |
@@ -27,45 +38,58 @@ jobs:
       - name: Read image version
         run: |
           IMAGE_VERSION=$(cat VERSION)
-          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
+          echo "IMAGE_VERSION=$IMAGE_VERSION" >> "$GITHUB_ENV"
           echo "Image version is $IMAGE_VERSION"
 
+      # Community Build에서는 main 브랜치만 분석
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: Build Docker image with commit SHA tag
         run: |
-          docker build -t ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} .
+          docker build \
+            -t "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}" \
+            .
 
       - name: Trivy image vulnerability scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
           image-ref: ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
-          severity: 'CRITICAL,HIGH'
+          severity: "CRITICAL,HIGH"
           ignore-unfixed: true
           format: table
-          exit-code: '0'
+          exit-code: "0"
 
       - name: Tag version and latest image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker tag ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ env.IMAGE_VERSION }}
-          docker tag ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }} ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
+          docker tag \
+            "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}" \
+            "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ env.IMAGE_VERSION }}"
+
+          docker tag \
+            "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}" \
+            "${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest"
 
       - name: Log in to Harbor
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: echo "${{ secrets.HARBOR_PASSWORD }}" | docker login "${{ secrets.HARBOR_URL }}" -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD }}" |
+            docker login "${{ secrets.HARBOR_URL }}" \
+              -u "${{ secrets.HARBOR_USERNAME }}" \
+              --password-stdin
 
       - name: Push Docker image to Harbor
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker push ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
-          docker push ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ env.IMAGE_VERSION }}
-          docker push ${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest
+          docker push "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}"
+          docker push "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ env.IMAGE_VERSION }}"
+          docker push "${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest"
 
   deploy:
     name: Deploy with Docker Compose
@@ -75,7 +99,11 @@ jobs:
 
     steps:
       - name: Log in to Harbor for deploy
-        run: echo "${{ secrets.HARBOR_PASSWORD }}" | docker login "${{ secrets.HARBOR_URL }}" -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD }}" |
+            docker login "${{ secrets.HARBOR_URL }}" \
+              -u "${{ secrets.HARBOR_USERNAME }}" \
+              --password-stdin
 
       - name: Deploy latest image with Docker Compose
         run: |
@@ -91,6 +119,7 @@ jobs:
               echo "Health check passed"
               exit 0
             fi
+
             echo "Waiting for service..."
             sleep 3
           done

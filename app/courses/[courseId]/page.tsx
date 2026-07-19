@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { Card, PageTitle } from '@/components/UI';
+import { Card } from '@/components/UI';
 import { CourseMapView } from '@/components/CourseMapView';
 import type { CourseRoute } from '@/components/CourseMapView';
 import { CourseOwnerBadge } from '@/components/CourseOwnerBadge';
@@ -22,6 +22,7 @@ type CourseDetailRow = {
   difficulty: number | null;
   distance_m: number;
   ownerUserId: string | null;
+  createdAt: string;
   positions: [number, number][];
 };
 
@@ -35,9 +36,10 @@ async function getCourse(courseId: string): Promise<CourseDetailRow | null> {
     difficulty: number | null;
     distance_m: number | null;
     owner_user_id: string | null;
+    created_at: string;
     route_geojson: { coordinates: [number, number][] } | null;
   }>(
-    `SELECT course_id, course_name, description, region, difficulty, distance_m, owner_user_id,
+    `SELECT course_id, course_name, description, region, difficulty, distance_m, owner_user_id, created_at,
             ST_AsGeoJSON(route_geom) AS route_geojson
        FROM course.courses
       WHERE course_id = $1 AND deleted_at IS NULL`,
@@ -55,6 +57,7 @@ async function getCourse(courseId: string): Promise<CourseDetailRow | null> {
     difficulty: row.difficulty,
     distance_m: row.distance_m ?? 0,
     ownerUserId: row.owner_user_id,
+    createdAt: row.created_at,
     // route_geom(도보 길찾기로 보간한 정밀 경로)은 [lng, lat] 순서라 Leaflet용 [lat, lng]로 뒤집는다.
     positions: (geojson?.coordinates ?? []).map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
   };
@@ -82,37 +85,53 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
     positions: course.positions
   };
 
-  return (
-    <div className="content-grid course-layout">
-      <section className="main-column">
-        <Link href="/courses" className="back-link">← 코스 탐색으로</Link>
-        <PageTitle title={course.name} subtitle={`${course.region ?? ''} · ${(course.distance_m / 1000).toFixed(1)}km · ${DIFFICULTY_LABEL[difficulty]}`} />
-        <Card className="map-card-large">
-          <CourseMapView routes={[route]} height={440} scrollWheelZoom />
-        </Card>
-        {course.description && (
-          <Card>
-            <h3>코스 소개</h3>
-            <p>{course.description}</p>
-          </Card>
-        )}
-      </section>
+  const createdAtLabel = new Date(course.createdAt).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
-      <aside className="side-column">
-        <Card>
-          <h3>코스 정보</h3>
-          <p style={{ margin: '10px 0', color: '#53637a', fontWeight: 700 }}>
-            {course.region ?? '지역 정보 없음'} · {(course.distance_m / 1000).toFixed(1)}km · {DIFFICULTY_LABEL[difficulty]}
-          </p>
-          <div style={{ margin: '0 0 16px', color: '#53637a', fontWeight: 700 }}>
+  return (
+    <div className="course-detail-page">
+      <Link href="/courses" className="back-link">← 코스 탐색으로</Link>
+
+      <div className="course-detail-hero">
+        <div className="course-detail-hero-map">
+          <CourseMapView routes={[route]} height={520} scrollWheelZoom />
+        </div>
+        <div className="course-detail-hero-info">
+          <h1>{course.name}</h1>
+          {course.description && <p className="course-detail-desc">{course.description}</p>}
+          <div className="course-detail-stats">
+            <div className="course-detail-stat">
+              <span>거리</span>
+              <strong>{(course.distance_m / 1000).toFixed(1)}km</strong>
+            </div>
+            <div className="course-detail-stat">
+              <span>난이도</span>
+              <strong>{DIFFICULTY_LABEL[difficulty]}</strong>
+            </div>
+            <div className="course-detail-stat">
+              <span>지역</span>
+              <strong>{course.region ?? '정보 없음'}</strong>
+            </div>
+          </div>
+          <div className="course-detail-owner-row">
             만든 사람 <CourseOwnerBadge owner={owner} />
+            {owner && <span className="course-detail-created">· {createdAtLabel} 생성</span>}
           </div>
           <CourseLikeButton courseId={course.course_id} initialLiked={likeState.likedByUser} initialCount={likeState.likeCount} />
-        </Card>
-        <Card>
-          <CourseReviewSection courseId={course.course_id} initialReviews={reviews} />
-        </Card>
-      </aside>
+          <Link href={`/run/${course.course_id}`} className="primary-btn full-width course-detail-run-link">
+            이 코스로 달리기 →
+          </Link>
+        </div>
+      </div>
+
+      <Card>
+        <CourseReviewSection courseId={course.course_id} initialReviews={reviews} />
+      </Card>
     </div>
   );
 }

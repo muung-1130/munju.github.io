@@ -1,41 +1,75 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Card, PageTitle } from '@/components/UI';
+import { useAuthModal } from '@/components/AuthModalContext';
+import { useCrewChat } from '@/components/CrewChatContext';
+import { CreateCrewModal } from '@/components/CreateCrewModal';
+import { CrewBattleSection } from '@/components/CrewBattleSection';
 
 type Crew = {
-  id: string;
-  name: string;
-  region: string;
-  goalKm: number;
-  avgPace: string;
-  frequency: string;
+  crewId: string;
+  crewName: string;
+  description: string | null;
+  regionCode: string | null;
+  meetingLocation: string | null;
+  targetDistanceMinM: number | null;
+  targetDistanceMaxM: number | null;
+  paceMinSecPerKm: number | null;
+  paceMaxSecPerKm: number | null;
+  minimumWeeklyFrequency: number | null;
+  joinType: string;
+  maxMembers: number;
+  status: string;
   memberCount: number;
+  ownerNickname: string | null;
+  createdAt: string;
   fitsMyConditions: boolean;
-  leaderIntro: string;
-  avgRunFrequency: string;
-  monthlyDistanceKm: number;
-  activeMemberRatio: string;
-  leaderboardRank: number;
+  avgWeeklyDistanceM: number | null;
+  avgWeeklyPaceSecPerKm: number | null;
+  statsUpdatedAt: string | null;
 };
 
-const myRegion = '서울';
-const myDong = '역삼동';
+function formatWeeklyPace(secPerKm: number): string {
+  const min = Math.floor(secPerKm / 60);
+  const sec = Math.round(secPerKm % 60);
+  return `${min}'${String(sec).padStart(2, '0')}"`;
+}
 
-const crews: Crew[] = [
-  { id: 'banpo-night', name: '한강 반포 야간런 크루', region: '서울', goalKm: 10, avgPace: "5'30\"/km", frequency: '주 2회', memberCount: 32, fitsMyConditions: true, leaderIntro: '퇴근 후 반포 한강공원에서 함께 야경 보며 달리는 크루예요. 초보자도 편하게 오세요!', avgRunFrequency: '주 2.3회', monthlyDistanceKm: 412, activeMemberRatio: '24/32명', leaderboardRank: 7 },
-  { id: 'yeouido-morning', name: '여의도 아침 조깅 모임', region: '서울', goalKm: 8, avgPace: "5'45\"/km", frequency: '주 3회', memberCount: 24, fitsMyConditions: true, leaderIntro: '아침 공기 마시며 가볍게 달리는 모임입니다. 출근 전 상쾌하게 하루를 시작해요.', avgRunFrequency: '주 2.8회', monthlyDistanceKm: 298, activeMemberRatio: '19/24명', leaderboardRank: 15 },
-  { id: 'seongsu-speed', name: '성수 트랙 스피드런', region: '서울', goalKm: 12, avgPace: "4'50\"/km", frequency: '주 2회', memberCount: 18, fitsMyConditions: false, leaderIntro: '기록 단축이 목표인 스피드 러너들의 모임이에요. 서브3 도전자 환영!', avgRunFrequency: '주 3.1회', monthlyDistanceKm: 356, activeMemberRatio: '15/18명', leaderboardRank: 3 },
-  { id: 'nowon-dawn', name: '노원 새벽러너스', region: '서울', goalKm: 15, avgPace: "5'20\"/km", frequency: '주 4회', memberCount: 27, fitsMyConditions: true, leaderIntro: '새벽 5시, 하루를 가장 먼저 여는 크루입니다. 꾸준함이 무기예요.', avgRunFrequency: '주 3.6회', monthlyDistanceKm: 520, activeMemberRatio: '22/27명', leaderboardRank: 2 },
-  { id: 'gangnam-afterwork', name: '강남 직장인 퇴근런', region: '서울', goalKm: 6, avgPace: "6'00\"/km", frequency: '주 2회', memberCount: 41, fitsMyConditions: false, leaderIntro: '퇴근 후 가볍게 스트레스 풀며 달리는 직장인 모임이에요. 부담 없이 오세요.', avgRunFrequency: '주 1.6회', monthlyDistanceKm: 210, activeMemberRatio: '20/41명', leaderboardRank: 58 },
-  { id: 'jamsil-long', name: '잠실 롱런 클럽', region: '서울', goalKm: 20, avgPace: "5'40\"/km", frequency: '주 1회', memberCount: 15, fitsMyConditions: true, leaderIntro: '매주 일요일 장거리 훈련으로 마라톤을 준비하는 클럽입니다.', avgRunFrequency: '주 1.4회', monthlyDistanceKm: 268, activeMemberRatio: '12/15명', leaderboardRank: 24 },
-  { id: 'hongdae-friday', name: '홍대 불금런', region: '서울', goalKm: 8, avgPace: "5'50\"/km", frequency: '주 1회', memberCount: 22, fitsMyConditions: false, leaderIntro: '불타는 금요일, 러닝으로 시작해요! 러닝 후 맛집 탐방은 덤.', avgRunFrequency: '주 1.1회', monthlyDistanceKm: 150, activeMemberRatio: '14/22명', leaderboardRank: 71 },
-  { id: 'bundang-tancheon', name: '분당 탄천 러너스', region: '경기', goalKm: 10, avgPace: "5'25\"/km", frequency: '주 3회', memberCount: 29, fitsMyConditions: true, leaderIntro: '분당 탄천을 따라 함께 달리는 크루예요. 초중급자 모두 환영합니다.', avgRunFrequency: '주 2.9회', monthlyDistanceKm: 388, activeMemberRatio: '23/29명', leaderboardRank: 11 },
-  { id: 'suwon-fortress', name: '수원 화성런 크루', region: '경기', goalKm: 12, avgPace: "5'35\"/km", frequency: '주 2회', memberCount: 20, fitsMyConditions: false, leaderIntro: '수원화성 둘레길을 달리며 역사와 러닝을 함께 즐겨요.', avgRunFrequency: '주 2.0회', monthlyDistanceKm: 240, activeMemberRatio: '14/20명', leaderboardRank: 39 },
-  { id: 'haeundae-beach', name: '해운대 바다런', region: '부산', goalKm: 10, avgPace: "5'40\"/km", frequency: '주 2회', memberCount: 26, fitsMyConditions: true, leaderIntro: '해운대 해변을 따라 파도 소리 들으며 달려요. 뷰가 예술입니다.', avgRunFrequency: '주 2.2회', monthlyDistanceKm: 302, activeMemberRatio: '18/26명', leaderboardRank: 19 },
-  { id: 'daegu-track', name: '동대구 트랙클럽', region: '대구', goalKm: 8, avgPace: "5'55\"/km", frequency: '주 2회', memberCount: 14, fitsMyConditions: false, leaderIntro: '트랙에서 기본기부터 차근차근! 러닝 자세 교정도 함께해요.', avgRunFrequency: '주 1.8회', monthlyDistanceKm: 132, activeMemberRatio: '9/14명', leaderboardRank: 82 },
-  { id: 'incheon-songdo', name: '인천 송도 센트럴런', region: '인천', goalKm: 14, avgPace: "5'15\"/km", frequency: '주 3회', memberCount: 19, fitsMyConditions: true, leaderIntro: '송도 센트럴파크를 가로지르는 코스로 달려요. 야경 러닝도 진행합니다.', avgRunFrequency: '주 2.6회', monthlyDistanceKm: 334, activeMemberRatio: '15/19명', leaderboardRank: 28 }
-];
+function WeeklyStatsBadge({ crew }: { crew: Pick<Crew, 'avgWeeklyDistanceM' | 'avgWeeklyPaceSecPerKm'> }) {
+  if (crew.avgWeeklyDistanceM === null && crew.avgWeeklyPaceSecPerKm === null) return null;
+  return (
+    <span className="crew-weekly-stats-badge" title="최근 7일 크루원 평균 기록">
+      {crew.avgWeeklyDistanceM !== null && <>🏃 주간 평균 {(crew.avgWeeklyDistanceM / 1000).toFixed(1)}km</>}
+      {crew.avgWeeklyDistanceM !== null && crew.avgWeeklyPaceSecPerKm !== null && ' · '}
+      {crew.avgWeeklyPaceSecPerKm !== null && <>⚡ 평균 페이스 {formatWeeklyPace(crew.avgWeeklyPaceSecPerKm)}/km</>}
+    </span>
+  );
+}
+
+const JOIN_TYPE_LABEL: Record<string, string> = { PUBLIC: '자유가입', PRIVATE: '승인제' };
+const STATUS_LABEL: Record<string, string> = { RECRUITING: '모집중', FULL: '정원마감', CLOSED: '마감' };
+
+function formatPaceLabel(sec: number) {
+  const m = Math.floor(sec / 60);
+  const s = String(Math.round(sec % 60)).padStart(2, '0');
+  return `${m}'${s}"`;
+}
+
+function distanceRangeLabel(minM: number | null, maxM: number | null) {
+  if (minM && maxM) return `${(minM / 1000).toFixed(1)}~${(maxM / 1000).toFixed(1)}km`;
+  if (minM) return `${(minM / 1000).toFixed(1)}km 이상`;
+  if (maxM) return `${(maxM / 1000).toFixed(1)}km 이하`;
+  return '제한 없음';
+}
+
+function paceRangeLabel(minSec: number | null, maxSec: number | null) {
+  if (minSec && maxSec) return `${formatPaceLabel(maxSec)}~${formatPaceLabel(minSec)}/km`;
+  if (minSec) return `${formatPaceLabel(minSec)}/km 이상`;
+  if (maxSec) return `${formatPaceLabel(maxSec)}/km 이하`;
+  return '제한 없음';
+}
 
 const overallRanking = [
   { rank: 1, name: '한강 러너스', avgKm: 150.0 },
@@ -50,91 +84,123 @@ const overallRanking = [
   { rank: 10, name: '이태원 러너스', avgKm: 138.3 }
 ];
 
-const localRanking = [
-  { rank: 1, name: '역삼 러닝메이트', avgKm: 92.4 },
-  { rank: 2, name: '강남 트랙러너스', avgKm: 88.1 },
-  { rank: 3, name: '역삼 새벽조깅단', avgKm: 85.6 },
-  { rank: 4, name: '테헤란로 러너스', avgKm: 81.2 },
-  { rank: 5, name: '강남역 나이트런', avgKm: 78.9 },
-  { rank: 6, name: '역삼 피트니스런', avgKm: 75.3 },
-  { rank: 7, name: '강남 직장인런', avgKm: 72.0 },
-  { rank: 8, name: '역삼 위켄더스', avgKm: 68.7 },
-  { rank: 9, name: '강남 페이스메이커', avgKm: 64.5 },
-  { rank: 10, name: '역삼 조깅클럽', avgKm: 60.2 }
-];
-
-type Battle = {
-  id: string;
-  metric: '거리' | '페이스';
-  daysLeft: number;
-  crewA: { name: string; value: string; raw: number };
-  crewB: { name: string; value: string; raw: number };
-};
-
-const battles: Battle[] = [
-  { id: 'b1', metric: '거리', daysLeft: 3, crewA: { name: '한강 반포 야간런 크루', value: '182.4km', raw: 182.4 }, crewB: { name: '분당 탄천 러너스', value: '164.9km', raw: 164.9 } },
-  { id: 'b2', metric: '거리', daysLeft: 5, crewA: { name: '노원 새벽러너스', value: '210.6km', raw: 210.6 }, crewB: { name: '잠실 롱런 클럽', value: '225.3km', raw: 225.3 } },
-  { id: 'b3', metric: '페이스', daysLeft: 2, crewA: { name: '성수 트랙 스피드런', value: "4'52\"/km", raw: 292 }, crewB: { name: '해운대 바다런', value: "5'38\"/km", raw: 338 } },
-  { id: 'b4', metric: '페이스', daysLeft: 6, crewA: { name: '여의도 아침 조깅 모임', value: "5'40\"/km", raw: 340 }, crewB: { name: '인천 송도 센트럴런', value: "5'22\"/km", raw: 322 } }
-];
-
-function battleBarPercent(battle: Battle) {
-  if (battle.metric === '거리') {
-    return (battle.crewA.raw / (battle.crewA.raw + battle.crewB.raw)) * 100;
-  }
-  const invA = 1 / battle.crewA.raw;
-  const invB = 1 / battle.crewB.raw;
-  return (invA / (invA + invB)) * 100;
-}
-
-function battleLeader(battle: Battle): 'A' | 'B' {
-  if (battle.metric === '거리') return battle.crewA.raw >= battle.crewB.raw ? 'A' : 'B';
-  return battle.crewA.raw <= battle.crewB.raw ? 'A' : 'B';
-}
-
-type ChatMessage = { from: string; text: string };
-
-function buildMockChat(crew: Crew): ChatMessage[] {
-  return [
-    { from: '크루장', text: `${crew.name}에 오신 걸 환영해요! 오늘 같이 뛸 사람~` },
-    { from: '멤버', text: `저요! ${crew.goalKm}km 코스로 가볼까요?` },
-    { from: '크루장', text: `좋아요, ${crew.frequency} 페이스로 맞춰봐요 🏃` }
-  ];
-}
-
 export default function CrewPage() {
+  const { data: session } = useSession();
+  const { openAuthModal } = useAuthModal();
+  const { openCrewChat } = useCrewChat();
+  const [crews, setCrews] = useState<Crew[] | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [detailCrewId, setDetailCrewId] = useState<string | null>(null);
-  const [chatCrewId, setChatCrewId] = useState<string | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
+  const [participateLoading, setParticipateLoading] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const visibleCrews = showAll ? crews : crews.filter((crew) => crew.region === myRegion && crew.fitsMyConditions);
-  const detailCrew = crews.find((crew) => crew.id === detailCrewId) ?? null;
-  const chatCrew = crews.find((crew) => crew.id === chatCrewId) ?? null;
+  const [joinRequestCrew, setJoinRequestCrew] = useState<Crew | null>(null);
+  const [joinRequestMessage, setJoinRequestMessage] = useState('');
+  const [joinRequestSent, setJoinRequestSent] = useState(false);
+  const [joinRequestSubmitting, setJoinRequestSubmitting] = useState(false);
+  const [joinRequestError, setJoinRequestError] = useState<string | null>(null);
+  const [participateError, setParticipateError] = useState<string | null>(null);
+  const [myCrew, setMyCrew] = useState<{ crewId: string } | null | undefined>(undefined);
 
-  function openChat(crew: Crew) {
-    setDetailCrewId(null);
-    setChatCrewId(crew.id);
-    setChatMessages(buildMockChat(crew));
+  function loadCrews() {
+    fetch('/api/crew')
+      .then((res) => (res.ok ? res.json() : { crews: [] }))
+      .then((json) => setCrews(json.crews ?? []));
   }
 
-  function sendChat() {
-    const text = chatInput.trim();
-    if (!text) return;
-    setChatMessages((prev) => [...prev, { from: '나', text }]);
-    setChatInput('');
+  useEffect(() => {
+    loadCrews();
+  }, []);
+
+  // 이미 어떤 크루엔가 가입돼 있으면(=크루 배틀에 참여할 수 있으면) 크루 모집 영역보다
+  // 위에 배틀 추천/현황 패널을 먼저 보여준다.
+  useEffect(() => {
+    if (!session?.user) {
+      setMyCrew(null);
+      return;
+    }
+    fetch('/api/crew/battle/my-crew')
+      .then((res) => (res.ok ? res.json() : { crewId: null }))
+      .then((data) => setMyCrew(data.crewId ? { crewId: data.crewId } : null));
+  }, [session?.user?.id]);
+
+  const visibleCrews = crews ? (showAll ? crews : crews.filter((crew) => crew.fitsMyConditions)) : [];
+  const detailCrew = crews?.find((crew) => crew.crewId === detailCrewId) ?? null;
+
+  async function handleParticipate(crew: Crew) {
+    if (!session?.user) {
+      openAuthModal();
+      return;
+    }
+    if (crew.joinType === 'PRIVATE') {
+      setDetailCrewId(null);
+      setJoinRequestCrew(crew);
+      setJoinRequestMessage('');
+      setJoinRequestSent(false);
+      setJoinRequestError(null);
+      return;
+    }
+    setParticipateError(null);
+    setParticipateLoading(true);
+    try {
+      const res = await fetch(`/api/crew/${crew.crewId}/chat/join`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setDetailCrewId(null);
+        openCrewChat(crew.crewId, crew.crewName, data.messages ?? []);
+        loadCrews();
+      } else {
+        setParticipateError(data.error ?? '입장할 수 없어요.');
+      }
+    } finally {
+      setParticipateLoading(false);
+    }
+  }
+
+  async function submitJoinRequest() {
+    if (!joinRequestCrew) return;
+    setJoinRequestError(null);
+    setJoinRequestSubmitting(true);
+    try {
+      const res = await fetch(`/api/crew/${joinRequestCrew.crewId}/join-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: joinRequestMessage })
+      });
+      const data = await res.json();
+      if (res.ok) setJoinRequestSent(true);
+      else setJoinRequestError(data.error ?? '신청할 수 없어요.');
+    } finally {
+      setJoinRequestSubmitting(false);
+    }
   }
 
   return (
     <div>
-      <PageTitle title="러닝크루" subtitle="내 지역, 내 페이스에 맞는 크루를 찾아 채팅방에 바로 입장하세요." />
+      <PageTitle
+        title="러닝크루"
+        subtitle="내 지역, 내 페이스에 맞는 크루를 찾아 채팅방에 바로 입장하세요."
+        action={
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={() => (session?.user ? setCreateOpen(true) : openAuthModal())}
+          >
+            + 러닝크루 만들기
+          </button>
+        }
+      />
+      {myCrew && (
+        <div className="crew-battle-top">
+          <CrewBattleSection crewId={myCrew.crewId} />
+        </div>
+      )}
       <div className="crew-page-grid">
         <section className="crew-list-col">
           <div className="crew-list-head">
             <div>
               <h2>크루 모집 <span className="muted">{visibleCrews.length}개</span></h2>
-              <p className="muted">기본적으로 {myRegion} 지역 · 내 조건에 맞는 크루만 보여드려요.</p>
+              <p className="muted">기본적으로 내 조건에 맞는 크루만 보여드려요.</p>
             </div>
             <label className="crew-filter-toggle">
               <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
@@ -142,79 +208,57 @@ export default function CrewPage() {
             </label>
           </div>
 
-          {visibleCrews.map((crew) => {
-            const outOfMyCondition = showAll && (crew.region !== myRegion || !crew.fitsMyConditions);
-            return (
-              <Card key={crew.id} className="crew-entry">
-                <div className="crew-entry-top">
-                  <button className="crew-entry-title" onClick={() => setDetailCrewId(crew.id)}>
-                    {crew.name}
-                  </button>
-                  {outOfMyCondition && <span className="type-pill">조건 외</span>}
-                </div>
-                <div className="crew-info-row">
-                  <span>📍 {crew.region}</span>
-                  <span>🎯 {crew.goalKm}km</span>
-                  <span>⚡ {crew.avgPace}</span>
-                  <span>🗓 {crew.frequency}</span>
-                  <span>👥 {crew.memberCount}명</span>
-                </div>
-              </Card>
-            );
-          })}
+          {crews === null ? (
+            <Card className="crew-empty">크루 목록을 불러오는 중...</Card>
+          ) : (
+            visibleCrews.map((crew) => {
+              const outOfMyCondition = showAll && !crew.fitsMyConditions;
+              return (
+                <Card key={crew.crewId} className="crew-entry">
+                  <div className="crew-entry-top">
+                    <button
+                      className="crew-entry-title"
+                      onClick={() => {
+                        setDetailCrewId(crew.crewId);
+                        setParticipateError(null);
+                      }}
+                    >
+                      {crew.crewName}
+                    </button>
+                    {outOfMyCondition && <span className="type-pill">조건 외</span>}
+                  </div>
+                  <div className="crew-info-row">
+                    <span>📍 {crew.regionCode ?? '지역 무관'}</span>
+                    <span>🎯 {distanceRangeLabel(crew.targetDistanceMinM, crew.targetDistanceMaxM)}</span>
+                    <span>⚡ {paceRangeLabel(crew.paceMinSecPerKm, crew.paceMaxSecPerKm)}</span>
+                    <span>🗓 주 {crew.minimumWeeklyFrequency ?? '-'}회↑</span>
+                    <span>👥 {crew.memberCount}/{crew.maxMembers}명</span>
+                  </div>
+                  <WeeklyStatsBadge crew={crew} />
+                </Card>
+              );
+            })
+          )}
 
-          {visibleCrews.length === 0 && (
+          {crews !== null && visibleCrews.length === 0 && (
             <Card className="crew-empty">조건에 맞는 크루가 없어요. 우측 상단 전체보기를 켜보세요.</Card>
           )}
         </section>
 
         <aside className="crew-side-col">
-          <div className="crew-ranking-split">
-            <Card className="crew-ranking-card">
-              <div className="card-head"><h2>전체 크루 랭킹</h2><span className="muted">TOP 10</span></div>
-              <div className="crew-ranking-list">
-                {overallRanking.map((entry) => (
-                  <div key={entry.rank} className={`crew-rank-row ${entry.rank <= 3 ? `top top${entry.rank}` : ''}`}>
-                    <span>{entry.rank}</span>
-                    <b>{entry.name}</b>
-                    <em>{entry.avgKm} km</em>
-                  </div>
-                ))}
-              </div>
-            </Card>
-            <Card className="crew-ranking-card">
-              <div className="card-head"><h2>동네 크루 랭킹</h2><span className="muted">{myDong} · TOP 10</span></div>
-              <div className="crew-ranking-list">
-                {localRanking.map((entry) => (
-                  <div key={entry.rank} className={`crew-rank-row ${entry.rank <= 3 ? `top top${entry.rank}` : ''}`}>
-                    <span>{entry.rank}</span>
-                    <b>{entry.name}</b>
-                    <em>{entry.avgKm} km</em>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-
-          <Card className="crew-battle-card">
-            <div className="card-head"><h2>크루 배틀 현황</h2><span className="muted">랜덤 매칭</span></div>
-            <div className="crew-battle-list">
-              {battles.map((battle) => {
-                const leader = battleLeader(battle);
-                const aPct = battleBarPercent(battle);
-                return (
-                  <div className="battle-row" key={battle.id}>
-                    <div className="battle-meta"><span className="type-pill">{battle.metric} 대결</span><span className="muted">D-{battle.daysLeft}</span></div>
-                    <div className="battle-sides">
-                      <div className={`battle-side ${leader === 'A' ? 'leading' : ''}`}><b>{battle.crewA.name}</b><span>{battle.crewA.value}</span></div>
-                      <div className={`battle-side right ${leader === 'B' ? 'leading' : ''}`}><b>{battle.crewB.name}</b><span>{battle.crewB.value}</span></div>
-                    </div>
-                    <div className="battle-bar"><i style={{ width: `${aPct}%` }} /></div>
-                  </div>
-                );
-              })}
+          <Card className="crew-ranking-card">
+            <div className="card-head"><h2>전체 크루 랭킹</h2><span className="muted">TOP 10</span></div>
+            <div className="crew-ranking-list">
+              {overallRanking.map((entry) => (
+                <div key={entry.rank} className={`crew-rank-row ${entry.rank <= 3 ? `top top${entry.rank}` : ''}`}>
+                  <span>{entry.rank}</span>
+                  <b>{entry.name}</b>
+                  <em>{entry.avgKm} km</em>
+                </div>
+              ))}
             </div>
           </Card>
+
         </aside>
       </div>
 
@@ -222,60 +266,90 @@ export default function CrewPage() {
         <div className="crew-chat-overlay" onClick={() => setDetailCrewId(null)}>
           <div className="crew-detail-modal" onClick={(event) => event.stopPropagation()}>
             <div className="crew-chat-modal-head">
-              <strong>{detailCrew.name}</strong>
+              <strong>{detailCrew.crewName}</strong>
               <button onClick={() => setDetailCrewId(null)} aria-label="닫기">✕</button>
             </div>
             <div className="crew-info-row">
-              <span>📍 {detailCrew.region}</span>
-              <span>🎯 {detailCrew.goalKm}km</span>
-              <span>⚡ {detailCrew.avgPace}</span>
-              <span>🗓 {detailCrew.frequency}</span>
-              <span>👥 {detailCrew.memberCount}명</span>
+              <span>📍 {detailCrew.regionCode ?? '지역 무관'}</span>
+              <span>🎯 {distanceRangeLabel(detailCrew.targetDistanceMinM, detailCrew.targetDistanceMaxM)}</span>
+              <span>⚡ {paceRangeLabel(detailCrew.paceMinSecPerKm, detailCrew.paceMaxSecPerKm)}</span>
+              <span>🗓 주 {detailCrew.minimumWeeklyFrequency ?? '-'}회↑</span>
+              <span>👥 {detailCrew.memberCount}/{detailCrew.maxMembers}명</span>
             </div>
             <div className="crew-detail">
-              <p className="crew-detail-intro">“{detailCrew.leaderIntro}”</p>
+              {detailCrew.description && <p className="crew-detail-intro">“{detailCrew.description}”</p>}
               <div className="crew-detail-stats">
-                <div><span>평균 러닝 주기</span><strong>{detailCrew.avgRunFrequency}</strong></div>
-                <div><span>한달 누적 거리</span><strong>{detailCrew.monthlyDistanceKm}km</strong></div>
-                <div><span>활동 인원</span><strong>{detailCrew.activeMemberRatio}</strong></div>
-                <div><span>크루 랭킹</span><strong>{detailCrew.leaderboardRank}위</strong></div>
+                <div><span>모임 장소</span><strong>{detailCrew.meetingLocation ?? '무관'}</strong></div>
+                {detailCrew.avgWeeklyDistanceM !== null && (
+                  <div><span>최근 7일 평균 거리</span><strong>{(detailCrew.avgWeeklyDistanceM / 1000).toFixed(1)}km</strong></div>
+                )}
+                {detailCrew.avgWeeklyPaceSecPerKm !== null && (
+                  <div><span>최근 7일 평균 페이스</span><strong>{formatWeeklyPace(detailCrew.avgWeeklyPaceSecPerKm)}/km</strong></div>
+                )}
+                <div><span>가입 방식</span><strong>{JOIN_TYPE_LABEL[detailCrew.joinType] ?? detailCrew.joinType}</strong></div>
+                <div><span>모집 상태</span><strong>{STATUS_LABEL[detailCrew.status] ?? detailCrew.status}</strong></div>
+                <div><span>크루장</span><strong>{detailCrew.ownerNickname ?? '알 수 없음'}</strong></div>
+                <div>
+                  <span>개설일</span>
+                  <strong>{new Date(detailCrew.createdAt).toLocaleDateString('ko-KR')}</strong>
+                </div>
+                <div><span>내 조건 매칭</span><strong>{detailCrew.fitsMyConditions ? '맞음 ✅' : '안 맞음'}</strong></div>
               </div>
             </div>
-            <button className="primary-btn full-width" onClick={() => openChat(detailCrew)}>채팅방 입장하기 →</button>
+            {participateError && <p className="field-error">{participateError}</p>}
+            <button className="primary-btn full-width" onClick={() => handleParticipate(detailCrew)} disabled={participateLoading}>
+              {participateLoading
+                ? '처리 중...'
+                : detailCrew.joinType === 'PRIVATE'
+                  ? '가입 신청하기 →'
+                  : '채팅방 입장하기 →'}
+            </button>
           </div>
         </div>
       )}
 
-      {chatCrew && (
-        <div className="crew-chat-overlay" onClick={() => setChatCrewId(null)}>
-          <div className="crew-chat-modal" onClick={(event) => event.stopPropagation()}>
+      {joinRequestCrew && (
+        <div className="crew-chat-overlay" onClick={() => setJoinRequestCrew(null)}>
+          <div className="crew-detail-modal" style={{ width: 420 }} onClick={(event) => event.stopPropagation()}>
             <div className="crew-chat-modal-head">
-              <div>
-                <strong>{chatCrew.name}</strong>
-                <small>{chatCrew.region} · {chatCrew.memberCount}명</small>
-              </div>
-              <button onClick={() => setChatCrewId(null)} aria-label="채팅방 닫기">✕</button>
+              <strong>{joinRequestCrew.crewName} 가입 신청</strong>
+              <button onClick={() => setJoinRequestCrew(null)} aria-label="닫기">✕</button>
             </div>
-            <div className="chat-list crew-chat-list">
-              {chatMessages.map((message, index) => (
-                <div key={index} className="chat-line">
-                  <span className="avatar-dot">{message.from === '나' ? '나' : message.from[0]}</span>
-                  <p>{message.text}</p>
-                </div>
-              ))}
-            </div>
-            <form
-              className="chat-input"
-              onSubmit={(event) => {
-                event.preventDefault();
-                sendChat();
-              }}
-            >
-              <input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="메시지 입력..." />
-              <button type="submit">➤</button>
-            </form>
+            {joinRequestSent ? (
+              <p className="field-ok">크루 신청이 보내졌어요! 크루 가입 여부는 확인 후 알려드릴게요 🙌</p>
+            ) : (
+              <>
+                <textarea
+                  className="review-textarea"
+                  placeholder="간단한 가입 인사를 남겨주세요 (선택)"
+                  value={joinRequestMessage}
+                  onChange={(event) => setJoinRequestMessage(event.target.value)}
+                />
+                {joinRequestError && <p className="field-error">{joinRequestError}</p>}
+                <button className="primary-btn full-width" onClick={submitJoinRequest} disabled={joinRequestSubmitting}>
+                  {joinRequestSubmitting ? '전송 중...' : '전송'}
+                </button>
+              </>
+            )}
           </div>
         </div>
+      )}
+
+      {createOpen && (
+        <CreateCrewModal
+          onClose={() => setCreateOpen(false)}
+          onCreated={async (crew) => {
+            setCreateOpen(false);
+            loadCrews();
+            // 크루를 만들면 만든 사람은 이미 LEADER로 자동 가입된 상태이므로, "채팅방 입장하기"를
+            // 한 번 더 누르게 하지 않고 곧바로 채팅방을 만들어서 띄운다.
+            const res = await fetch(`/api/crew/${crew.crewId}/chat/join`, { method: 'POST' });
+            if (res.ok) {
+              const data = await res.json();
+              openCrewChat(crew.crewId, crew.crewName, data.messages ?? []);
+            }
+          }}
+        />
       )}
     </div>
   );

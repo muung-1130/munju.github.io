@@ -29,6 +29,7 @@ type NearbyCourse = {
   reviewAverage: number;
   reviewCount: number;
   viewCount: number;
+  likeCount: number;
   positions: [number, number][];
 };
 
@@ -201,7 +202,8 @@ export function CourseNearbyExplorer() {
                 {course.region} · {(course.distanceM / 1000).toFixed(1)}km · {DIFFICULTY_LABEL[course.difficulty ?? 2]}
               </p>
               <p className="course-nearby-stats">
-                ★ {truncateToOneDecimal(course.reviewAverage).toFixed(1)} ({course.reviewCount}) · 조회 {course.viewCount}
+                ★ {truncateToOneDecimal(course.reviewAverage).toFixed(1)} ({course.reviewCount}) · 찜 {course.likeCount} · 조회{' '}
+                {course.viewCount}
               </p>
               <span className="course-nearby-distance">내 위치에서 {(course.distanceFromUserM / 1000).toFixed(1)}km</span>
             </Link>

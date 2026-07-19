@@ -8,11 +8,7 @@ export async function resolveUniqueField(pool: Pool, column: 'nickname' | 'user_
   let candidate = base;
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
-<<<<<<< HEAD
     const { rows } = await pool.query(`SELECT 1 FROM auth_user.users WHERE ${column} = $1`, [candidate]);
-=======
-    const { rows } = await pool.query(`SELECT 1 FROM "user" WHERE ${column} = $1`, [candidate]);
->>>>>>> origin/main
     if (rows.length === 0) return candidate;
     const suffix = Math.floor(1000 + Math.random() * 9000);
     candidate = `${base}${suffix}`;

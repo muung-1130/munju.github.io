@@ -13,10 +13,13 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       HOSTNAME: 0.0.0.0
       PORT: "3000"
+      MONGO_URI: mongodb://mongo:27017
     expose:
       - "3000"
     ports:
       - "3000:3000"
+    depends_on:
+      - mongo
     networks:
       dai-run-net:
         aliases:
@@ -29,7 +32,17 @@ services:
       retries: 20
       start_period: 20s
 
-<<<<<<< HEAD
+  mongo:
+    image: mongo:7
+    container_name: dai-run-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - dai-run-net
+
   course-stats-consumer:
     build:
       context: ./services/course-stats-consumer
@@ -42,8 +55,30 @@ services:
     networks:
       - dai-run-net
 
-=======
->>>>>>> origin/main
+  crew-notification-consumer:
+    build:
+      context: ./services/crew-notification-consumer
+      dockerfile: Dockerfile
+    image: dai-run-crew-notification-consumer:latest
+    container_name: dai-run-crew-notification-consumer
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - dai-run-net
+
+  crew-stats-scheduler:
+    build:
+      context: ./services/crew-stats-scheduler
+      dockerfile: Dockerfile
+    image: dai-run-crew-stats-scheduler:latest
+    container_name: dai-run-crew-stats-scheduler
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - dai-run-net
+
   nginx:
     image: nginx:1.27-alpine
     container_name: dai-run-nginx
@@ -62,3 +97,6 @@ networks:
   dai-run-net:
     name: dai-run-net
     driver: bridge
+
+volumes:
+  mongo-data:

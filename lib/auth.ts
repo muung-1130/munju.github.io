@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 import { randomBytes, createHash } from 'crypto';
-=======
->>>>>>> origin/main
 import type { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
@@ -13,24 +10,25 @@ function isProfileComplete(row: { gender: string | null; birth_year: number | nu
   return Boolean(row.gender && row.birth_year && row.dong);
 }
 
-<<<<<<< HEAD
 // 로그인 성공 시 auth_user.auth_sessions에 세션 기록을 남긴다.
 // NextAuth 자체는 JWT 쿠키로 동작하므로 이 refresh token은 실제로 쿠키 갱신에 쓰이진 않지만,
 // 팀 공용 스키마(WATCH/앱 등 다른 클라이언트도 참조)에 로그인 기록을 남기기 위해 저장한다.
-async function recordAuthSession(userId: string) {
+// session_id를 JWT에 실어두면 로그아웃할 때 이 행을 정확히 찾아 회수(revoke)할 수 있다 —
+// 그러지 않으면 로그아웃해도 auth_sessions에는 "활성" 세션이 계속 쌓이기만 하는 문제가 있었다.
+async function recordAuthSession(userId: string): Promise<string> {
   const pool = getPool();
   const refreshToken = randomBytes(32).toString('hex');
   const refreshTokenHash = createHash('sha256').update(refreshToken).digest('hex');
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  await pool.query(
+  const { rows } = await pool.query(
     `INSERT INTO auth_user.auth_sessions (user_id, refresh_token_hash, device_type, expires_at)
-     VALUES ($1, $2, 'WEB', $3)`,
+     VALUES ($1, $2, 'WEB', $3)
+     RETURNING session_id`,
     [userId, refreshTokenHash, expiresAt]
   );
+  return rows[0].session_id;
 }
 
-=======
->>>>>>> origin/main
 export const authOptions: AuthOptions = {
   session: { strategy: 'jwt' },
   secret: process.env.NEXTAUTH_SECRET,
@@ -46,7 +44,6 @@ export const authOptions: AuthOptions = {
 
         const pool = getPool();
         const { rows } = await pool.query(
-<<<<<<< HEAD
           `SELECT user_id, user_name, nickname, user_email, user_password, created_at, gender, birth_year, dong
            FROM auth_user.users WHERE user_name = $1 AND deleted_at IS NULL`,
           [credentials.username]
@@ -58,36 +55,17 @@ export const authOptions: AuthOptions = {
         if (!valid) return null;
 
         await pool.query('UPDATE auth_user.users SET last_login_at = now() WHERE user_id = $1', [row.user_id]);
-        await recordAuthSession(row.user_id);
+        const sessionId = await recordAuthSession(row.user_id);
 
         return {
           id: row.user_id,
-=======
-          `SELECT user_id, user_name, nickname, user_email, password_hash, created_at, gender, birth_year, dong
-           FROM "user" WHERE user_name = $1 AND auth_provider = 'local'`,
-          [credentials.username]
-        );
-        const row = rows[0];
-        if (!row || !row.password_hash) return null;
-
-        const valid = await bcrypt.compare(credentials.password, row.password_hash);
-        if (!valid) return null;
-
-        await pool.query('UPDATE "user" SET last_login_at = now() WHERE user_id = $1', [row.user_id]);
-
-        return {
-          id: String(row.user_id),
->>>>>>> origin/main
           name: row.nickname,
           email: row.user_email,
           userName: row.user_name,
           createdAt: row.created_at,
-<<<<<<< HEAD
           profileComplete: isProfileComplete(row),
-          dong: row.dong
-=======
-          profileComplete: isProfileComplete(row)
->>>>>>> origin/main
+          dong: row.dong,
+          sessionId
         };
       }
     }),
@@ -102,7 +80,6 @@ export const authOptions: AuthOptions = {
   ],
   callbacks: {
     async signIn({ account, profile }) {
-<<<<<<< HEAD
       if (account?.provider !== 'google' || !profile?.email || !account.providerAccountId) return true;
 
       const pool = getPool();
@@ -123,62 +100,54 @@ export const authOptions: AuthOptions = {
         profile.email
       ]);
 
+      // 신규 계정 생성 + 소셜 로그인 연결(user_identities)을 하나의 트랜잭션으로 묶는다 — 둘 중
+      // 하나만 반영되면(예: users는 만들어졌는데 user_identities insert가 실패) jwt 콜백이
+      // user_identities를 거쳐 사용자를 못 찾게 되고, 그 사용자는 로그인도 회원가입도 안 되는
+      // 상태로 남는다.
+      const client = await pool.connect();
       let userId: string;
-      if (existingUser.rows.length > 0) {
-        userId = existingUser.rows[0].user_id;
-        await pool.query('UPDATE auth_user.users SET last_login_at = now() WHERE user_id = $1', [userId]);
-      } else {
-        const emailLocalPart = profile.email.split('@')[0];
-        const userName = await resolveUniqueField(pool, 'user_name', undefined, emailLocalPart);
-        const nickname = await resolveUniqueField(pool, 'nickname', undefined, emailLocalPart);
+      try {
+        await client.query('BEGIN');
 
-        // 구글에서 받는 정보(이메일) 외의 성별/출생년도/동은 아직 비어있는 채로 생성한다.
-        // 로그인 직후 AppShell이 profileComplete === false를 보고 추가 정보 입력창을 띄운다.
-        const inserted = await pool.query(
-          `INSERT INTO auth_user.users (user_name, user_email, nickname, status, last_login_at)
-           VALUES ($1, $2, $3, 'ACTIVE', now())
-           RETURNING user_id`,
-          [userName, profile.email, nickname]
+        if (existingUser.rows.length > 0) {
+          userId = existingUser.rows[0].user_id;
+          await client.query('UPDATE auth_user.users SET last_login_at = now() WHERE user_id = $1', [userId]);
+        } else {
+          const emailLocalPart = profile.email.split('@')[0];
+          const userName = await resolveUniqueField(pool, 'user_name', undefined, emailLocalPart);
+          const nickname = await resolveUniqueField(pool, 'nickname', undefined, emailLocalPart);
+
+          // 구글에서 받는 정보(이메일) 외의 성별/출생년도/동은 아직 비어있는 채로 생성한다.
+          // 로그인 직후 AppShell이 profileComplete === false를 보고 추가 정보 입력창을 띄운다.
+          const inserted = await client.query(
+            `INSERT INTO auth_user.users (user_name, user_email, nickname, status, last_login_at)
+             VALUES ($1, $2, $3, 'ACTIVE', now())
+             RETURNING user_id`,
+            [userName, profile.email, nickname]
+          );
+          userId = inserted.rows[0].user_id;
+        }
+
+        await client.query(
+          `INSERT INTO auth_user.user_identities (user_id, provider, provider_user_id, provider_email)
+           VALUES ($1, 'GOOGLE', $2, $3)`,
+          [userId, account.providerAccountId, profile.email]
         );
-        userId = inserted.rows[0].user_id;
+
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('구글 로그인 계정 생성/연결 실패:', err);
+        return false;
+      } finally {
+        client.release();
       }
 
-      await pool.query(
-        `INSERT INTO auth_user.user_identities (user_id, provider, provider_user_id, provider_email)
-         VALUES ($1, 'GOOGLE', $2, $3)`,
-        [userId, account.providerAccountId, profile.email]
-      );
-
-=======
-      if (account?.provider !== 'google' || !profile?.email) return true;
-
-      const pool = getPool();
-      const existing = await pool.query('SELECT user_id FROM "user" WHERE user_email = $1', [profile.email]);
-
-      if (existing.rows.length === 0) {
-        const emailLocalPart = profile.email.split('@')[0];
-        const userName = await resolveUniqueField(pool, 'user_name', undefined, emailLocalPart);
-        const nickname = await resolveUniqueField(pool, 'nickname', undefined, emailLocalPart);
-        const realName = (profile as { name?: string }).name || emailLocalPart;
-
-        // 구글에서 받는 정보(이름, 이메일) 외의 성별/출생년도/동은 아직 비어있는 채로 생성한다.
-        // 로그인 직후 AppShell이 profileComplete === false를 보고 추가 정보 입력창을 띄운다.
-        await pool.query(
-          `INSERT INTO "user" (user_name, name, user_email, nickname, status, auth_provider, provider_account_id, last_login_at)
-           VALUES ($1, $2, $3, $4, 'active', 'google', $5, now())`,
-          [userName, realName, profile.email, nickname, account.providerAccountId]
-        );
-      } else {
-        await pool.query('UPDATE "user" SET last_login_at = now() WHERE user_id = $1', [existing.rows[0].user_id]);
-      }
-
->>>>>>> origin/main
       return true;
     },
     async jwt({ token, user, account, trigger }) {
       const pool = getPool();
 
-<<<<<<< HEAD
       if (account?.provider === 'google' && account.providerAccountId) {
         const { rows } = await pool.query(
           `SELECT u.user_id, u.user_name, u.nickname, u.created_at, u.gender, u.birth_year, u.dong
@@ -190,34 +159,20 @@ export const authOptions: AuthOptions = {
         const row = rows[0];
         if (row) {
           token.userId = row.user_id;
-=======
-      if (account?.provider === 'google' && user?.email) {
-        const { rows } = await pool.query(
-          `SELECT user_id, user_name, nickname, created_at, gender, birth_year, dong
-           FROM "user" WHERE user_email = $1`,
-          [user.email]
-        );
-        const row = rows[0];
-        if (row) {
-          token.userId = String(row.user_id);
->>>>>>> origin/main
           token.userName = row.user_name;
           token.name = row.nickname;
           token.createdAt = row.created_at;
           token.profileComplete = isProfileComplete(row);
-<<<<<<< HEAD
           token.dong = row.dong;
-          await recordAuthSession(row.user_id);
-=======
->>>>>>> origin/main
+          token.sessionId = await recordAuthSession(row.user_id);
         }
       } else if (user) {
         token.userId = user.id;
         token.userName = (user as { userName?: string }).userName;
         token.createdAt = (user as { createdAt?: string }).createdAt;
         token.profileComplete = (user as { profileComplete?: boolean }).profileComplete ?? true;
-<<<<<<< HEAD
         token.dong = (user as { dong?: string | null }).dong ?? null;
+        token.sessionId = (user as { sessionId?: string }).sessionId;
       }
 
       if (trigger === 'update' && token.userId) {
@@ -228,13 +183,6 @@ export const authOptions: AuthOptions = {
           token.profileComplete = isProfileComplete(rows[0]);
           token.dong = rows[0].dong;
         }
-=======
-      }
-
-      if (trigger === 'update' && token.userId) {
-        const { rows } = await pool.query('SELECT gender, birth_year, dong FROM "user" WHERE user_id = $1', [token.userId]);
-        if (rows[0]) token.profileComplete = isProfileComplete(rows[0]);
->>>>>>> origin/main
       }
 
       return token;
@@ -246,11 +194,9 @@ export const authOptions: AuthOptions = {
         session.user.userName = token.userName as string;
         session.user.createdAt = token.createdAt as string;
         session.user.profileComplete = token.profileComplete ?? true;
-<<<<<<< HEAD
         session.user.dong = token.dong ?? null;
-=======
->>>>>>> origin/main
       }
+      session.sessionId = token.sessionId;
       return session;
     }
   },

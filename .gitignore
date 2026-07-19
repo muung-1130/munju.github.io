@@ -17,10 +17,7 @@ out/
 # build outputs
 dist/
 build/
-<<<<<<< HEAD
 *.tsbuildinfo
-=======
->>>>>>> origin/main
 
 # logs
 npm-debug.log*
@@ -29,8 +26,17 @@ yarn-error.log*
 pnpm-debug.log*
 
 # OS
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Gradle
+.gradle/
+**/build/
 .DS_Store
-<<<<<<< HEAD
 
 # Figma용 디자인 페이지 스크린샷 내보내기
 design-export/
@@ -38,5 +44,3 @@ design-export/
 # Next.js
 .next/
 out/
-=======
->>>>>>> origin/main

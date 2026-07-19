@@ -2,26 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-<<<<<<< HEAD
 import { useChat } from './ChatContext';
-=======
-
-type ChatMessage = { from: 'ai' | 'user'; text: string };
-
-const initialMessages: ChatMessage[] = [
-  { from: 'ai', text: '안녕하세요! 오늘 컨디션에 맞는 코스를 추천해드릴까요?' },
-  { from: 'user', text: '네 좋아요, 오늘은 18km 정도 뛰고 싶어요.' },
-  { from: 'ai', text: '반포 한강공원 18.2km 코스가 딱이에요! 경사도도 완만해서 부담 없이 달릴 수 있어요 💙' }
-];
->>>>>>> origin/main
 
 // 특정 페이지에 처음 들어왔을 때 AI가 추가로 건네는 말 (페이지당 세션에 한 번)
 const pageEntryMessages: Record<string, string> = {
+  '/': '제가 추천하고 싶은 신상 코스 3가지인데 어때요?',
   '/challenges': "지금 5월 100K 챌린지 62.1/100km, 62% 달성했어요! 이 페이스라면 주 3회, 회당 4.9km만 더 뛰어도 D-18 안에 목표를 달성할 수 있어요. 💡 보폭을 5cm만 늘려보세요! 마라토너의 보폭을 따라잡을 수 있어요."
 };
 
-<<<<<<< HEAD
 const ICON_SIZE = 56;
+const MIN_PANEL_WIDTH = 340;
+const MAX_PANEL_WIDTH = 920;
+const MIN_PANEL_HEIGHT = 420;
+const MAX_PANEL_HEIGHT_MARGIN = 40; // 뷰포트 상하 여백
 
 function defaultIconPosition() {
   // 기본 위치: 네비게이션의 "마이페이지" 링크 바로 오른쪽. 아직 렌더되지 않았거나 찾지 못하면
@@ -50,33 +43,63 @@ export function AssistantChatWidget() {
   const [iconPos, setIconPos] = useState<{ top: number; left: number } | null>(null);
   const draggedRef = useRef(false);
   const draggingRef = useRef(false);
+  const [panelSize, setPanelSize] = useState<{ width: number; height: number } | null>(null);
+  // 모바일에서는 헤더가 로고줄+네비게이션줄로 줄바꿈되어 높이가 유동적이라, 말풍선의 top을
+  // CSS 고정값 대신 실제 헤더 높이를 측정해서 그 바로 아래에 뜨도록 한다.
+  const [mobileBubbleTop, setMobileBubbleTop] = useState<number | null>(null);
+
+  // 패널 우하단 모서리를 오른쪽 화면 끝에 고정해둔 채, 왼쪽/아래로 끄는 만큼 너비·높이를 키운다
+  // (패널이 화면 오른쪽에 붙어 있어서 오른쪽/위로는 늘어날 자리가 없다).
+  function handleResizeMouseDown(event: React.MouseEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const panelEl = (event.currentTarget.parentElement as HTMLElement) ?? null;
+    const startWidth = panelEl?.offsetWidth ?? MIN_PANEL_WIDTH;
+    const startHeight = panelEl?.offsetHeight ?? MIN_PANEL_HEIGHT;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const maxHeight = window.innerHeight - MAX_PANEL_HEIGHT_MARGIN;
+
+    function handleMouseMove(moveEvent: MouseEvent) {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      const width = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidth - dx));
+      const height = Math.min(maxHeight, Math.max(MIN_PANEL_HEIGHT, startHeight + dy));
+      setPanelSize({ width, height });
+    }
+    function handleMouseUp() {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }
 
   useEffect(() => {
     if (!iconPos) setIconPos(clampPosition(defaultIconPosition()));
 
-    function handleResize() {
-      if (draggedRef.current) return; // 사용자가 직접 옮긴 뒤에는 리사이즈로 위치를 되돌리지 않는다.
-      setIconPos(clampPosition(defaultIconPosition()));
+    function updateMobileBubbleTop() {
+      if (window.innerWidth > 760) {
+        setMobileBubbleTop(null);
+        return;
+      }
+      const header = document.querySelector('.top-nav');
+      setMobileBubbleTop(header ? header.getBoundingClientRect().bottom + 12 : null);
     }
+
+    function handleResize() {
+      if (!draggedRef.current) setIconPos(clampPosition(defaultIconPosition())); // 사용자가 직접 옮긴 뒤에는 리사이즈로 위치를 되돌리지 않는다.
+      updateMobileBubbleTop();
+    }
+    updateMobileBubbleTop();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-=======
-export function AssistantChatWidget() {
-  const pathname = usePathname();
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
-  const [input, setInput] = useState('');
-  const [open, setOpen] = useState(false);
-  const coachedPathsRef = useRef(new Set<string>());
-
->>>>>>> origin/main
   useEffect(() => {
     const entryMessage = pageEntryMessages[pathname];
     if (entryMessage && !coachedPathsRef.current.has(pathname)) {
       coachedPathsRef.current.add(pathname);
-<<<<<<< HEAD
       addMessage({ from: 'ai', text: entryMessage });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,18 +134,10 @@ export function AssistantChatWidget() {
     }
     openChat();
   }
-=======
-      setMessages((prev) => [...prev, { from: 'ai', text: entryMessage }]);
-    }
-  }, [pathname]);
-
-  const lastAiMessage = [...messages].reverse().find((message) => message.from === 'ai');
->>>>>>> origin/main
 
   function handleSend() {
     const text = input.trim();
     if (!text) return;
-<<<<<<< HEAD
     addMessage({ from: 'user', text });
     setInput('');
     setTimeout(() => {
@@ -133,7 +148,13 @@ export function AssistantChatWidget() {
   return (
     <>
       {!open && bubbleMessage && (
-        <div className="home-chat-bubble-top" onClick={openChat} role="button" tabIndex={0}>
+        <div
+          className="home-chat-bubble-top"
+          style={mobileBubbleTop !== null ? { top: mobileBubbleTop } : undefined}
+          onClick={openChat}
+          role="button"
+          tabIndex={0}
+        >
           <p>{bubbleMessage}</p>
         </div>
       )}
@@ -150,7 +171,13 @@ export function AssistantChatWidget() {
         </button>
       )}
 
-      <aside className={`home-chat-panel ${open ? 'open' : ''}`} aria-label="AI 러닝 비서 채팅" aria-hidden={!open}>
+      <aside
+        className={`home-chat-panel ${open ? 'open' : ''}`}
+        style={panelSize ? { width: panelSize.width, height: panelSize.height } : undefined}
+        aria-label="AI 러닝 비서 채팅"
+        aria-hidden={!open}
+      >
+        <div className="home-chat-resize-handle" onMouseDown={handleResizeMouseDown} aria-hidden="true" />
         <div className="home-chat-header">
           <span className="ai-avatar-small"><img src="/assets/dog-assistant.png" alt="" /></span>
           <div>
@@ -179,56 +206,5 @@ export function AssistantChatWidget() {
         </form>
       </aside>
     </>
-=======
-    setMessages((prev) => [...prev, { from: 'user', text }]);
-    setInput('');
-    setTimeout(() => {
-      setMessages((prev) => [...prev, { from: 'ai', text: '네, 확인했어요! 잠시 후 답변 드릴게요 🏃' }]);
-    }, 600);
-  }
-
-  if (!open) {
-    return (
-      <div className="home-chat-collapsed">
-        <div className="home-chat-bubble">
-          <p>{lastAiMessage?.text}</p>
-        </div>
-        <button className="home-chat-toggle" onClick={() => setOpen(true)} aria-label="AI 러닝 비서 채팅 열기">
-          <img src="/assets/dog-assistant.png" alt="" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <aside className="home-chat-panel" aria-label="AI 러닝 비서 채팅">
-      <div className="home-chat-header">
-        <span className="ai-avatar-small"><img src="/assets/dog-assistant.png" alt="" /></span>
-        <div>
-          <strong>AI 러닝 비서</strong>
-          <small>언제든 편하게 물어보세요</small>
-        </div>
-        <button className="home-chat-close" onClick={() => setOpen(false)} aria-label="채팅 닫기">✕</button>
-      </div>
-      <div className="home-chat-list">
-        {messages.map((message, index) => (
-          <div key={index} className={`home-chat-line ${message.from}`}>
-            {message.from === 'ai' && <span className="avatar-dot">🐶</span>}
-            <p>{message.text}</p>
-          </div>
-        ))}
-      </div>
-      <form
-        className="chat-input"
-        onSubmit={(event) => {
-          event.preventDefault();
-          handleSend();
-        }}
-      >
-        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="AI 러닝 비서에게 물어보세요..." />
-        <button type="submit" aria-label="전송">➤</button>
-      </form>
-    </aside>
->>>>>>> origin/main
   );
 }

@@ -13,13 +13,12 @@
     "@types/react": "18.2.67",
     "@types/react-dom": "18.2.22",
     "bcryptjs": "^3.0.3",
-<<<<<<< HEAD
     "kafkajs": "^2.2.4",
-=======
->>>>>>> origin/main
     "leaflet": "^1.9.4",
+    "mongodb": "^7.5.0",
     "next": "14.2.4",
     "next-auth": "^4.24.14",
+    "nodemailer": "^7.0.13",
     "pg": "^8.22.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -29,6 +28,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/leaflet": "^1.9.21",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.20.0"
   }
 }
