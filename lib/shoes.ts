@@ -113,6 +113,27 @@ export type ShoeCatalogItem = {
   likedByUser: boolean;
 };
 
+export type ShoeCatalogPickerItem = { shoeId: number; shoeName: string; brandName: string; imageUrl: string };
+
+// 러닝화 등록/수정 폼의 "모델 검색" 자동완성용 — 통계·찜 여부 없이 이름/브랜드만 가볍게 조회한다.
+export async function searchShoeCatalogForPicker(query: string): Promise<ShoeCatalogPickerItem[]> {
+  const pool = getPool();
+  const trimmed = query.trim();
+  if (!trimmed) {
+    const { rows } = await pool.query(
+      `SELECT shoe_id, shoe_name, brand_name, image_url FROM shoe.shoe_catalog ORDER BY score DESC LIMIT 20`
+    );
+    return rows.map((r) => ({ shoeId: Number(r.shoe_id), shoeName: r.shoe_name, brandName: r.brand_name, imageUrl: r.image_url }));
+  }
+  const { rows } = await pool.query(
+    `SELECT shoe_id, shoe_name, brand_name, image_url FROM shoe.shoe_catalog
+      WHERE shoe_name ILIKE $1 OR brand_name ILIKE $1
+      ORDER BY score DESC LIMIT 20`,
+    [`%${trimmed}%`]
+  );
+  return rows.map((r) => ({ shoeId: Number(r.shoe_id), shoeName: r.shoe_name, brandName: r.brand_name, imageUrl: r.image_url }));
+}
+
 export async function getAllShoesWithStats(userId: string | null): Promise<ShoeCatalogItem[]> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -160,6 +181,150 @@ export async function getAllShoesWithStats(userId: string | null): Promise<ShoeC
     likeCount: Number(row.like_count),
     likedByUser: row.liked_by_user
   }));
+}
+
+export type ShoeSearchParams = {
+  q?: string | null;
+  brand?: string | null;
+  purpose?: string | null;
+  recommendLevel?: string | null;
+  carbonPlate?: boolean | null;
+  priceMin?: number | null;
+  priceMax?: number | null;
+  sort?: 'popular' | 'price_asc' | 'price_desc' | 'score';
+  limit: number;
+  offset: number;
+};
+
+const SORT_SQL: Record<NonNullable<ShoeSearchParams['sort']>, string> = {
+  popular: 'like_count DESC, sc.score DESC',
+  price_asc: 'pr.price ASC NULLS LAST',
+  price_desc: 'pr.price DESC NULLS LAST',
+  score: 'sc.score DESC'
+};
+
+// "더보기" 눌렀을 때 뜨는 전체 카탈로그 검색/필터/페이지네이션. shoe_catalog.brand_name,
+// shoe_spec.purpose/recommend_level/carbon_plate, shoe_price.price에 이미 인덱스가 있어
+// WHERE 조건으로 바로 걸어도 무리 없다.
+export async function searchShoeCatalog(
+  params: ShoeSearchParams,
+  userId: string | null
+): Promise<{ shoes: ShoeCatalogItem[]; total: number }> {
+  const pool = getPool();
+  const conditions: string[] = [];
+  // COUNT 쿼리와 SELECT 쿼리가 공유하는 baseQuery(FROM/JOIN/WHERE)는 필터 조건 파라미터만 써야
+  // 한다 — userId는 SELECT 쪽 liked_by_user 서브쿼리에서만 쓰이는데, 예전엔 이 배열 맨 앞에
+  // userId를 넣어두고 COUNT 쿼리에도 그대로 넘겨서, 필터가 하나도 없을 때 "SQL엔 $1이 전혀
+  // 없는데 파라미터는 1개 왔다"는 바인딩 에러가 났었다(전체 러닝화 검색이 아예 안 되던 원인).
+  const values: unknown[] = [];
+
+  function addCondition(sql: string, value: unknown) {
+    values.push(value);
+    conditions.push(sql.replace('$$', `$${values.length}`));
+  }
+
+  if (params.q) {
+    // 이름/브랜드 OR 검색 — 같은 파라미터($n)를 두 군데서 재사용한다.
+    values.push(`%${params.q}%`);
+    conditions.push(`(sc.shoe_name ILIKE $${values.length} OR sc.brand_name ILIKE $${values.length})`);
+  }
+  if (params.brand) addCondition('sc.brand_name = $$', params.brand);
+  if (params.purpose) addCondition('sp.purpose = $$', params.purpose);
+  if (params.recommendLevel) addCondition('sp.recommend_level = $$', params.recommendLevel);
+  if (params.carbonPlate !== null && params.carbonPlate !== undefined) addCondition('sp.carbon_plate = $$', params.carbonPlate);
+  if (params.priceMin !== null && params.priceMin !== undefined) addCondition('pr.price >= $$', params.priceMin);
+  if (params.priceMax !== null && params.priceMax !== undefined) addCondition('pr.price <= $$', params.priceMax);
+
+  const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const orderSql = SORT_SQL[params.sort ?? 'popular'];
+
+  const baseQuery = `
+    FROM shoe.shoe_catalog sc
+    LEFT JOIN shoe.shoe_spec sp ON sp.shoe_id = sc.shoe_id
+    LEFT JOIN LATERAL (
+      SELECT price, currency FROM shoe.shoe_price p WHERE p.shoe_id = sc.shoe_id ORDER BY p.checked_date DESC LIMIT 1
+    ) pr ON true
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*) AS like_count FROM shoe.shoe_likes sl WHERE sl.shoe_id = sc.shoe_id
+    ) lc ON true
+    ${whereSql}`;
+
+  const { rows: countRows } = await pool.query(`SELECT COUNT(*) AS total ${baseQuery}`, values);
+  const total = Number(countRows[0].total);
+
+  // userId/limit/offset은 필터 파라미터 뒤에 이어붙인다 — 필터 개수가 몇 개든 항상 정확한 번호로 참조된다.
+  const userIdPlaceholder = values.length + 1;
+  const limitPlaceholder = values.length + 2;
+  const offsetPlaceholder = values.length + 3;
+  const mainValues = [...values, userId, params.limit, params.offset];
+
+  const { rows } = await pool.query(
+    `SELECT sc.shoe_id, sc.shoe_name, sc.brand_name, sc.image_url, sc.detail_url, sc.category, sc.score,
+            sp.recommend_level, sp.purpose, sp.foot_width, sp.toe_box, sp.cushioning_value, sp.arch_support,
+            sp.weight_g, sp.drop_mm, sp.carbon_plate,
+            pr.price, pr.currency,
+            lc.like_count,
+            COALESCE(
+              (SELECT array_agg(sf.function_code) FROM shoe.shoe_function_map sfm
+                 JOIN shoe.shoe_function sf ON sf.function_id = sfm.function_id
+                WHERE sfm.shoe_id = sc.shoe_id),
+              '{}'
+            ) AS function_codes,
+            EXISTS (SELECT 1 FROM shoe.shoe_likes sl2 WHERE sl2.shoe_id = sc.shoe_id AND sl2.user_id = $${userIdPlaceholder}) AS liked_by_user
+       ${baseQuery}
+      ORDER BY ${orderSql}
+      LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`,
+    mainValues
+  );
+
+  const shoes = rows.map((row) => ({
+    shoeId: Number(row.shoe_id),
+    shoeName: row.shoe_name,
+    brandName: row.brand_name,
+    imageUrl: row.image_url,
+    detailUrl: row.detail_url,
+    category: row.category,
+    catalogScore: Number(row.score),
+    recommendLevel: row.recommend_level,
+    purpose: row.purpose,
+    footWidth: row.foot_width,
+    toeBox: row.toe_box,
+    cushioningValue: row.cushioning_value,
+    archSupport: row.arch_support,
+    weightG: row.weight_g,
+    dropMm: row.drop_mm !== null ? Number(row.drop_mm) : null,
+    carbonPlate: row.carbon_plate,
+    price: row.price !== null ? Number(row.price) : null,
+    currency: row.currency,
+    functionCodes: row.function_codes ?? [],
+    likeCount: Number(row.like_count ?? 0),
+    likedByUser: row.liked_by_user
+  }));
+
+  return { shoes, total };
+}
+
+export type ShoeFilterOptions = {
+  brands: string[];
+  purposes: string[];
+  recommendLevels: string[];
+};
+
+// 필터 바 옵션. purpose/recommendLevel은 DB에 이미 CHECK 없이 varchar지만 실제 값 종류가
+// 적으므로(데일리/템포/레이싱, 초보/중급/고급) 매번 DISTINCT로 조회해 실데이터 기준으로만 보여준다
+// — 스펙에 없는 값이 추가돼도 코드 수정 없이 자동 반영된다.
+export async function getShoeFilterOptions(): Promise<ShoeFilterOptions> {
+  const pool = getPool();
+  const [brandRows, purposeRows, levelRows] = await Promise.all([
+    pool.query(`SELECT DISTINCT brand_name FROM shoe.shoe_catalog ORDER BY brand_name`),
+    pool.query(`SELECT DISTINCT purpose FROM shoe.shoe_spec WHERE purpose IS NOT NULL ORDER BY purpose`),
+    pool.query(`SELECT DISTINCT recommend_level FROM shoe.shoe_spec WHERE recommend_level IS NOT NULL ORDER BY recommend_level`)
+  ]);
+  return {
+    brands: brandRows.rows.map((r) => r.brand_name),
+    purposes: purposeRows.rows.map((r) => r.purpose),
+    recommendLevels: levelRows.rows.map((r) => r.recommend_level)
+  };
 }
 
 // ---- 선호도 기반 매칭 점수 계산 ----
@@ -444,10 +609,10 @@ export type WearAnalysis = {
 export async function getShoeWearAnalyses(
   userShoeId: string,
   userId: string
-): Promise<{ shoeName: string; analyses: WearAnalysis[] } | null> {
+): Promise<{ shoeName: string; purchaseDate: string | null; analyses: WearAnalysis[] } | null> {
   const pool = getPool();
   const { rows: shoeRows } = await pool.query(
-    `SELECT sc.shoe_name FROM shoe.user_shoes us JOIN shoe.shoe_catalog sc ON sc.shoe_id = us.shoe_model_id
+    `SELECT sc.shoe_name, us.purchase_date FROM shoe.user_shoes us JOIN shoe.shoe_catalog sc ON sc.shoe_id = us.shoe_model_id
       WHERE us.user_shoe_id = $1 AND us.user_id = $2`,
     [userShoeId, userId]
   );
@@ -460,6 +625,7 @@ export async function getShoeWearAnalyses(
   );
   return {
     shoeName: shoeRows[0].shoe_name,
+    purchaseDate: shoeRows[0].purchase_date ? toDateStr(shoeRows[0].purchase_date) : null,
     analyses: rows.map((r) => ({
       wearAnalysisId: r.wear_analysis_id,
       status: r.status,

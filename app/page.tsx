@@ -3,12 +3,13 @@ import { getServerSession } from 'next-auth';
 import { Card, StatCard } from '@/components/UI';
 import { FeatureBanner } from '@/components/FeatureBanner';
 import { AiRecoPanel } from '@/components/AiRecoPanel';
+import { LocationPermissionButton } from '@/components/LocationPermissionButton';
 import { HomeGreeting } from '@/components/HomeGreeting';
 import { WeatherPanel } from '@/components/WeatherPanel';
 import { WeeklyDistanceChart } from '@/components/WeeklyDistanceChart';
 import { authOptions } from '@/lib/auth';
 import { getRunningSummary, getThisWeekDailyDistances, formatDuration, formatPace } from '@/lib/runningRecord';
-import { getRandomCourses } from '@/lib/course';
+import { getAiRecoPanelCourses } from '@/lib/aiRecommendation';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,19 +18,21 @@ export default async function HomePage() {
   const [summary, dailyDistances, recoCourses] = await Promise.all([
     session?.user?.id ? getRunningSummary(session.user.id) : Promise.resolve(null),
     session?.user?.id ? getThisWeekDailyDistances(session.user.id) : Promise.resolve([]),
-    getRandomCourses(3)
+    getAiRecoPanelCourses(session?.user?.id ?? null)
   ]);
 
   return (
     <div className="home-page">
       <FeatureBanner />
 
+      <AiRecoPanel courses={recoCourses} />
+
       <section className="home-hero">
         <div className="hero-bg" />
         <div className="hero-content">
           <p className="eyebrow">DAI RUN</p>
           <HomeGreeting />
-          <AiRecoPanel courses={recoCourses} />
+          <LocationPermissionButton />
         </div>
       </section>
 

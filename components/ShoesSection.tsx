@@ -1,5 +1,10 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/UI';
+import { ShoeFormModal } from '@/components/ShoeFormModal';
 
 type ShoeLifeSnapshot = {
   estimatedRemainingDistanceM: number | null;
@@ -35,10 +40,28 @@ function dDayLabel(days: number): string {
 }
 
 export function ShoesSection({ shoes }: { shoes: UserShoeDetail[] }) {
+  const router = useRouter();
+  const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; userShoeId?: string } | null>(null);
+  const [retiringId, setRetiringId] = useState<string | null>(null);
+
+  async function retireShoe(userShoeId: string) {
+    if (!confirm('이 러닝화를 버릴까요? (은퇴 처리되며 기록은 남아요)')) return;
+    setRetiringId(userShoeId);
+    try {
+      const res = await fetch(`/api/user-shoes/${userShoeId}/retire`, { method: 'POST' });
+      if (res.ok) router.refresh();
+    } finally {
+      setRetiringId(null);
+    }
+  }
+
   return (
     <Card className="mypage-shoes-card">
       <div className="card-head">
         <h2>보유 러닝화</h2>
+        <button className="primary-btn small" onClick={() => setFormModal({ mode: 'create' })}>
+          + 러닝화 추가
+        </button>
       </div>
       {shoes.length === 0 ? (
         <p className="muted">등록된 러닝화가 없어요.</p>
@@ -76,12 +99,34 @@ export function ShoesSection({ shoes }: { shoes: UserShoeDetail[] }) {
                   <span className="muted">수명 예측 정보가 아직 없어요.</span>
                 )}
               </div>
-              <Link href={`/shoes/${shoe.userShoeId}`} className="ghost-btn">
-                자세히 보기
-              </Link>
+              <div className="mypage-shoe-actions">
+                <button className="ghost-btn small" onClick={() => setFormModal({ mode: 'edit', userShoeId: shoe.userShoeId })}>
+                  수정
+                </button>
+                <Link href={`/shoes/${shoe.userShoeId}`} className="ghost-btn small">
+                  분석
+                </Link>
+                {shoe.status !== 'RETIRED' && (
+                  <button className="ghost-btn small" disabled={retiringId === shoe.userShoeId} onClick={() => retireShoe(shoe.userShoeId)}>
+                    {retiringId === shoe.userShoeId ? '처리 중...' : '버리기'}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {formModal && (
+        <ShoeFormModal
+          mode={formModal.mode}
+          userShoeId={formModal.userShoeId}
+          onClose={() => setFormModal(null)}
+          onDone={() => {
+            setFormModal(null);
+            router.refresh();
+          }}
+        />
       )}
     </Card>
   );

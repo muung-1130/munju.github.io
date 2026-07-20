@@ -79,6 +79,22 @@ services:
     networks:
       - dai-run-net
 
+  run-completion-consumer:
+    build:
+      context: ./services/run-completion-consumer
+      dockerfile: Dockerfile
+    image: dai-run-run-completion-consumer:latest
+    container_name: dai-run-run-completion-consumer
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      INTERNAL_API_URL: http://next-app:3000/api/internal/run-completed
+    depends_on:
+      - next-app
+    networks:
+      - dai-run-net
+
   nginx:
     image: nginx:1.27-alpine
     container_name: dai-run-nginx

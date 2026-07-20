@@ -77,13 +77,12 @@ export type BattleCandidate = {
   tier: number; // 0 = 정확히 같은 값, 1 이상 = 그만큼 넓혀서 찾은 후보
 };
 
-// km 배틀: 내 크루 오늘 평균 km(소숫점 버림)과 같은 크루부터, 없으면 그보다 1km씩 "높은" 크루로 넓혀간다.
-// 페이스 배틀: 내 크루 오늘 평균 페이스(소숫점 첫째 자리 버림)와 같은 크루부터, 없으면 0.1씩 "낮은(더 빠른)" 크루로 넓혀간다.
-// 두 경우 모두 나보다 못한 쪽(km이 더 낮거나 페이스가 더 느린 크루)은 추천하지 않는다 — 요청에 명시된 대로 편도 탐색이다.
-// 이전에는 "오늘 하루" 활동만으로 상대를 찾았는데(getCrewAvgKmForDate 등), 그날 아무도 안
-// 뛰었으면 기준값 자체가 없어서 추천이 통째로 비어버리는 문제가 있었다. crew.crews에 이미
-// crew-stats-scheduler가 매일 갱신해두는 최근 7일 평균(avg_weekly_distance_m/avg_weekly_pace_sec_per_km)이
-// 있으니 그 캐시값을 기준으로 바꿔서, 오늘 활동이 없어도 안정적으로 추천이 뜨게 한다.
+// km 배틀: 내 크루 평균 km과 가까운 크루부터(나보다 조금 높은 쪽을 우선), 페이스 배틀도 마찬가지로
+// 나와 가까운 크루부터 정렬한다. 예전엔 "나보다 못한 크루는 추천에서 아예 제외"하는 편도 필터가
+// 있었는데, 크루 수가 적은 지금 같은 상황에서 내 크루가 제일 잘하는 쪽이면(예: 전체 1등) 그보다
+// 잘하는 크루가 없어서 후보가 통째로 비어버리는 문제가 있었다. 배틀 상대가 아예 없는 것보다
+// "나보다 약한 크루라도 상대해주는" 게 나으므로, tier가 음수(나보다 약함)인 크루도 후보에는
+// 포함하되 정렬 우선순위만 뒤로 보낸다 — 배틀 진행 중(PROPOSED/ACTIVE)인 크루만 제외한다.
 export async function getBattleCandidates(crewId: string, metricType: BattleMetricType): Promise<BattleCandidate[]> {
   const pool = getPool();
 
@@ -123,19 +122,25 @@ export async function getBattleCandidates(crewId: string, metricType: BattleMetr
       const avgKm = Number(row.avg_weekly_distance_m) / 1000;
       const tierValue = Math.floor(avgKm);
       const tier = tierValue - myTarget;
-      if (tier < 0) continue;
       candidates.push({ crewId: row.crew_id, crewName: row.crew_name, memberCount: Number(row.member_count), statValue: Math.round(avgKm * 100) / 100, tier });
     } else {
       if (row.avg_weekly_pace_sec_per_km === null) continue;
       const avgPaceMin = Number(row.avg_weekly_pace_sec_per_km) / 60;
       const tierValue = truncate1(avgPaceMin);
       const tier = Math.round((myTarget - tierValue) * 10) / 10;
-      if (tier < 0) continue;
       candidates.push({ crewId: row.crew_id, crewName: row.crew_name, memberCount: Number(row.member_count), statValue: Math.round(avgPaceMin * 100) / 100, tier });
     }
   }
 
-  candidates.sort((a, b) => a.tier - b.tier || a.crewName.localeCompare(b.crewName));
+  // 나보다 잘하는(tier>=0) 크루를 우선하되, 그런 크루가 없으면 나보다 약한 크루도 (tier가 0에
+  // 가까운 순으로) 자연스럽게 이어서 뜬다 — abs(tier) 기준 정렬 + 동률이면 나보다 잘하는 쪽 우선.
+  candidates.sort((a, b) => {
+    const distA = Math.abs(a.tier);
+    const distB = Math.abs(b.tier);
+    if (distA !== distB) return distA - distB;
+    if ((a.tier >= 0) !== (b.tier >= 0)) return a.tier >= 0 ? -1 : 1;
+    return a.crewName.localeCompare(b.crewName);
+  });
   return candidates;
 }
 
@@ -480,6 +485,26 @@ export async function getBattleView(crewId: string, userId: string): Promise<Act
     showFinalBanner,
     finalResult
   };
+}
+
+// 러닝 완료 직후 이 사용자가 속한 크루에 진행 중인 배틀이 있으면 즉시 재계산해준다.
+// getBattleView 자체가 이미 running_record.runs를 실시간으로 집계하는 쿼리라 DB에 따로 반영할
+// "진행도" 값은 없고, 여기서 하는 일은 오늘 하루 결과 안내(announceOnce)를 다음 폴링까지
+// 기다리지 않고 바로 크루 채팅방에 띄우는 것뿐이다 — announceOnce는 event_key UNIQUE라
+// 여러 번 불러도 중복 발송되지 않는다.
+export async function refreshCrewBattlesForUser(userId: string): Promise<void> {
+  const pool = getPool();
+  const { rows: crews } = await pool.query(
+    `SELECT crew_id FROM crew.crew_members WHERE user_id = $1 AND status = 'ACTIVE'`,
+    [userId]
+  );
+  for (const { crew_id: crewId } of crews) {
+    try {
+      await getBattleView(crewId, userId);
+    } catch (err) {
+      console.error(`refreshCrewBattlesForUser crew=${crewId} 실패:`, err);
+    }
+  }
 }
 
 // 크루 단위로 진행 중인 배틀에서 빠져나온다(크루장만 가능).

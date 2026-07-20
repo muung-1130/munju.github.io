@@ -252,16 +252,29 @@ export async function getMyActiveChallengesWeeklyProgress(userId: string): Promi
   return results;
 }
 
-export async function joinPublicChallenge(challengeId: string, userId: string): Promise<'ok' | 'not-found' | 'already-joined'> {
+function todayKstStr(): string {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+}
+
+export async function joinPublicChallenge(
+  challengeId: string,
+  userId: string
+): Promise<'ok' | 'not-found' | 'already-joined' | 'not-open-yet'> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT challenge_type, visibility, status FROM challenge.challenges WHERE challenge_id = $1`,
+    `SELECT challenge_type, visibility, status, start_at FROM challenge.challenges WHERE challenge_id = $1`,
     [challengeId]
   );
   const challenge = rows[0];
   if (!challenge || challenge.challenge_type !== 'PUBLIC' || challenge.visibility !== 'PUBLIC' || challenge.status !== 'ACTIVE') {
     return 'not-found';
   }
+
+  // 신청은 시작일 바로 전날(KST)에만 가능하다 — 너무 일찍 몰려서 신청하거나
+  // 이미 시작된 챌린지에 뒤늦게 신청해 진행률 계산이 꼬이는 것을 막는다.
+  const startDateKst = toDateStr(challenge.start_at);
+  const openDateKst = addDaysStr(startDateKst, -1);
+  if (todayKstStr() !== openDateKst) return 'not-open-yet';
 
   const existing = await pool.query(
     `SELECT 1 FROM challenge.challenge_participations WHERE challenge_id = $1 AND user_id = $2 AND status = 'ACTIVE'`,
@@ -275,4 +288,125 @@ export async function joinPublicChallenge(challengeId: string, userId: string): 
     [challengeId, userId]
   );
   return 'ok';
+}
+
+export type ChallengeRuleInput = {
+  minDistanceM?: number;
+  maxDistanceM?: number;
+  minPaceSecPerKm?: number;
+  maxPaceSecPerKm?: number;
+  minDurationSec?: number;
+  maxDurationSec?: number;
+  minAvgHeartRate?: number;
+  maxAvgHeartRate?: number;
+  minAvgCadence?: number;
+  minElevationGainM?: number;
+  allowedSourceTypes?: string[];
+};
+
+export type CreateChallengeInput = {
+  challengeType: 'PERSONAL' | 'PUBLIC';
+  name: string;
+  description: string | null;
+  metricType: MetricType;
+  targetValue: number;
+  startAt: string;
+  endAt: string;
+  rules: ChallengeRuleInput | null;
+};
+
+export class ChallengeValidationError extends Error {}
+
+const RULE_FIELD_MAP: [keyof ChallengeRuleInput, string][] = [
+  ['minDistanceM', 'min_distance_m'],
+  ['maxDistanceM', 'max_distance_m'],
+  ['minPaceSecPerKm', 'min_pace_sec_per_km'],
+  ['maxPaceSecPerKm', 'max_pace_sec_per_km'],
+  ['minDurationSec', 'min_duration_sec'],
+  ['maxDurationSec', 'max_duration_sec'],
+  ['minAvgHeartRate', 'min_avg_heart_rate'],
+  ['maxAvgHeartRate', 'max_avg_heart_rate'],
+  ['minAvgCadence', 'min_avg_cadence'],
+  ['minElevationGainM', 'min_elevation_gain_m']
+];
+
+// "챌린지 만들기" — PERSONAL/PUBLIC 공통. 세부 조건(challenge_rules)은 선택이지만, 사용하기로
+// 했다면(rules !== null) 최소 하나의 필드는 채워져 있어야 한다(빈 규칙 행을 만들지 않기 위함).
+// PERSONAL은 만든 사람이 곧 유일한 참가자이므로 생성과 동시에 참가 처리한다. PUBLIC은 다른
+// 사용자와 동일하게 시작일 전날에만 "참여하기"로 신청하게 한다(자기 챌린지라고 예외를 두지 않음).
+export async function createChallenge(creatorUserId: string, input: CreateChallengeInput): Promise<string> {
+  const name = input.name.trim();
+  if (!name) throw new ChallengeValidationError('챌린지 이름을 입력해 주세요.');
+  if (name.length > 150) throw new ChallengeValidationError('챌린지 이름은 150자 이내로 입력해 주세요.');
+  if (!(input.targetValue > 0)) throw new ChallengeValidationError('목표값은 0보다 커야 해요.');
+  if (!(new Date(input.startAt) < new Date(input.endAt))) {
+    throw new ChallengeValidationError('종료일은 시작일보다 늦어야 해요.');
+  }
+  if (input.startAt < todayKstStr()) {
+    throw new ChallengeValidationError('시작일은 오늘 이후여야 해요.');
+  }
+
+  const ruleEntries = input.rules
+    ? RULE_FIELD_MAP.filter(([key]) => input.rules![key] !== undefined && input.rules![key] !== null)
+    : [];
+  const hasSourceTypes = !!input.rules?.allowedSourceTypes?.length;
+  if (input.rules && ruleEntries.length === 0 && !hasSourceTypes) {
+    throw new ChallengeValidationError('세부 조건을 사용하려면 최소 한 가지 항목은 채워야 해요.');
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const visibility = input.challengeType === 'PUBLIC' ? 'PUBLIC' : 'PRIVATE';
+    const { rows } = await client.query(
+      `INSERT INTO challenge.challenges
+         (creator_user_id, challenge_type, name, description, metric_type, target_value, start_at, end_at, visibility, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
+       RETURNING challenge_id`,
+      [
+        creatorUserId,
+        input.challengeType,
+        name,
+        input.description?.trim() || null,
+        input.metricType,
+        input.targetValue,
+        input.startAt,
+        input.endAt,
+        visibility
+      ]
+    );
+    const challengeId = rows[0].challenge_id as string;
+
+    if (ruleEntries.length > 0 || hasSourceTypes) {
+      const columns = ruleEntries.map(([, column]) => column);
+      const values: (number | string[] | null | undefined)[] = ruleEntries.map(([key]) => input.rules![key]);
+      columns.push('allowed_source_types');
+      values.push(hasSourceTypes ? input.rules!.allowedSourceTypes : null);
+
+      const placeholders = values.map((_, i) => `$${i + 2}`).join(', ');
+      await client.query(
+        `INSERT INTO challenge.challenge_rules (challenge_id, ${columns.join(', ')})
+         VALUES ($1, ${placeholders})`,
+        [challengeId, ...values]
+      );
+    }
+
+    if (input.challengeType === 'PERSONAL') {
+      await client.query(
+        `INSERT INTO challenge.challenge_participations (challenge_id, user_id, status, progress_value, progress_ratio)
+         VALUES ($1, $2, 'ACTIVE', 0, 0)`,
+        [challengeId, creatorUserId]
+      );
+    }
+
+    await client.query('COMMIT');
+    return challengeId;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

@@ -62,6 +62,10 @@ export default function RunTrackingPage() {
   const [manualSeconds, setManualSeconds] = useState('');
   const [pendingManualStatus, setPendingManualStatus] = useState<'COMPLETED' | 'STOPPED'>('COMPLETED');
 
+  const [shoeSelectOpen, setShoeSelectOpen] = useState(false);
+  const [shoeOptions, setShoeOptions] = useState<{ userShoeId: string; shoeName: string; brandName: string; nickname: string | null }[] | null>(null);
+  const pendingFinishRef = useRef<{ status: 'COMPLETED' | 'STOPPED'; distanceM: number; durationSec: number; sourceType: 'APP' | 'MANUAL' } | null>(null);
+
   const cumulativeRef = useRef<number[]>([]);
   const watchIdRef = useRef<number | null>(null);
   const timerIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -267,7 +271,13 @@ export default function RunTrackingPage() {
     return { avgPaceSecPerKm };
   }
 
-  async function submitFinish(status: 'COMPLETED' | 'STOPPED', distanceM: number, durationSec: number, sourceType: 'APP' | 'MANUAL') {
+  async function submitFinish(
+    status: 'COMPLETED' | 'STOPPED',
+    distanceM: number,
+    durationSec: number,
+    sourceType: 'APP' | 'MANUAL',
+    myShoeId: string | null
+  ) {
     if (!runIdRef.current) return;
     const { avgPaceSecPerKm } = computePaceMetrics(distanceM, durationSec);
     clearAllTimers();
@@ -283,7 +293,8 @@ export default function RunTrackingPage() {
         movingDurationSec: durationSec,
         avgPaceSecPerKm,
         bestPaceSecPerKm: avgPaceSecPerKm,
-        routePositions: course ? course.positions.slice(0, Math.max(2, Math.ceil((distanceM / course.distanceM) * course.positions.length))) : []
+        routePositions: course ? course.positions.slice(0, Math.max(2, Math.ceil((distanceM / course.distanceM) * course.positions.length))) : [],
+        myShoeId
       })
     });
     if (res.ok) {
@@ -293,6 +304,25 @@ export default function RunTrackingPage() {
       setErrorMsg('기록 저장에 실패했어요.');
       setPhase('error');
     }
+  }
+
+  // 완주(COMPLETED)/중도 종료(STOPPED)로 실제 저장하기 전에 "무슨 신발을 신었나요?"를 먼저 묻는다.
+  // 취소(CANCELLED)는 러닝 자체를 없던 일로 만드는 것이라 신발을 물어볼 이유가 없어 여기서 다루지 않는다.
+  function requestFinish(status: 'COMPLETED' | 'STOPPED', distanceM: number, durationSec: number, sourceType: 'APP' | 'MANUAL') {
+    pendingFinishRef.current = { status, distanceM, durationSec, sourceType };
+    if (shoeOptions === null) {
+      fetch('/api/user-shoes/active-options')
+        .then((res) => (res.ok ? res.json() : { shoes: [] }))
+        .then((data) => setShoeOptions(data.shoes ?? []));
+    }
+    setShoeSelectOpen(true);
+  }
+
+  function confirmShoeSelection(myShoeId: string | null) {
+    setShoeSelectOpen(false);
+    const pending = pendingFinishRef.current;
+    if (!pending) return;
+    submitFinish(pending.status, pending.distanceM, pending.durationSec, pending.sourceType, myShoeId);
   }
 
   async function finishAsCancelled() {
@@ -353,7 +383,7 @@ export default function RunTrackingPage() {
       return;
     }
 
-    submitFinish(status, distanceM, durationSec, 'APP');
+    requestFinish(status, distanceM, durationSec, 'APP');
   }
 
   function confirmNotArrivedStop() {
@@ -365,7 +395,7 @@ export default function RunTrackingPage() {
     const distanceM = Math.round(Number(manualDistanceKm) * 1000);
     const durationSec = Number(manualMinutes) * 60 + Number(manualSeconds);
     if (!Number.isFinite(distanceM) || distanceM <= 0 || !Number.isFinite(durationSec) || durationSec <= 0) return;
-    submitFinish(pendingManualStatus, distanceM, durationSec, 'MANUAL');
+    requestFinish(pendingManualStatus, distanceM, durationSec, 'MANUAL');
   }
 
   const routeForMap: CourseRoute | null = useMemo(
@@ -568,6 +598,30 @@ export default function RunTrackingPage() {
                 완주로 저장하기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {shoeSelectOpen && (
+        <div className="run-modal-overlay">
+          <div className="crew-detail-modal shoe-select-modal" style={{ width: 380 }}>
+            <p>무슨 신발을 신고 뛰었나요?</p>
+            {shoeOptions === null ? (
+              <p className="muted">불러오는 중...</p>
+            ) : shoeOptions.length === 0 ? (
+              <p className="muted">등록된 러닝화가 없어요.</p>
+            ) : (
+              <div className="shoe-select-list">
+                {shoeOptions.map((shoe) => (
+                  <button key={shoe.userShoeId} className="ghost-btn full-width" onClick={() => confirmShoeSelection(shoe.userShoeId)}>
+                    {shoe.nickname || `${shoe.brandName} ${shoe.shoeName}`}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button className="primary-btn full-width" style={{ marginTop: 10 }} onClick={() => confirmShoeSelection(null)}>
+              해당없음
+            </button>
           </div>
         </div>
       )}

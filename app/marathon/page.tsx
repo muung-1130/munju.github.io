@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Card, PageTitle } from '@/components/UI';
 import { useAuthModal } from '@/components/AuthModalContext';
@@ -15,6 +16,7 @@ type MarathonRace = {
   raceDistance: string;
   region: string | null;
   officialWebsite: string;
+  isExclusiveCollab: boolean;
 };
 
 type ReservationInfo = { status: string; submittedAt: string };
@@ -316,6 +318,7 @@ export default function MarathonPage() {
                       <td>
                         <div className="marathon-race-name">
                           <strong>{race.raceName}</strong>
+                          {race.isExclusiveCollab && <span className="marathon-collab-badge">DAI RUN 단독</span>}
                           {race.officialWebsite && (
                             <a href={race.officialWebsite} target="_blank" rel="noreferrer" className="marathon-official-link">
                               공식 홈페이지 ↗
@@ -347,7 +350,11 @@ export default function MarathonPage() {
                         <span className={`marathon-status-badge ${statusInfo.className}`}>{statusInfo.label}</span>
                       </td>
                       <td>
-                        {applied ? (
+                        {race.isExclusiveCollab ? (
+                          <Link href={`/marathon/${race.raceId}`} className="primary-btn small">
+                            {applied ? '내 신청 확인' : '상세보기 · 신청하기'}
+                          </Link>
+                        ) : applied ? (
                           <div className="marathon-apply-cell">
                             <span className="marathon-applied-badge">신청 완료</span>
                             <button className="ghost-btn small" disabled={busy} onClick={() => cancelReservation(race.raceId)}>

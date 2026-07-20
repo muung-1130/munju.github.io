@@ -10,6 +10,8 @@ export type MarathonRace = {
   raceDistance: string;
   region: string | null;
   officialWebsite: string;
+  isExclusiveCollab: boolean;
+  capacity: number | null;
 };
 
 export type RegistrationStatus = 'UPCOMING' | 'OPEN' | 'CLOSED' | 'UNKNOWN';
@@ -43,9 +45,14 @@ function mapRace(row: any): MarathonRace {
     souvenir: row.souvenir,
     raceDistance: row.race_distance,
     region: row.region,
-    officialWebsite: row.official_website
+    officialWebsite: row.official_website,
+    isExclusiveCollab: row.is_exclusive_collab ?? false,
+    capacity: row.capacity !== null && row.capacity !== undefined ? Number(row.capacity) : null
   };
 }
+
+const RACE_COLUMNS = `race_id, race_name, race_date, registration_start_date, registration_end_date,
+            souvenir, race_distance, region, official_website, is_exclusive_collab, capacity`;
 
 export type DistanceBucket = 'KM5' | 'KM10' | 'KM15' | 'HALF' | 'FULL';
 
@@ -129,8 +136,7 @@ export async function getMarathonRaces(filter: MarathonListFilter): Promise<{ ra
 
   const [{ rows }, { rows: countRows }] = await Promise.all([
     pool.query(
-      `SELECT race_id, race_name, race_date, registration_start_date, registration_end_date,
-              souvenir, race_distance, region, official_website
+      `SELECT ${RACE_COLUMNS}
          FROM marathon.marathon_race
          ${where}
         ORDER BY race_date ASC NULLS LAST, race_id ASC
@@ -158,8 +164,7 @@ export async function getMarathonRegions(): Promise<string[]> {
 export async function getMarathonRaceById(raceId: number): Promise<MarathonRace | null> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT race_id, race_name, race_date, registration_start_date, registration_end_date,
-            souvenir, race_distance, region, official_website
+    `SELECT ${RACE_COLUMNS}
        FROM marathon.marathon_race WHERE race_id = $1`,
     [raceId]
   );
@@ -233,13 +238,217 @@ export async function applyToMarathon(userId: string, raceId: number): Promise<A
   return 'ok';
 }
 
+// 독점 콜라보 대회는 취소로 CONFIRMED 자리가 비면, 대기열에서 가장 먼저 기다린 사람
+// (queue_sequence_no가 가장 작은 WAITING)을 같은 트랜잭션 안에서 자동으로 승격시킨다.
+// 그렇지 않으면 정원이 자리가 비어도 영영 채워지지 않는 채로 남는다. race 행 잠금은
+// applyToExclusiveMarathon과 동일하게 동시 취소/신청이 몰려도 정원 계산이 어긋나지 않게 한다.
 export async function cancelMarathonReservation(userId: string, raceId: number): Promise<boolean> {
   const pool = getPool();
-  const { rowCount } = await pool.query(
-    `UPDATE marathon.marathon_reservations
-        SET status = 'CANCELLED', cancelled_at = now()
-      WHERE race_id = $1 AND user_id = $2 AND status <> 'CANCELLED'`,
-    [raceId, userId]
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: raceRows } = await client.query(
+      `SELECT is_exclusive_collab FROM marathon.marathon_race WHERE race_id = $1 FOR UPDATE`,
+      [raceId]
+    );
+    if (raceRows.length === 0) {
+      await client.query('ROLLBACK');
+      return false;
+    }
+
+    // RETURNING은 UPDATE 이후 값을 돌려주므로, 취소 전 상태(CONFIRMED였는지)를 알려면
+    // CTE로 먼저 잠가서 읽어둔 값을 같이 반환해야 한다 — status를 'CANCELLED'로 덮어쓴 뒤
+    // RETURNING status를 그대로 쓰면 항상 'CANCELLED'만 나와 승격 조건이 절대 참이 될 수 없다.
+    const { rows: cancelledRows } = await client.query(
+      `WITH target AS (
+         SELECT reservation_id, status FROM marathon.marathon_reservations
+          WHERE race_id = $1 AND user_id = $2 AND status <> 'CANCELLED'
+          FOR UPDATE
+       )
+       UPDATE marathon.marathon_reservations r
+          SET status = 'CANCELLED', cancelled_at = now()
+         FROM target
+        WHERE r.reservation_id = target.reservation_id
+        RETURNING target.status AS previous_status`,
+      [raceId, userId]
+    );
+    if (cancelledRows.length === 0) {
+      await client.query('ROLLBACK');
+      return false;
+    }
+
+    if (raceRows[0].is_exclusive_collab && cancelledRows[0].previous_status === 'CONFIRMED') {
+      await client.query(
+        `UPDATE marathon.marathon_reservations
+            SET status = 'CONFIRMED', confirmed_at = now(), queue_sequence_no = NULL
+          WHERE reservation_id = (
+            SELECT reservation_id FROM marathon.marathon_reservations
+             WHERE race_id = $1 AND status = 'WAITING'
+             ORDER BY queue_sequence_no ASC LIMIT 1 FOR UPDATE
+          )`,
+        [raceId]
+      );
+    }
+
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// ---- 독점 콜라보 대회: 접수창(정시 오픈) + 정원 기반 대기열 ----
+//
+// registration_windows는 기존 스키마에 있었지만 지금까지 아무 코드도 참조하지 않던 테이블이다.
+// "정시 오픈" 티켓팅에는 date 단위의 registration_start/end_date로는 부족해서(같은 날 안에서도
+// 초 단위로 승부가 갈림) opens_at/closes_at(timestamptz)을 여기서 처음 실제로 사용한다.
+
+export type RegistrationWindow = {
+  opensAt: string;
+  closesAt: string;
+  status: string;
+};
+
+export async function getRegistrationWindow(raceId: number): Promise<RegistrationWindow | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT opens_at, closes_at, status FROM marathon.marathon_registration_windows WHERE race_id = $1 LIMIT 1`,
+    [raceId]
   );
-  return (rowCount ?? 0) > 0;
+  if (rows.length === 0) return null;
+  return { opensAt: rows[0].opens_at, closesAt: rows[0].closes_at, status: rows[0].status };
+}
+
+export type RaceCapacityStatus = {
+  capacity: number | null;
+  confirmedCount: number;
+  waitingCount: number;
+};
+
+// 목록/상세 페이지가 신청 버튼을 누르기 전에도 "몇 명 신청했는지"를 가볍게 보여줄 수 있게
+// 별도 read-only 조회로 분리했다 — 이 조회는 락을 걸지 않으므로 대기 중인 사용자들이
+// 자리를 확인하려고 계속 눌러봐도 무거운 신청 트랜잭션에 영향을 주지 않는다.
+export async function getRaceCapacityStatus(raceId: number): Promise<RaceCapacityStatus> {
+  const pool = getPool();
+  const [{ rows: raceRows }, { rows: countRows }] = await Promise.all([
+    pool.query(`SELECT capacity FROM marathon.marathon_race WHERE race_id = $1`, [raceId]),
+    pool.query(
+      `SELECT
+          COUNT(*) FILTER (WHERE status = 'CONFIRMED') AS confirmed_count,
+          COUNT(*) FILTER (WHERE status = 'WAITING') AS waiting_count
+         FROM marathon.marathon_reservations WHERE race_id = $1`,
+      [raceId]
+    )
+  ]);
+  return {
+    capacity: raceRows[0]?.capacity !== null && raceRows[0]?.capacity !== undefined ? Number(raceRows[0].capacity) : null,
+    confirmedCount: Number(countRows[0]?.confirmed_count ?? 0),
+    waitingCount: Number(countRows[0]?.waiting_count ?? 0)
+  };
+}
+
+async function buildApplicantSnapshot(userId: string) {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT real_name, nickname, user_email, gender, birth_year FROM auth_user.users WHERE user_id = $1`,
+    [userId]
+  );
+  const applicant = rows[0] ?? {};
+  return {
+    realName: applicant.real_name ?? null,
+    nickname: applicant.nickname ?? null,
+    email: applicant.user_email ?? null,
+    gender: applicant.gender ?? null,
+    birthYear: applicant.birth_year ?? null
+  };
+}
+
+export type ExclusiveApplyResult =
+  | { result: 'ok'; status: 'CONFIRMED' | 'WAITING'; queueSequenceNo: number | null }
+  | { result: 'already-applied' }
+  | { result: 'window-not-open' }
+  | { result: 'race-not-found' };
+
+// 정원이 있는 독점 콜라보 대회 전용 신청 처리. 스파이크 상황에서 동시에 수백 건이 몰려도
+// 정원을 초과해서 CONFIRMED가 나가지 않도록, 같은 race 행에 대해 `SELECT ... FOR UPDATE`로
+// 잠금을 걸어 이 함수를 부르는 모든 요청이 한 번에 하나씩만 카운트를 세고 삽입하게 만든다
+// (DB 트랜잭션의 행 잠금만으로 별도 분산 락 없이 원자적으로 "정원 체크 + 배정"을 처리).
+export async function applyToExclusiveMarathon(userId: string, raceId: number): Promise<ExclusiveApplyResult> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: raceRows } = await client.query(
+      `SELECT capacity FROM marathon.marathon_race WHERE race_id = $1 FOR UPDATE`,
+      [raceId]
+    );
+    if (raceRows.length === 0) {
+      await client.query('ROLLBACK');
+      return { result: 'race-not-found' };
+    }
+    const capacity = raceRows[0].capacity !== null ? Number(raceRows[0].capacity) : null;
+
+    const { rows: windowRows } = await client.query(
+      `SELECT opens_at, closes_at FROM marathon.marathon_registration_windows WHERE race_id = $1 LIMIT 1`,
+      [raceId]
+    );
+    if (windowRows.length > 0) {
+      const { opens_at, closes_at } = windowRows[0];
+      const { rows: nowRows } = await client.query('SELECT now() AS now');
+      const now = nowRows[0].now;
+      if (now < opens_at || now > closes_at) {
+        await client.query('ROLLBACK');
+        return { result: 'window-not-open' };
+      }
+    }
+
+    const { rows: existing } = await client.query(
+      `SELECT 1 FROM marathon.marathon_reservations WHERE race_id = $1 AND user_id = $2 AND status <> 'CANCELLED'`,
+      [raceId, userId]
+    );
+    if (existing.length > 0) {
+      await client.query('ROLLBACK');
+      return { result: 'already-applied' };
+    }
+
+    const { rows: countRows } = await client.query(
+      `SELECT COUNT(*) FILTER (WHERE status = 'CONFIRMED') AS confirmed_count,
+              COUNT(*) FILTER (WHERE status = 'WAITING') AS waiting_count
+         FROM marathon.marathon_reservations WHERE race_id = $1`,
+      [raceId]
+    );
+    const confirmedCount = Number(countRows[0].confirmed_count);
+    const waitingCount = Number(countRows[0].waiting_count);
+    const hasRoom = capacity === null || confirmedCount < capacity;
+    const status = hasRoom ? 'CONFIRMED' : 'WAITING';
+    const queueSequenceNo = hasRoom ? null : waitingCount + 1;
+
+    const applicantSnapshot = await buildApplicantSnapshot(userId);
+    const idempotencyKey = `${userId}:${raceId}`;
+    const confirmedAt = status === 'CONFIRMED' ? new Date() : null;
+    await client.query(
+      `INSERT INTO marathon.marathon_reservations
+         (race_id, user_id, idempotency_key, status, queue_sequence_no, applicant_snapshot, confirmed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (race_id, user_id) DO UPDATE
+         SET status = EXCLUDED.status, queue_sequence_no = EXCLUDED.queue_sequence_no,
+             cancelled_at = NULL, applicant_snapshot = EXCLUDED.applicant_snapshot,
+             confirmed_at = EXCLUDED.confirmed_at
+         WHERE marathon.marathon_reservations.status = 'CANCELLED'`,
+      [raceId, userId, idempotencyKey, status, queueSequenceNo, JSON.stringify(applicantSnapshot), confirmedAt]
+    );
+
+    await client.query('COMMIT');
+    return { result: 'ok', status, queueSequenceNo };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

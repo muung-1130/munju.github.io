@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useChat } from './ChatContext';
+
+const ASSISTANT_MESSAGE_POLL_MS = 15000;
 
 // 특정 페이지에 처음 들어왔을 때 AI가 추가로 건네는 말 (페이지당 세션에 한 번)
 const pageEntryMessages: Record<string, string> = {
@@ -36,9 +39,11 @@ function clampPosition(pos: { top: number; left: number }) {
 
 export function AssistantChatWidget() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const { open, setOpen, openChat, messages, addMessage, bubbleMessage } = useChat();
   const [input, setInput] = useState('');
   const coachedPathsRef = useRef(new Set<string>());
+  const lastSeenAssistantMessageAtRef = useRef<string | null>(null);
 
   const [iconPos, setIconPos] = useState<{ top: number; left: number } | null>(null);
   const draggedRef = useRef(false);
@@ -104,6 +109,36 @@ export function AssistantChatWidget() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  // 러닝 완료 축하 메시지 등 서버(run-completion-consumer 경유)가 비동기로 남긴 AI 메시지를
+  // 주기적으로 가져와 말풍선으로 띄운다 — 로그인 상태에서만 폴링한다.
+  useEffect(() => {
+    if (!session?.user) return;
+
+    let cancelled = false;
+    async function poll() {
+      try {
+        const params = lastSeenAssistantMessageAtRef.current ? `?since=${encodeURIComponent(lastSeenAssistantMessageAtRef.current)}` : '';
+        const res = await fetch(`/api/ai-assistant/messages${params}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        for (const message of data.messages ?? []) {
+          addMessage({ from: 'ai', text: message.content });
+          lastSeenAssistantMessageAtRef.current = message.createdAt;
+        }
+      } catch {
+        // 폴링 실패는 조용히 넘어가고 다음 주기에 다시 시도한다.
+      }
+    }
+
+    poll();
+    const timer = setInterval(poll, ASSISTANT_MESSAGE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
   function handleIconMouseDown(event: React.MouseEvent<HTMLButtonElement>) {
     if (event.button !== 0) return;

@@ -123,7 +123,9 @@ function RecommendationCard({
         <span className="type-pill">{metricType === 'DISTANCE' ? 'km 배틀' : '페이스 배틀'}</span>
       </div>
       {!candidate ? (
-        <p className="muted" style={{ marginTop: 14 }}>추천할 상대가 없어요.</p>
+        <p className="muted" style={{ marginTop: 14 }}>
+          다른 크루들이 모두 배틀 중이라 배틀할 상대가 없어요. 조금만 기다려주세요!
+        </p>
       ) : (
         <div style={{ marginTop: 14 }}>
           <div className="crew-battle-banner-head">
@@ -134,11 +136,7 @@ function RecommendationCard({
           </p>
           {error && <p className="field-error">{error}</p>}
           <div className="crew-battle-actions">
-            <button
-              className="ghost-btn"
-              disabled={candidates.length <= 1}
-              onClick={() => setIndex((i) => (i + 1) % candidates.length)}
-            >
+            <button className="ghost-btn" onClick={() => setIndex((i) => (i + 1) % candidates.length)}>
               새로운 상대 보기
             </button>
             <button className="primary-btn" disabled={proposing} onClick={propose}>

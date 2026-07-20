@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { Card, PageTitle } from '@/components/UI';
 import { getShoeWearAnalyses } from '@/lib/shoes';
+import { ShoeWearAnalysisUploader } from '@/components/ShoeWearAnalysisUploader';
 
 const STATUS_LABEL: Record<string, string> = { PENDING: '대기중', PROCESSING: '분석중', COMPLETED: '완료', FAILED: '실패' };
 
@@ -35,6 +36,7 @@ export default async function ShoeWearAnalysisPage({ params }: { params: { userS
     <div>
       <Link href="/mypage" className="back-link">← 마이페이지로</Link>
       <PageTitle title={`${data.shoeName} 마모도 분석`} subtitle="AI가 분석한 밑창 마모 기록이에요." />
+      <ShoeWearAnalysisUploader userShoeId={params.userShoeId} initialPurchaseDate={data.purchaseDate} />
       <Card>
         {data.analyses.length === 0 ? (
           <p className="muted">아직 마모도 분석 기록이 없어요. 신발 사진을 업로드하면 분석을 요청할 수 있어요.</p>

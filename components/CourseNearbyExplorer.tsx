@@ -7,6 +7,7 @@ import { CourseMapView } from '@/components/CourseMapView';
 import type { CourseRoute } from '@/components/CourseMapView';
 import { DIFFICULTY_LABEL } from '@/lib/courseDifficulty';
 import { truncateToOneDecimal } from '@/lib/format';
+import { useChat } from '@/components/ChatContext';
 
 const RADIUS_PRESETS_KM = [1, 3, 5, 10];
 // 위치 정보를 못 가져오고 로그인도 안 돼있을 때의 최종 폴백: 종로3가역(5번출구 인근).
@@ -35,6 +36,7 @@ type NearbyCourse = {
 
 export function CourseNearbyExplorer() {
   const { data: session } = useSession();
+  const { addMessage } = useChat();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [usingFallback, setUsingFallback] = useState(false);
@@ -44,6 +46,9 @@ export function CourseNearbyExplorer() {
   const [recenterSignal, setRecenterSignal] = useState(0);
   const [zoomDelta, setZoomDelta] = useState(0);
   const [hoveredCourseId, setHoveredCourseId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [activeSearch, setActiveSearch] = useState<string | null>(null);
+  const [fitSignal, setFitSignal] = useState(0);
   const radiusIndexRef = useRef(RADIUS_PRESETS_KM.indexOf(5));
 
   async function applyLocation(point: { lat: number; lng: number }, fallback: boolean) {
@@ -64,6 +69,8 @@ export function CourseNearbyExplorer() {
   }
 
   // 우선순위: 브라우저 위치 정보 -> 로그인 계정의 동(auth_user.users.dong) -> 종로3가역 5번출구.
+  // 예전엔 실패 이유를 그냥 삼키고 조용히 폴백만 했는데, "위치가 계속 실패한다"는 피드백이 있어서
+  // 실제 원인(권한 거부/시간초과/기기에서 위치 확인 불가)을 AI 챗봇 말풍선으로 알려주게 바꿨다.
   async function locateMe() {
     if (!navigator.geolocation) {
       await resolveFallbackLocation();
@@ -71,7 +78,16 @@ export function CourseNearbyExplorer() {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => applyLocation({ lat: position.coords.latitude, lng: position.coords.longitude }, false),
-      () => resolveFallbackLocation(),
+      (error) => {
+        const reason =
+          error.code === 1
+            ? '위치 권한이 거부돼 있어서 대신 동네 기준으로 보여드릴게요. 브라우저 설정에서 위치 권한을 허용하면 더 정확해져요.'
+            : error.code === 3
+              ? '위치를 가져오는 데 시간이 오래 걸려서 대신 동네 기준으로 보여드릴게요.'
+              : '현재 위치를 확인할 수 없어서 대신 동네 기준으로 보여드릴게요.';
+        addMessage({ from: 'ai', text: reason });
+        resolveFallbackLocation();
+      },
       { timeout: 8000 }
     );
   }
@@ -108,13 +124,37 @@ export function CourseNearbyExplorer() {
 
   useEffect(() => {
     if (!location) return;
-    const params = showAll
-      ? `lat=${location.lat}&lng=${location.lng}&all=true`
-      : `lat=${location.lat}&lng=${location.lng}&radius_m=${radiusKm * 1000}`;
+    const params = activeSearch
+      ? `lat=${location.lat}&lng=${location.lng}&q=${encodeURIComponent(activeSearch)}`
+      : showAll
+        ? `lat=${location.lat}&lng=${location.lng}&all=true`
+        : `lat=${location.lat}&lng=${location.lng}&radius_m=${radiusKm * 1000}`;
     fetch(`/api/courses/nearby?${params}`)
       .then((res) => (res.ok ? res.json() : { courses: [] }))
-      .then((json) => setCourses(json.courses ?? []));
-  }, [location, radiusKm, showAll]);
+      .then((json) => {
+        const results: NearbyCourse[] = json.courses ?? [];
+        if (activeSearch && results.length === 0) {
+          // 요청대로 검색 결과가 없으면 화면(지도/목록)은 그대로 두고 챗봇 말풍선으로만 안내한다.
+          addMessage({ from: 'ai', text: '검색 결과가 없습니다.' });
+          return;
+        }
+        setCourses(results);
+        if (activeSearch) setFitSignal((n) => n + 1);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, radiusKm, showAll, activeSearch]);
+
+  function submitSearch(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmed = searchInput.trim();
+    if (!trimmed) return;
+    setActiveSearch(trimmed);
+  }
+
+  function clearSearch() {
+    setSearchInput('');
+    setActiveSearch(null);
+  }
 
   if (!location) {
     return <p>내 위치를 확인하는 중…</p>;
@@ -137,11 +177,29 @@ export function CourseNearbyExplorer() {
             <span className="location-fallback-hint">위치 정보를 가져오지 못해 계정 정보로 표시했어요.</span>
           )}
         </div>
+        <form className="course-nearby-search" onSubmit={submitSearch}>
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="코스 이름이나 동네로 검색"
+          />
+          {activeSearch && <span className="course-nearby-search-result-count">{courses?.length ?? 0}건</span>}
+          {activeSearch ? (
+            <button type="button" className="course-nearby-search-clear" onClick={clearSearch} aria-label="검색 지우기">
+              ✕
+            </button>
+          ) : (
+            <button type="submit" className="course-nearby-search-submit" aria-label="검색">
+              🔍
+            </button>
+          )}
+        </form>
         <div className="course-nearby-toolbar-actions">
           <button type="button" className="locate-me-btn icon-only" onClick={locateMe} aria-label="현재 위치로 이동">
             <img src="/assets/gps-target.png" alt="" />
           </button>
-          {!showAll && (
+          {!showAll && !activeSearch && (
             <div className="radius-slider">
               <div className="radius-slider-track">
                 {RADIUS_PRESETS_KM.map((km, i) => (
@@ -158,13 +216,21 @@ export function CourseNearbyExplorer() {
               </div>
             </div>
           )}
-          <label className="switch-toggle">
-            <input type="checkbox" checked={showAll} onChange={() => setShowAll((v) => !v)} />
-            <span className="switch-track" />
-            전체보기
-          </label>
+          {!activeSearch && (
+            <label className="switch-toggle">
+              <input type="checkbox" checked={showAll} onChange={() => setShowAll((v) => !v)} />
+              <span className="switch-track" />
+              전체보기
+            </label>
+          )}
         </div>
       </div>
+
+      {activeSearch && (
+        <p className="course-nearby-search-status">
+          &quot;{activeSearch}&quot; 검색 결과 {courses?.length ?? 0}건
+        </p>
+      )}
 
       <div className="course-nearby-map">
         <CourseMapView
@@ -177,6 +243,8 @@ export function CourseNearbyExplorer() {
           defaultZoom={DEFAULT_ZOOM}
           highlightCourseId={hoveredCourseId}
           locationMarker={[location.lat, location.lng]}
+          fitToRoutesSignal={fitSignal}
+          targetWidthKm={!showAll && !activeSearch ? radiusKm : undefined}
         />
       </div>
 

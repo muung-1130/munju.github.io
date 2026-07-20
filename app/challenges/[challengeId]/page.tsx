@@ -184,19 +184,26 @@ export default function ChallengeDetailPage() {
               <p className="muted">아직 참가자가 없어요.</p>
             ) : (
               <div className="challenge-participant-list">
-                {participants.map((p) => (
-                  <div key={p.userId} className="challenge-participant-row">
-                    <span className="avatar-dot">{p.nickname[0]}</span>
-                    <div className="challenge-participant-info">
-                      <strong>{p.nickname}</strong>
-                      <small>{formatDate(p.joinedAt)} 참여 · {p.status === 'COMPLETED' ? '완주' : '진행중'}</small>
+                {participants.map((p) => {
+                  const isEarlyFinish = p.status === 'COMPLETED' && challenge.status === 'ACTIVE';
+                  const statusLabel = isEarlyFinish ? '조기완료' : p.status === 'COMPLETED' ? '완주' : '진행중';
+                  return (
+                    <div key={p.userId} className="challenge-participant-row">
+                      <span className="avatar-dot">{p.nickname[0]}</span>
+                      <div className="challenge-participant-info">
+                        <strong>{p.nickname}</strong>
+                        <small>
+                          {formatDate(p.joinedAt)} 참여 ·{' '}
+                          {isEarlyFinish ? <span className="type-pill early-finish-pill">조기완료 🎉</span> : statusLabel}
+                        </small>
+                      </div>
+                      <div className="progress" style={{ flex: 1 }}>
+                        <i style={{ width: `${Math.min(100, p.progressRatio)}%` }} />
+                      </div>
+                      <span className="challenge-participant-pct">{p.progressRatio.toFixed(0)}%</span>
                     </div>
-                    <div className="progress" style={{ flex: 1 }}>
-                      <i style={{ width: `${Math.min(100, p.progressRatio)}%` }} />
-                    </div>
-                    <span className="challenge-participant-pct">{p.progressRatio.toFixed(0)}%</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>

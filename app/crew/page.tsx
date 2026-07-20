@@ -71,18 +71,6 @@ function paceRangeLabel(minSec: number | null, maxSec: number | null) {
   return '제한 없음';
 }
 
-const overallRanking = [
-  { rank: 1, name: '한강 러너스', avgKm: 150.0 },
-  { rank: 2, name: '탄천 러너스', avgKm: 148.7 },
-  { rank: 3, name: '반포 러너스', avgKm: 147.4 },
-  { rank: 4, name: '여의도 러너스', avgKm: 146.1 },
-  { rank: 5, name: '성수 러너스', avgKm: 144.8 },
-  { rank: 6, name: '잠실 러너스', avgKm: 143.5 },
-  { rank: 7, name: '노원 러너스', avgKm: 142.2 },
-  { rank: 8, name: '강남 러너스', avgKm: 140.9 },
-  { rank: 9, name: '홍대 러너스', avgKm: 139.6 },
-  { rank: 10, name: '이태원 러너스', avgKm: 138.3 }
-];
 
 export default function CrewPage() {
   const { data: session } = useSession();
@@ -126,6 +114,25 @@ export default function CrewPage() {
 
   const visibleCrews = crews ? (showAll ? crews : crews.filter((crew) => crew.fitsMyConditions)) : [];
   const detailCrew = crews?.find((crew) => crew.crewId === detailCrewId) ?? null;
+  const myCrewData = crews?.find((crew) => crew.crewId === myCrew?.crewId) ?? null;
+  // 이미 /api/crew 목록 조회에서 모든 크루의 avg_weekly_distance_m을 함께 받아오므로
+  // 별도 쿼리 없이 메모리에서 정렬만 하면 된다 (성능 저하 없음).
+  const overallRanking = (crews ?? [])
+    .filter((crew) => crew.avgWeeklyDistanceM !== null)
+    .sort((a, b) => (b.avgWeeklyDistanceM as number) - (a.avgWeeklyDistanceM as number))
+    .slice(0, 10);
+
+  async function enterMyCrewChat() {
+    if (!myCrewData) return;
+    setParticipateLoading(true);
+    try {
+      const res = await fetch(`/api/crew/${myCrewData.crewId}/chat/join`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) openCrewChat(myCrewData.crewId, myCrewData.crewName, data.messages ?? []);
+    } finally {
+      setParticipateLoading(false);
+    }
+  }
 
   async function handleParticipate(crew: Crew) {
     if (!session?.user) {
@@ -190,6 +197,24 @@ export default function CrewPage() {
           </button>
         }
       />
+      {myCrewData && (
+        <Card className="my-crew-card">
+          <div className="card-head"><h2>내 크루</h2></div>
+          <div className="my-crew-body">
+            <div className="my-crew-info">
+              <strong>{myCrewData.crewName}</strong>
+              <div className="crew-info-row">
+                <span>📍 {myCrewData.regionCode ?? '지역 무관'}</span>
+                <span>👥 {myCrewData.memberCount}/{myCrewData.maxMembers}명</span>
+              </div>
+              <WeeklyStatsBadge crew={myCrewData} />
+            </div>
+            <button className="primary-btn" onClick={enterMyCrewChat} disabled={participateLoading}>
+              {participateLoading ? '입장 중...' : '채팅방 들어가기 →'}
+            </button>
+          </div>
+        </Card>
+      )}
       {myCrew && (
         <div className="crew-battle-top">
           <CrewBattleSection crewId={myCrew.crewId} />
@@ -249,13 +274,17 @@ export default function CrewPage() {
           <Card className="crew-ranking-card">
             <div className="card-head"><h2>전체 크루 랭킹</h2><span className="muted">TOP 10</span></div>
             <div className="crew-ranking-list">
-              {overallRanking.map((entry) => (
-                <div key={entry.rank} className={`crew-rank-row ${entry.rank <= 3 ? `top top${entry.rank}` : ''}`}>
-                  <span>{entry.rank}</span>
-                  <b>{entry.name}</b>
-                  <em>{entry.avgKm} km</em>
-                </div>
-              ))}
+              {overallRanking.length === 0 && <p className="muted">아직 집계된 크루 기록이 없어요.</p>}
+              {overallRanking.map((crew, index) => {
+                const rank = index + 1;
+                return (
+                  <div key={crew.crewId} className={`crew-rank-row ${rank <= 3 ? `top top${rank}` : ''}`}>
+                    <span>{rank}</span>
+                    <b>{crew.crewName}</b>
+                    <em>{((crew.avgWeeklyDistanceM as number) / 1000).toFixed(1)} km</em>
+                  </div>
+                );
+              })}
             </div>
           </Card>
 

@@ -1,5 +1,6 @@
 import { getPool } from '@/lib/db';
 import { defaultWeightKgForGender, estimateCaloriesKcal } from '@/lib/calorie';
+import { publishRunCompletedEvent } from '@/lib/kafka';
 
 export type CourseRouteInfo = {
   courseId: string;
@@ -90,6 +91,7 @@ export type FinishRunInput = {
   avgPaceSecPerKm: number | null;
   bestPaceSecPerKm: number | null;
   routePositions: [number, number][];
+  myShoeId: string | null;
 };
 
 export async function finishRun(runId: string, userId: string, input: FinishRunInput): Promise<void> {
@@ -107,6 +109,17 @@ export async function finishRun(runId: string, userId: string, input: FinishRunI
       ? `SRID=4326;LINESTRING(${input.routePositions.map(([lat, lng]) => `${lng} ${lat}`).join(',')})`
       : null;
 
+  // 클라이언트가 보낸 my_shoe_id가 실제로 이 사용자 소유의 신발인지 확인 없이 그대로 저장하면
+  // 다른 사용자의 신발 ID를 넣는 것도 가능해지므로(IDOR), 서버에서 소유권을 검증한다.
+  let myShoeId: string | null = null;
+  if (input.myShoeId) {
+    const { rows: shoeRows } = await pool.query(`SELECT 1 FROM shoe.user_shoes WHERE user_shoe_id = $1 AND user_id = $2`, [
+      input.myShoeId,
+      userId
+    ]);
+    if (shoeRows.length > 0) myShoeId = input.myShoeId;
+  }
+
   // 칼로리는 심박수 센서가 없어 체중 기반 근사치로 추정한다 — 체중을 아예 입력한 적 없는
   // 사용자는 성별 평균으로 대체한다(회원가입 때 이미 채워지지만 과거 계정 대비 방어적으로 처리).
   const { rows: userRows } = await pool.query(`SELECT weight_kg, gender FROM auth_user.users WHERE user_id = $1`, [userId]);
@@ -115,14 +128,18 @@ export async function finishRun(runId: string, userId: string, input: FinishRunI
     : defaultWeightKgForGender(userRows[0]?.gender ?? null);
   const caloriesKcal = estimateCaloriesKcal(input.distanceM, weightKg);
 
-  const { rowCount } = await pool.query(
+  const { rows: updatedRows } = await pool.query(
     `UPDATE running_record.runs
         SET status = $3, source_type = $4, completed_at = now(),
             duration_sec = $5, moving_duration_sec = $6, distance_m = $7,
             average_pace_sec_per_km = $8, best_pace_sec_per_km = $9,
             route_geom = CASE WHEN $10::text IS NULL THEN NULL ELSE ST_GeomFromEWKT($10) END,
-            calories_kcal = $11
-      WHERE run_id = $1 AND user_id = $2 AND status = 'IN_PROGRESS'`,
+            calories_kcal = $11, my_shoe_id = $12
+      WHERE run_id = $1 AND user_id = $2 AND status = 'IN_PROGRESS'
+      RETURNING run_id, course_id, my_shoe_id, source_type, started_at, completed_at,
+                distance_m, duration_sec, moving_duration_sec, average_pace_sec_per_km,
+                best_pace_sec_per_km, average_heart_rate, max_heart_rate, average_cadence,
+                calories_kcal, elevation_gain_m`,
     [
       runId,
       userId,
@@ -134,10 +151,38 @@ export async function finishRun(runId: string, userId: string, input: FinishRunI
       input.avgPaceSecPerKm,
       input.bestPaceSecPerKm,
       routeGeom,
-      caloriesKcal
+      caloriesKcal,
+      myShoeId
     ]
   );
-  if (rowCount === 0) throw new Error('러닝 기록을 찾을 수 없거나 이미 종료됐어요.');
+  if (updatedRows.length === 0) throw new Error('러닝 기록을 찾을 수 없거나 이미 종료됐어요.');
+
+  // 챌린지 진행도/크루 배틀 즉시 갱신/AI 코치 축하 메시지는 이 서비스(running_record) 소유가
+  // 아니라 Kafka 이벤트로만 흘려보낸다 — 완주(COMPLETED)한 경우만 대상으로 한다(STOPPED는
+  // 중도 종료라 챌린지 달성으로 인정하지 않는다). 이벤트 발행 실패로 러닝 기록 저장 자체를
+  // 실패시키지 않도록 별도로 감싼다.
+  if (input.status === 'COMPLETED') {
+    const row = updatedRows[0];
+    publishRunCompletedEvent({
+      runId: row.run_id,
+      userId,
+      courseId: row.course_id,
+      myShoeId: row.my_shoe_id,
+      sourceType: row.source_type,
+      startedAt: row.started_at,
+      completedAt: row.completed_at,
+      distanceM: row.distance_m,
+      durationSec: row.duration_sec,
+      movingDurationSec: row.moving_duration_sec,
+      averagePaceSecPerKm: row.average_pace_sec_per_km,
+      bestPaceSecPerKm: row.best_pace_sec_per_km,
+      averageHeartRate: row.average_heart_rate,
+      maxHeartRate: row.max_heart_rate,
+      averageCadence: row.average_cadence,
+      caloriesKcal: row.calories_kcal,
+      elevationGainM: row.elevation_gain_m !== null ? Number(row.elevation_gain_m) : null
+    }).catch((err) => console.error('publishRunCompletedEvent 실패:', err));
+  }
 }
 
 export async function cancelRun(runId: string, userId: string): Promise<void> {

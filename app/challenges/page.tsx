@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Card, PageTitle } from '@/components/UI';
 import { useAuthModal } from '@/components/AuthModalContext';
+import { CreateChallengeModal } from '@/components/CreateChallengeModal';
 import { formatMetricValue, type ChallengeType, type MetricType } from '@/lib/challengeFormat';
 
 type ChallengeSummary = {
@@ -38,9 +40,12 @@ function daysLeft(endAt: string): number {
 export default function ChallengesPage() {
   const { data: session } = useSession();
   const { openAuthModal } = useAuthModal();
+  const router = useRouter();
   const [personal, setPersonal] = useState<ChallengeSummary[] | null>(null);
   const [publicChallenges, setPublicChallenges] = useState<ChallengeSummary[] | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<{ id: string; message: string } | null>(null);
+  const [createModalType, setCreateModalType] = useState<'PUBLIC' | 'PERSONAL' | null>(null);
 
   function load() {
     fetch('/api/challenges')
@@ -62,9 +67,15 @@ export default function ChallengesPage() {
       return;
     }
     setJoiningId(challengeId);
+    setJoinError(null);
     try {
       const res = await fetch(`/api/challenges/${challengeId}/join`, { method: 'POST' });
-      if (res.ok) load();
+      if (res.ok) {
+        load();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setJoinError({ id: challengeId, message: data.error ?? '참여할 수 없어요.' });
+      }
     } finally {
       setJoiningId(null);
     }
@@ -79,7 +90,9 @@ export default function ChallengesPage() {
           <h2 className="section-title">공개 챌린지 찾아보기</h2>
           <p className="muted" style={{ margin: '4px 0 0' }}>다같이 참가하는 챌린지에요.</p>
         </div>
-        <button className="primary-btn">챌린지 만들기</button>
+        <button className="primary-btn" onClick={() => (session?.user ? setCreateModalType('PUBLIC') : openAuthModal())}>
+          챌린지 만들기
+        </button>
       </div>
       <div className="public-challenge-grid">
         {publicChallenges === null ? (
@@ -117,6 +130,7 @@ export default function ChallengesPage() {
                 >
                   {joined ? '참여 완료 ✓' : joiningId === challenge.challengeId ? '참여 중...' : '참여하기'}
                 </button>
+                {joinError?.id === challenge.challengeId && <p className="field-error">{joinError.message}</p>}
               </Card>
             );
           })
@@ -128,7 +142,9 @@ export default function ChallengesPage() {
           <h2 className="section-title">개인 챌린지</h2>
           <p className="muted" style={{ margin: '4px 0 0' }}>혼자서 하는 챌린지에요.</p>
         </div>
-        <button className="primary-btn">챌린지 만들기</button>
+        <button className="primary-btn" onClick={() => (session?.user ? setCreateModalType('PERSONAL') : openAuthModal())}>
+          챌린지 만들기
+        </button>
       </div>
       <div className="challenge-page-grid">
         {personal === null ? (
@@ -159,6 +175,18 @@ export default function ChallengesPage() {
           ))
         )}
       </div>
+
+      {createModalType && (
+        <CreateChallengeModal
+          defaultType={createModalType}
+          onClose={() => setCreateModalType(null)}
+          onCreated={(challengeId) => {
+            setCreateModalType(null);
+            load();
+            router.push(`/challenges/${challengeId}`);
+          }}
+        />
+      )}
     </div>
   );
 }

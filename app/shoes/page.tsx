@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Card, Donut, PageTitle } from '@/components/UI';
+import { Card, PageTitle } from '@/components/UI';
 import { useAuthModal } from '@/components/AuthModalContext';
+import { ShoeCatalogBrowser } from '@/components/ShoeCatalogBrowser';
+import { ShoeFormModal } from '@/components/ShoeFormModal';
 
 type ShoeItem = {
   shoeId: number;
@@ -28,6 +30,16 @@ type ShoeItem = {
 };
 
 type RecommendedShoeItem = ShoeItem & { matchScore: number; reason: string };
+
+type MyShoeItem = {
+  userShoeId: string;
+  shoeName: string;
+  brandName: string;
+  nickname: string | null;
+  accumulatedDistanceM: number;
+  status: string;
+  latestSnapshot: { replacementRecommendedAt: string | null; daysUntilReplacement: number | null } | null;
+};
 
 const FUNCTION_LABEL: Record<string, string> = {
   cushioning: '쿠셔닝',
@@ -78,10 +90,11 @@ export default function ShoesPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  const [sortMode, setSortMode] = useState<'reco' | 'popular'>('reco');
   const [recommendations, setRecommendations] = useState<RecommendedShoeItem[] | null>(null);
-  const [popularShoes, setPopularShoes] = useState<ShoeItem[] | null>(null);
   const [likeBusyId, setLikeBusyId] = useState<number | null>(null);
+  const [myShoes, setMyShoes] = useState<MyShoeItem[] | null>(null);
+  const [shoeFormModal, setShoeFormModal] = useState<{ mode: 'create' | 'edit'; userShoeId?: string } | null>(null);
+  const [retiringId, setRetiringId] = useState<string | null>(null);
 
   const loadRecommendations = useCallback(async () => {
     const res = await fetch('/api/shoes/recommendations');
@@ -91,23 +104,32 @@ export default function ShoesPage() {
     }
   }, []);
 
-  const loadPopular = useCallback(async () => {
-    const res = await fetch('/api/shoes');
-    if (res.ok) {
-      const data = await res.json();
-      setPopularShoes(data.shoes);
-    }
-  }, []);
-
   useEffect(() => {
     loadRecommendations();
   }, [loadRecommendations]);
 
+  const loadMyShoes = useCallback(() => {
+    if (!session?.user) return;
+    fetch('/api/shoes/mine')
+      .then((res) => (res.ok ? res.json() : { shoes: [] }))
+      .then((data) => setMyShoes(data.shoes ?? []));
+  }, [session?.user]);
+
   useEffect(() => {
-    if (sortMode === 'popular' && popularShoes === null) {
-      loadPopular();
+    if (activeTab !== 'life') return;
+    loadMyShoes();
+  }, [activeTab, loadMyShoes]);
+
+  async function retireShoe(userShoeId: string) {
+    if (!confirm('이 러닝화를 버릴까요? (은퇴 처리되며 기록은 남아요)')) return;
+    setRetiringId(userShoeId);
+    try {
+      const res = await fetch(`/api/user-shoes/${userShoeId}/retire`, { method: 'POST' });
+      if (res.ok) loadMyShoes();
+    } finally {
+      setRetiringId(null);
     }
-  }, [sortMode, popularShoes, loadPopular]);
+  }
 
   useEffect(() => {
     if (!session?.user) return;
@@ -181,12 +203,9 @@ export default function ShoesPage() {
       const res = await fetch(`/api/shoes/${shoeId}/like`, { method: 'POST' });
       if (res.ok) {
         const state = await res.json();
-        const apply = (list: (ShoeItem | RecommendedShoeItem)[] | null) =>
-          list
-            ? list.map((s) => (s.shoeId === shoeId ? { ...s, likeCount: state.likeCount, likedByUser: state.likedByUser } : s))
-            : list;
-        setRecommendations((prev) => apply(prev) as RecommendedShoeItem[] | null);
-        setPopularShoes((prev) => apply(prev) as ShoeItem[] | null);
+        setRecommendations((prev) =>
+          prev ? prev.map((s) => (s.shoeId === shoeId ? { ...s, likeCount: state.likeCount, likedByUser: state.likedByUser } : s)) : prev
+        );
       }
     } finally {
       setLikeBusyId(null);
@@ -277,112 +296,113 @@ export default function ShoesPage() {
           <Card className="recommend-card">
             <div className="card-head">
               <h2>AI 추천 러닝화</h2>
-              <div className="segmented">
-                <button className={sortMode === 'reco' ? 'active' : ''} onClick={() => setSortMode('reco')}>
-                  추천순
-                </button>
-                <button className={sortMode === 'popular' ? 'active' : ''} onClick={() => setSortMode('popular')}>
-                  인기순
-                </button>
-              </div>
             </div>
 
-            {sortMode === 'reco' ? (
-              <div className="shoe-products">
-                {recommendations === null ? (
-                  <p className="muted">추천을 계산하는 중...</p>
-                ) : recommendations.length === 0 ? (
-                  <p className="muted">해당 예산의 러닝화가 없습니다.</p>
-                ) : (
-                  recommendations.map((shoe, idx) => (
-                    <div className="shoe-card" key={shoe.shoeId}>
-                      <span className={`reco-badge b${idx}`}>추천 {idx + 1} · {shoe.matchScore}점</span>
-                      <img src={shoe.imageUrl} alt="" />
-                      <h3>{shoe.shoeName}</h3>
-                      <b>{formatPrice(shoe.price)}</b>
-                      <ShoeTags shoe={shoe} />
-                      <p className="shoe-reco-reason">{shoe.reason}</p>
-                      <a href={shoe.detailUrl} target="_blank" rel="noreferrer">
-                        <button>상세 보기</button>
-                      </a>
-                      <button
-                        className={`heart ${shoe.likedByUser ? 'liked' : ''}`}
-                        disabled={likeBusyId === shoe.shoeId}
-                        onClick={() => toggleLike(shoe.shoeId)}
-                      >
-                        {shoe.likedByUser ? '♥' : '♡'}
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+            <div className="shoe-products">
+              {recommendations === null ? (
+                <p className="muted">추천을 계산하는 중...</p>
+              ) : recommendations.length === 0 ? (
+                <p className="muted">해당 예산의 러닝화가 없습니다.</p>
+              ) : (
+                recommendations.map((shoe, idx) => (
+                  <div className="shoe-card" key={shoe.shoeId}>
+                    <span className={`reco-badge b${idx}`}>추천 {idx + 1} · {shoe.matchScore}점</span>
+                    <img src={shoe.imageUrl} alt="" />
+                    <h3>{shoe.shoeName}</h3>
+                    <b>{formatPrice(shoe.price)}</b>
+                    <ShoeTags shoe={shoe} />
+                    <p className="shoe-reco-reason">{shoe.reason}</p>
+                    <a href={shoe.detailUrl} target="_blank" rel="noreferrer">
+                      <button>상세 보기</button>
+                    </a>
+                    <button
+                      className={`heart ${shoe.likedByUser ? 'liked' : ''}`}
+                      disabled={likeBusyId === shoe.shoeId}
+                      onClick={() => toggleLike(shoe.shoeId)}
+                    >
+                      {shoe.likedByUser ? '♥' : '♡'}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'reco' && <ShoeCatalogBrowser />}
+
+      {activeTab === 'life' && (
+        <div className="shoes-life-centered">
+          <Card className="life-card">
+            <div className="card-head">
+              <h2>러닝화 수명 예측</h2>
+              {session?.user && (
+                <button className="primary-btn small" onClick={() => setShoeFormModal({ mode: 'create' })}>
+                  + 러닝화 추가
+                </button>
+              )}
+            </div>
+            <p>AI가 사진 5장(밑창·뒤꿈치·측면)을 보고 마모 단계와 잔여 수명을 예측해 드려요.</p>
+            {!session?.user ? (
+              <p className="muted">로그인하면 보유 중인 러닝화를 확인할 수 있어요.</p>
+            ) : myShoes === null ? (
+              <p className="muted">불러오는 중...</p>
+            ) : myShoes.length === 0 ? (
+              <p className="muted">등록된 러닝화가 없어요. "+ 러닝화 추가"로 첫 러닝화를 등록해 보세요.</p>
             ) : (
-              <div className="shoe-products popular-grid">
-                {popularShoes === null ? (
-                  <p className="muted">불러오는 중...</p>
-                ) : (
-                  popularShoes.map((shoe) => (
-                    <div className="shoe-card" key={shoe.shoeId}>
-                      <span className="reco-badge like-count-badge">♥ {shoe.likeCount}</span>
-                      <img src={shoe.imageUrl} alt="" />
-                      <h3>{shoe.shoeName}</h3>
-                      <b>{formatPrice(shoe.price)}</b>
-                      <ShoeTags shoe={shoe} />
-                      <a href={shoe.detailUrl} target="_blank" rel="noreferrer">
-                        <button>상세 보기</button>
-                      </a>
-                      <button
-                        className={`heart ${shoe.likedByUser ? 'liked' : ''}`}
-                        disabled={likeBusyId === shoe.shoeId}
-                        onClick={() => toggleLike(shoe.shoeId)}
-                      >
-                        {shoe.likedByUser ? '♥' : '♡'}
-                      </button>
+              <div className="mypage-shoes-list">
+                {myShoes.map((shoe) => (
+                  <div key={shoe.userShoeId} className="mypage-shoe-row">
+                    <div className="mypage-shoe-info">
+                      <strong>{shoe.nickname || shoe.shoeName}</strong>
+                      <span className="muted">
+                        {shoe.brandName} · {shoe.shoeName}
+                        {shoe.status === 'RETIRED' && ' · 은퇴함'}
+                      </span>
+                      <span className="muted">누적 거리 {(shoe.accumulatedDistanceM / 1000).toFixed(1)}km</span>
                     </div>
-                  ))
-                )}
+                    <div className="mypage-shoe-life">
+                      {shoe.latestSnapshot?.replacementRecommendedAt ? (
+                        <>
+                          <span className="muted">교체 권장일</span>
+                          <strong>{shoe.latestSnapshot.replacementRecommendedAt}</strong>
+                        </>
+                      ) : (
+                        <span className="muted">수명 예측 정보가 아직 없어요.</span>
+                      )}
+                    </div>
+                    <div className="mypage-shoe-actions">
+                      <button className="ghost-btn small" onClick={() => setShoeFormModal({ mode: 'edit', userShoeId: shoe.userShoeId })}>
+                        수정
+                      </button>
+                      <Link href={`/shoes/${shoe.userShoeId}`} className="ghost-btn small">
+                        분석
+                      </Link>
+                      {shoe.status !== 'RETIRED' && (
+                        <button className="ghost-btn small" disabled={retiringId === shoe.userShoeId} onClick={() => retireShoe(shoe.userShoeId)}>
+                          {retiringId === shoe.userShoeId ? '처리 중...' : '버리기'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </Card>
         </div>
       )}
 
-      {activeTab === 'life' && (
-        <div className="shoes-life-centered">
-          <Card className="life-card">
-            <h2>러닝화 수명 예측</h2>
-            <p>내 러닝화의 수명을 예측해 보세요.</p>
-            <label>신발 사진 업로드</label>
-            <div className="upload-box">
-              📷<span>신발 사진을 업로드하세요<br />정면 또는 측면 사진 권장</span>
-            </div>
-            <label>구매일</label>
-            <input value="2024-03-10" readOnly />
-            <label>누적 사용 거리</label>
-            <input value="620 km" readOnly />
-            <div className="life-result">
-              <h3>수명 예측 결과</h3>
-              <Donut value={62} label="62%" />
-              <div>
-                <p>
-                  남은 수명 <b>62%</b>
-                </p>
-                <p>
-                  예상 교체 시기 <b>2025년 07월</b>
-                </p>
-                <p>
-                  예상 잔여 거리 <b>약 210km</b>
-                </p>
-              </div>
-            </div>
-            <p className="muted" style={{ marginTop: 12 }}>
-              실제 보유 중인 러닝화의 정확한 수명 예측은 마이페이지의 보유 러닝화 목록에서 확인할 수 있어요.
-            </p>
-            <Link href="/mypage">
-              <button className="primary-btn full-width">마이페이지에서 내 러닝화 확인하기</button>
-            </Link>
-          </Card>
-        </div>
+      {shoeFormModal && (
+        <ShoeFormModal
+          mode={shoeFormModal.mode}
+          userShoeId={shoeFormModal.userShoeId}
+          onClose={() => setShoeFormModal(null)}
+          onDone={() => {
+            setShoeFormModal(null);
+            loadMyShoes();
+          }}
+        />
       )}
 
       {activeTab === 'manage' && (

@@ -6,6 +6,7 @@ import { Kafka, Partitioners } from 'kafkajs';
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.201:29092').split(',');
 export const COURSE_LIKE_EVENTS_TOPIC = 'course.like-events';
 export const CREW_JOIN_REQUEST_EVENTS_TOPIC = 'crew.join-request-events';
+export const RUN_COMPLETED_EVENTS_TOPIC = 'running.run-completed-events';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -93,5 +94,60 @@ export async function publishCrewJoinRequestEvent(payload: CrewJoinRequestEvent[
   await producer.send({
     topic: CREW_JOIN_REQUEST_EVENTS_TOPIC,
     messages: [{ key: payload.joinRequestId, value: JSON.stringify(event) }]
+  });
+}
+
+export type RunCompletedEventPayload = {
+  runId: string;
+  userId: string;
+  courseId: string | null;
+  myShoeId: string | null;
+  sourceType: string;
+  startedAt: string;
+  completedAt: string;
+  distanceM: number;
+  durationSec: number | null;
+  movingDurationSec: number | null;
+  averagePaceSecPerKm: number | null;
+  bestPaceSecPerKm: number | null;
+  averageHeartRate: number | null;
+  maxHeartRate: number | null;
+  averageCadence: number | null;
+  caloriesKcal: number | null;
+  elevationGainM: number | null;
+};
+
+type RunCompletedEvent = {
+  eventId: string;
+  eventType: 'RunCompleted';
+  occurredAt: string;
+  producer: string;
+  aggregateId: string; // run_id
+  schemaVersion: number;
+  traceId: string;
+  payload: RunCompletedEventPayload;
+};
+
+// 러닝 완료(finishRun에서 status='COMPLETED'로 확정된 시점) 이벤트. run-completion-consumer가
+// 이걸 구독해서 챌린지 진행도(challenge.challenge_progress_events), 크루 배틀 즉시 갱신,
+// AI 러닝 코치의 축하 메시지(ai_assistant.chat_messages)를 비동기로 처리한다 — 이 세 도메인
+// 모두 running_record 서비스 소유가 아니므로 Next.js API가 직접 쓰지 않고 이벤트로만 흘려보낸다.
+export async function publishRunCompletedEvent(payload: RunCompletedEventPayload) {
+  const event: RunCompletedEvent = {
+    eventId: randomUUID(),
+    eventType: 'RunCompleted',
+    occurredAt: new Date().toISOString(),
+    producer: 'dai-run-next',
+    aggregateId: payload.runId,
+    schemaVersion: 1,
+    traceId: randomUUID(),
+    payload
+  };
+
+  const producer = getProducer();
+  await producer.connect();
+  await producer.send({
+    topic: RUN_COMPLETED_EVENTS_TOPIC,
+    messages: [{ key: payload.runId, value: JSON.stringify(event) }]
   });
 }

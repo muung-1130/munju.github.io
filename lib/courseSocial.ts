@@ -67,6 +67,36 @@ export async function toggleCourseLike(courseId: string, userId: string) {
   return getCourseLikeState(courseId, userId);
 }
 
+export type LikedCourse = {
+  courseId: string;
+  courseName: string;
+  distanceM: number | null;
+  difficulty: number | null;
+  region: string | null;
+  likedAt: string;
+};
+
+// 마이페이지 "찜한 러닝코스" 섹션용 — 내가 찜한 코스를 최근 찜한 순으로.
+export async function getUserLikedCourses(userId: string): Promise<LikedCourse[]> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT c.course_id, c.course_name, c.distance_m, c.difficulty, c.region, cl.created_at
+       FROM course.course_likes cl
+       JOIN course.courses c ON c.course_id = cl.course_id
+      WHERE cl.user_id = $1 AND c.status = 'ACTIVE' AND c.deleted_at IS NULL
+      ORDER BY cl.created_at DESC`,
+    [userId]
+  );
+  return rows.map((row) => ({
+    courseId: row.course_id,
+    courseName: row.course_name,
+    distanceM: row.distance_m,
+    difficulty: row.difficulty,
+    region: row.region,
+    likedAt: row.created_at
+  }));
+}
+
 export type CourseStatistics = {
   viewCount: number;
   likeCount: number;

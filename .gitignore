@@ -44,3 +44,6 @@ design-export/
 # Next.js
 .next/
 out/
+
+# .bak
+*.bak

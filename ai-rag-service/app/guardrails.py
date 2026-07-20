@@ -40,6 +40,12 @@ RUNNING_KEYWORDS = (
     "종아리",
     "스트레칭",
     "코스",
+    "프로필",
+    "닉네임",
+    "거주",
+    "가입",
+    "마지막",
+    "챌린지",
 )
 
 PROMPT_INJECTION_PATTERNS = (
@@ -84,7 +90,7 @@ class GuardrailResult:
     question: str | None = None
 
 
-def apply_input_guardrails(question: str) -> GuardrailResult:
+def apply_input_guardrails(question: str, allow_followup: bool = False) -> GuardrailResult:
     normalized = question.strip()
     lowered = normalized.lower()
 
@@ -116,7 +122,7 @@ def apply_input_guardrails(question: str) -> GuardrailResult:
             answer="의학적 진단이나 처방은 제공할 수 없습니다. 통증이 있거나 증상이 지속되면 운동을 중단하고 의료 전문가와 상담해 주세요.",
         )
 
-    if not any(keyword in lowered for keyword in RUNNING_KEYWORDS):
+    if not allow_followup and not any(keyword in lowered for keyword in RUNNING_KEYWORDS):
         return GuardrailResult(
             allowed=False,
             reason="OUT_OF_SCOPE",

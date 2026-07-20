@@ -6,154 +6,441 @@
   <title>D.A.I. RUN 러닝비서 데모</title>
   <style>
     :root {
+      --primary: #0b7285;
+      --primary-light: #1e9daa;
+      --primary-lighter: #e0f2f1;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
       color-scheme: light;
-      font-family: Arial, "Noto Sans KR", sans-serif;
-      background: #f6f7f8;
-      color: #17202a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
     }
 
     body {
       margin: 0;
-      padding: 24px;
+      padding: 20px;
     }
 
     main {
-      max-width: 860px;
+      max-width: 920px;
       margin: 0 auto;
     }
 
     h1 {
-      margin: 0 0 8px;
-      font-size: 28px;
+      margin: 0 0 6px;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
     }
 
     .sub {
-      margin: 0 0 20px;
-      color: #5a6673;
-    }
-
-    .panel {
-      background: #fff;
-      border: 1px solid #d9dee5;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .messages {
-      height: 520px;
-      overflow-y: auto;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .message {
-      max-width: 78%;
-      padding: 12px 14px;
-      border-radius: 8px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-    }
-
-    .user {
-      align-self: flex-end;
-      background: #0b7285;
-      color: white;
-    }
-
-    .assistant {
-      align-self: flex-start;
-      background: #edf2f7;
-    }
-
-    .meta {
-      margin-top: 8px;
-      font-size: 12px;
-      color: #4b5563;
-      word-break: break-all;
-    }
-
-    form {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      padding: 14px;
-      border-top: 1px solid #d9dee5;
-      background: #fff;
-    }
-
-    input {
-      min-width: 0;
-      padding: 12px;
-      border: 1px solid #c7ced8;
-      border-radius: 6px;
+      margin: 0 0 28px;
+      color: var(--gray-600);
       font-size: 15px;
-    }
-
-    button {
-      padding: 0 18px;
-      border: 0;
-      border-radius: 6px;
-      background: #111827;
-      color: white;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: 0.55;
-      cursor: wait;
     }
 
     .config {
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 8px;
-      margin-bottom: 14px;
+      gap: 10px;
+      margin-bottom: 24px;
+      align-items: center;
+    }
+
+    .config input {
+      padding: 11px 14px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      transition: all 0.2s;
+    }
+
+    .config input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(11, 114, 133, 0.1);
+    }
+
+    .profile-section {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .profile-section h3 {
+      margin: 0 0 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-700);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .toolbar {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
-      margin-bottom: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
     }
 
     .toolbar label {
       display: grid;
-      gap: 5px;
-      font-size: 12px;
-      color: #4b5563;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--gray-600);
+      font-weight: 500;
     }
 
     select {
       min-width: 0;
-      padding: 10px;
-      border: 1px solid #c7ced8;
-      border-radius: 6px;
+      padding: 10px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
       background: white;
       font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    select:hover {
+      border-color: var(--gray-400);
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(11, 114, 133, 0.1);
     }
 
     .quick-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 14px;
+      gap: 10px;
+      margin-bottom: 24px;
     }
 
     .quick-actions button {
-      min-height: 36px;
-      padding: 0 12px;
-      background: #e8eef3;
-      color: #17202a;
+      padding: 10px 16px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      background: white;
+      color: var(--gray-900);
       font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .quick-actions button:hover {
+      background: var(--gray-100);
+      border-color: var(--gray-400);
     }
 
     .quick-actions .primary {
-      background: #0b7285;
+      background: var(--primary);
       color: white;
+      border-color: var(--primary);
+    }
+
+    .quick-actions .primary:hover {
+      background: var(--primary-light);
+      border-color: var(--primary-light);
+    }
+
+    .panel {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 620px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: var(--gray-50);
+    }
+
+    .messages::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .messages::-webkit-scrollbar-thumb {
+      background: var(--gray-300);
+      border-radius: 4px;
+    }
+
+    .messages::-webkit-scrollbar-thumb:hover {
+      background: var(--gray-400);
+    }
+
+    .message-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .message-group.user {
+      align-items: flex-end;
+    }
+
+    .message-group.assistant {
+      align-items: flex-start;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      line-height: 1.8;
+      font-size: 15px;
+      word-wrap: break-word;
+    }
+
+    .message.user {
+      position: relative;
+      background: var(--primary);
+      color: white;
+      border-radius: 12px 12px 4px 12px;
+    }
+
+    .message.assistant {
+      position: relative;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px 12px 12px 4px;
+    }
+
+    .message.user::after {
+      content: "";
+      position: absolute;
+      right: -8px;
+      bottom: 0;
+      border: 9px solid transparent;
+      border-bottom-color: var(--primary);
+      transform: rotate(18deg);
+    }
+
+    .message.assistant::after {
+      content: "";
+      position: absolute;
+      left: -9px;
+      bottom: -1px;
+      border: 9px solid transparent;
+      border-bottom-color: white;
+      transform: rotate(-18deg);
+      filter: drop-shadow(-1px 1px 0 var(--gray-200));
+    }
+
+    .message a {
+      color: inherit;
+      text-decoration: underline;
+    }
+
+    .message.assistant a {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .message strong {
+      font-weight: 700;
+    }
+
+    .message em {
+      font-style: italic;
+    }
+
+    .message ul {
+      margin: 8px 0;
+      padding-left: 20px;
+    }
+
+    .message li {
+      margin: 4px 0;
+    }
+
+    .message h2, .message h3 {
+      margin: 12px 0 8px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .sources-card {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: var(--primary-lighter);
+      border-left: 3px solid var(--primary);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--gray-700);
+    }
+
+    .sources-card-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sources-card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .sources-card-list li {
+      margin: 0;
+      padding: 0;
+      word-break: break-all;
+    }
+
+    .sources-card-list a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .sources-card-list a:hover {
+      text-decoration: underline;
+    }
+
+    .guardrail-warning {
+      background: #fef3c7;
+      border-left: 3px solid var(--warning);
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-top: 8px;
+      color: #92400e;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 18px;
+      border-top: 1px solid var(--gray-200);
+      background: white;
+    }
+
+    form input {
+      min-width: 0;
+      padding: 12px 14px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      font-size: 15px;
+      background: white;
+      transition: all 0.2s;
+    }
+
+    form input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(11, 114, 133, 0.1);
+    }
+
+    form button {
+      padding: 0 24px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    form button:hover {
+      background: var(--primary-light);
+    }
+
+    form button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .config button {
+      padding: 11px 16px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      background: white;
+      color: var(--gray-900);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .config button:hover {
+      background: var(--gray-100);
+      border-color: var(--gray-400);
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--gray-300);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      main {
+        max-width: 100%;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .message {
+        max-width: 95%;
+      }
+
+      .panel {
+        height: auto;
+        min-height: 500px;
+      }
     }
   </style>
 </head>
@@ -167,42 +454,49 @@
     <button id="healthButton" type="button">Health</button>
   </div>
 
-  <div class="toolbar">
-    <label>
-      수준
-      <select id="level">
-        <option value="BEGINNER">초보자</option>
-        <option value="INTERMEDIATE">중급자</option>
-        <option value="ADVANCED">상급자</option>
-      </select>
-    </label>
-    <label>
-      목표
-      <select id="goal">
-        <option value="HEALTH">건강</option>
-        <option value="FIVE_K">5km 기록</option>
-        <option value="ENDURANCE">지구력</option>
-        <option value="DIET">다이어트</option>
-        <option value="MARATHON">마라톤</option>
-      </select>
-    </label>
-    <label>
-      주간 횟수
-      <select id="weeklyRuns">
-        <option value="1">1회</option>
-        <option value="2" selected>2회</option>
-        <option value="3">3회</option>
-        <option value="4">4회</option>
-        <option value="5">5회 이상</option>
-      </select>
-    </label>
-    <label>
-      통증
-      <select id="recentPain">
-        <option value="false">없음</option>
-        <option value="true">있음</option>
-      </select>
-    </label>
+  <div class="profile-section">
+    <h3>러너 프로필</h3>
+    <div class="toolbar">
+      <label>
+        사용자 ID
+        <input id="userId" type="text" placeholder="테스트 user_id (선택사항)" style="padding: 10px 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;" />
+      </label>
+      <label>
+        수준
+        <select id="level">
+          <option value="BEGINNER">초보자</option>
+          <option value="INTERMEDIATE">중급자</option>
+          <option value="ADVANCED">상급자</option>
+        </select>
+      </label>
+      <label>
+        목표
+        <select id="goal">
+          <option value="HEALTH">건강</option>
+          <option value="FIVE_K">5km 기록</option>
+          <option value="ENDURANCE">지구력</option>
+          <option value="DIET">다이어트</option>
+          <option value="MARATHON">마라톤</option>
+        </select>
+      </label>
+      <label>
+        주간 횟수
+        <select id="weeklyRuns">
+          <option value="1">1회</option>
+          <option value="2" selected>2회</option>
+          <option value="3">3회</option>
+          <option value="4">4회</option>
+          <option value="5">5회 이상</option>
+        </select>
+      </label>
+      <label>
+        통증
+        <select id="recentPain">
+          <option value="false">없음</option>
+          <option value="true">있음</option>
+        </select>
+      </label>
+    </div>
   </div>
 
   <div class="quick-actions">
@@ -210,13 +504,15 @@
     <button type="button" data-question="LSD 훈련의 목적과 진행 방법을 알려줘">LSD</button>
     <button type="button" data-question="인터벌 훈련은 초보자가 시작해도 돼?">인터벌</button>
     <button type="button" data-question="5km 기록 줄이려면 어떻게 훈련해야 해?">5km 기록</button>
-    <button type="button" data-question="내 무릎 통증이 무슨 병인지 진단해줘">진단 차단</button>
+    <button type="button" data-question="마라톤 대회 준비를 8주 계획으로 어떻게 짜야 해?">마라톤</button>
+    <button type="button" data-question="다이어트 목적이면 주 3회 러닝으로 어떤 식으로 진행하는 게 좋아?">다이어트</button>
+    <button type="button" data-question="초보자에게 어떤 러닝복과 용품이 기본으로 필요해?">복장</button>
   </div>
 
   <section class="panel">
     <div id="messages" class="messages"></div>
     <form id="chatForm">
-      <input id="question" placeholder="예: LSD 훈련의 목적과 진행 방법을 알려줘" autocomplete="off" />
+      <input id="question" placeholder="러닝, 코칭, 코스, 러닝화, 마라톤 관련 질문을 자유롭게 해보세요" autocomplete="off" />
       <button id="sendButton" type="submit">보내기</button>
     </form>
   </section>
@@ -234,8 +530,10 @@
   const goalInput = document.querySelector("#goal");
   const weeklyRunsInput = document.querySelector("#weeklyRuns");
   const recentPainInput = document.querySelector("#recentPain");
+  const userIdInput = document.querySelector("#userId");
 
   let sessionId = null;
+  let currentLocation = null;
 
   function getProfile() {
     return {
@@ -246,27 +544,157 @@
     };
   }
 
-  function addMessage(role, text, meta) {
-    const element = document.createElement("div");
-    element.className = `message ${role}`;
-    element.textContent = text;
+  function getUserId() {
+    return userIdInput.value.trim() || null;
+  }
 
-    if (meta) {
-      const metaElement = document.createElement("div");
-      metaElement.className = "meta";
-      metaElement.textContent = meta;
-      element.appendChild(metaElement);
+  // 사용자 위치 요청
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        currentLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+      },
+      () => {
+        console.log("위치 권한 거부");
+      }
+    );
+  }
+
+  function renderMarkdown(text) {
+    if (!text) return text;
+
+    let html = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    html = html
+      .replace(/^### (.*?)$/gm, "<h3>$1</h3>")
+      .replace(/^## (.*?)$/gm, "<h2>$1</h2>")
+      .replace(/^# (.*?)$/gm, "<h2>$1</h2>");
+
+    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    const lines = html.split("\n");
+    let listType = null;
+    const processed = [];
+
+    function closeList() {
+      if (listType) {
+        processed.push(`</${listType}>`);
+        listType = null;
+      }
     }
 
-    messages.appendChild(element);
+    for (let line of lines) {
+      const unorderedItem = line.match(/^\s*[-*]\s+(.+)$/);
+      const orderedItem = line.match(/^\s*\d+[.)]\s+(.+)$/);
+
+      if (unorderedItem) {
+        if (listType !== "ul") {
+          closeList();
+          processed.push("<ul>");
+          listType = "ul";
+        }
+        processed.push("<li>" + unorderedItem[1] + "</li>");
+      } else if (orderedItem) {
+        if (listType !== "ol") {
+          closeList();
+          processed.push("<ol>");
+          listType = "ol";
+        }
+        processed.push("<li>" + orderedItem[1] + "</li>");
+      } else {
+        closeList();
+        const trimmed = line.trim();
+        if (!trimmed) {
+          continue;
+        }
+        if (/^<h[23]>/.test(trimmed)) {
+          processed.push(trimmed);
+        } else {
+          processed.push("<p>" + trimmed + "</p>");
+        }
+      }
+    }
+
+    closeList();
+
+    return processed.join("\n");
+  }
+
+  function addMessage(role, text, meta) {
+    const groupElement = document.createElement("div");
+    groupElement.className = `message-group ${role}`;
+
+    const element = document.createElement("div");
+    element.className = `message ${role}`;
+
+    if (role === "assistant") {
+      element.innerHTML = renderMarkdown(text);
+    } else {
+      element.textContent = text;
+    }
+
+    groupElement.appendChild(element);
+
+    if (meta && meta.blocked) {
+      const warningElement = document.createElement("div");
+      warningElement.className = "guardrail-warning";
+      warningElement.textContent = `⚠️ ${meta.reason}: ${meta.answer || "요청을 처리할 수 없습니다."}`;
+      groupElement.appendChild(warningElement);
+    } else if (meta && meta.sources && meta.sources.length > 0) {
+      const sourcesCard = document.createElement("div");
+      sourcesCard.className = "sources-card";
+
+      const title = document.createElement("div");
+      title.className = "sources-card-title";
+      title.innerHTML = "📄 <span>참고 자료</span>";
+      sourcesCard.appendChild(title);
+
+      const list = document.createElement("ul");
+      list.className = "sources-card-list";
+
+      meta.sources.forEach((source) => {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = source;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = source.split("/").pop() || source;
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+
+      sourcesCard.appendChild(list);
+      groupElement.appendChild(sourcesCard);
+    }
+
+    messages.appendChild(groupElement);
     messages.scrollTop = messages.scrollHeight;
   }
 
   async function postChat(question) {
+    const payload = {
+      question,
+      sessionId,
+      profile: getProfile(),
+      userId: getUserId(),
+    };
+
+    if (currentLocation) {
+      payload.latitude = currentLocation.latitude;
+      payload.longitude = currentLocation.longitude;
+    }
+
     const response = await fetch(`${baseUrlInput.value}/api/v1/ai/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, sessionId, profile: getProfile() }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -289,12 +717,17 @@
     try {
       const data = await postChat(question);
       sessionId = data.sessionId || sessionId;
-      const meta = [
-        data.blocked ? `blocked: ${data.guardrailReason}` : null,
-        data.sessionId ? `sessionId: ${data.sessionId}` : null,
-        data.sources && data.sources.length ? `sources: ${data.sources.join(", ")}` : null,
-      ].filter(Boolean).join(" | ");
-      addMessage("assistant", data.answer, meta);
+
+      const meta = {};
+      if (data.blocked) {
+        meta.blocked = true;
+        meta.reason = data.guardrailReason || "BLOCKED";
+        meta.answer = data.answer;
+      } else if (data.sources && data.sources.length > 0) {
+        meta.sources = data.sources;
+      }
+
+      addMessage("assistant", data.answer, Object.keys(meta).length > 0 ? meta : null);
     } catch (error) {
       addMessage("assistant", `요청 실패: ${error.message}`);
     } finally {
@@ -307,9 +740,9 @@
     try {
       const response = await fetch(`${baseUrlInput.value}/health`);
       const data = await response.json();
-      addMessage("assistant", `Health: ${data.status}`);
+      addMessage("assistant", `✅ 서버 상태: ${data.status}`);
     } catch (error) {
-      addMessage("assistant", `Health check 실패: ${error.message}`);
+      addMessage("assistant", `❌ Health check 실패: ${error.message}`);
     }
   });
 
@@ -317,10 +750,20 @@
     todayButton.disabled = true;
     addMessage("user", "오늘의 러닝 코칭 추천해줘");
     try {
+      const payload = {
+        profile: getProfile(),
+        userId: getUserId(),
+      };
+
+      if (currentLocation) {
+        payload.latitude = currentLocation.latitude;
+        payload.longitude = currentLocation.longitude;
+      }
+
       const response = await fetch(`${baseUrlInput.value}/api/v1/ai/coaching/today`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: getProfile() }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -328,8 +771,9 @@
       }
 
       const data = await response.json();
-      const meta = data.sources && data.sources.length ? `sources: ${data.sources.join(", ")}` : null;
-      addMessage("assistant", `${data.title}\n\n${data.recommendation}\n\n주의: ${data.caution}`, meta);
+      const meta = data.sources && data.sources.length > 0 ? { sources: data.sources } : null;
+      const coaching = `## ${data.title}\n\n**추천:**\n${data.recommendation}\n\n**주의:**\n${data.caution}`;
+      addMessage("assistant", coaching, meta);
     } catch (error) {
       addMessage("assistant", `오늘의 코칭 실패: ${error.message}`);
     } finally {
@@ -339,12 +783,13 @@
 
   document.querySelectorAll("[data-question]").forEach((button) => {
     button.addEventListener("click", () => {
+      sessionId = null;
       questionInput.value = button.dataset.question;
       questionInput.focus();
     });
   });
 
-  addMessage("assistant", "러닝 훈련, 코칭, 코스, 러닝화, 마라톤 관련 질문을 해 주세요.");
+  addMessage("assistant", "안녕하세요! 어떤 러닝 도움이 필요하신가요? 훈련 계획, 오늘의 코칭, 코스, 러닝화, 마라톤 중에서 편하게 말씀해 주세요.");
 </script>
 </body>
 </html>

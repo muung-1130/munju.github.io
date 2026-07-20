@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card } from '@/components/UI';
 import type { MetricType } from '@/lib/challengeFormat';
 
@@ -33,7 +34,11 @@ export function MyChallengesSection({ challenges }: { challenges: ChallengeWeekl
               const success = (today?.value ?? 0) > 0;
               return (
                 <tr key={challenge.challengeId}>
-                  <td>{challenge.name}</td>
+                  <td>
+                    <Link href={`/challenges/${challenge.challengeId}`} className="mypage-challenge-name-link">
+                      {challenge.name}
+                    </Link>
+                  </td>
                   <td>{challenge.progressRatio.toFixed(0)}%</td>
                   <td className="mypage-challenge-today-icon">
                     <span className={success ? 'today-ok' : 'today-miss'} title={success ? '오늘 진행했어요' : '오늘 기록이 아직 없어요'}>

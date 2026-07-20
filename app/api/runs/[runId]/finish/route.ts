@@ -24,6 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: { runId: 
   const routePositions: [number, number][] = Array.isArray(body.routePositions)
     ? body.routePositions.filter((p: unknown) => Array.isArray(p) && p.length === 2)
     : [];
+  const myShoeId = typeof body.myShoeId === 'string' && body.myShoeId.trim() ? body.myShoeId : null;
 
   if (!status || !Number.isFinite(distanceM) || distanceM < 0 || !Number.isFinite(durationSec) || durationSec < 0) {
     return NextResponse.json({ error: '기록 정보가 올바르지 않아요.' }, { status: 400 });
@@ -38,7 +39,8 @@ export async function POST(request: NextRequest, { params }: { params: { runId: 
       movingDurationSec: Math.round(movingDurationSec),
       avgPaceSecPerKm,
       bestPaceSecPerKm,
-      routePositions
+      routePositions,
+      myShoeId
     });
     return NextResponse.json({ success: true });
   } catch (err) {

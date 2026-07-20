@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Card } from '@/components/UI';
 import { useCrewChat } from '@/components/CrewChatContext';
-import { CrewBattleSection } from '@/components/CrewBattleSection';
 
 type MyCrewInfo = {
   crewId: string;
@@ -60,11 +59,6 @@ export function MyCrewsSection({ crews }: { crews: MyCrewInfo[] }) {
           ))}
         </div>
       )}
-      {crews.map((crew) => (
-        <div key={`${crew.crewId}-battle`} className="mypage-crew-battle-wrap">
-          <CrewBattleSection crewId={crew.crewId} />
-        </div>
-      ))}
     </Card>
   );
 }

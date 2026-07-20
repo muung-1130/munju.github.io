@@ -8,6 +8,7 @@ import { MyChallengesSection } from '@/components/MyChallengesSection';
 import { RecentRunsTable } from '@/components/RecentRunsTable';
 import { ShoesSection } from '@/components/ShoesSection';
 import { LikedShoesSection } from '@/components/LikedShoesSection';
+import { LikedCoursesSection } from '@/components/LikedCoursesSection';
 import {
   getRunningSummary,
   getCurrentRunStreak,
@@ -18,6 +19,7 @@ import {
 import { getMyActiveCrews } from '@/lib/crew';
 import { getMyActiveChallengesWeeklyProgress } from '@/lib/challenges';
 import { getUserShoesDetailed, getUserLikedShoes } from '@/lib/shoes';
+import { getUserLikedCourses } from '@/lib/courseSocial';
 import { getUserWeightKgForDisplay } from '@/lib/calorie';
 import { WeightEditableCalorieStat } from '@/components/WeightEditableCalorieStat';
 
@@ -37,7 +39,7 @@ export default async function MyPage() {
   const email = session?.user?.email ?? '-';
   const joinDate = formatJoinDate(session?.user?.createdAt);
 
-  const [summary, streak, myCrews, myChallenges, recentRuns, myShoes, likedShoes, weightKg] = await Promise.all([
+  const [summary, streak, myCrews, myChallenges, recentRuns, myShoes, likedShoes, likedCourses, weightKg] = await Promise.all([
     userId ? getRunningSummary(userId) : Promise.resolve(null),
     userId ? getCurrentRunStreak(userId) : Promise.resolve(0),
     userId ? getMyActiveCrews(userId) : Promise.resolve([]),
@@ -45,6 +47,7 @@ export default async function MyPage() {
     userId ? getRecentRunsDetailed(userId) : Promise.resolve([]),
     userId ? getUserShoesDetailed(userId) : Promise.resolve([]),
     userId ? getUserLikedShoes(userId) : Promise.resolve([]),
+    userId ? getUserLikedCourses(userId) : Promise.resolve([]),
     userId ? getUserWeightKgForDisplay(userId) : Promise.resolve(66)
   ]);
 
@@ -89,6 +92,8 @@ export default async function MyPage() {
       </Card>
 
       <RunningStatsSection />
+
+      <LikedCoursesSection courses={likedCourses} />
 
       <MyCrewsSection crews={myCrews} />
 
