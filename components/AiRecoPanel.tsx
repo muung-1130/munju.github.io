@@ -6,6 +6,8 @@ import { Card } from '@/components/UI';
 import { CourseMapView } from '@/components/CourseMapView';
 import type { CourseRoute } from '@/components/CourseMapView';
 import { useAuthModal } from './AuthModalContext';
+import { usePreferencesModal } from './PreferencesModalContext';
+import { formatKstDateTime } from '@/lib/format';
 
 export type AiRecoCourse = {
   // null이면 실제 AI 추천이 아니라 (로그인 전이거나 아직 추천이 없어서) 대체로 보여주는
@@ -27,6 +29,8 @@ export type AiRecoCourse = {
   modelVersion?: string | null;
   likedByUser?: boolean;
   likeCount?: number;
+  // true면 개인화된 추천이 아니라 선호도 미입력 사용자/미가입자가 공유하는 공용 기본 추천.
+  isDefaultRecommendation?: boolean;
 };
 
 const AVERAGE_PACE_MIN_PER_KM = 6;
@@ -44,12 +48,7 @@ function formatScore(value: number | null | undefined) {
 }
 
 function formatRecommendedAt(iso: string) {
-  return new Date(iso).toLocaleString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  return formatKstDateTime(iso, { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function sendFeedback(recommendationId: string, courseId: string, feedbackType: 'CLICK' | 'LIKE' | 'START_RUN' | 'DISMISS') {
@@ -64,6 +63,7 @@ function sendFeedback(recommendationId: string, courseId: string, feedbackType: 
 export function AiRecoPanel({ courses: initialCourses }: { courses: AiRecoCourse[] }) {
   const { data: session } = useSession();
   const { openAuthModal } = useAuthModal();
+  const { openPreferencesModal } = usePreferencesModal();
   const [courses, setCourses] = useState(initialCourses);
   const [index, setIndex] = useState(0);
   const [likePending, setLikePending] = useState(false);
@@ -128,6 +128,14 @@ export function AiRecoPanel({ courses: initialCourses }: { courses: AiRecoCourse
     if (course?.recommendationId) sendFeedback(course.recommendationId, course.courseId, 'START_RUN');
   }
 
+  function handleAddPreferencesClick() {
+    if (!session?.user) {
+      openAuthModal();
+      return;
+    }
+    openPreferencesModal();
+  }
+
   return (
     <Card className="ai-reco-panel">
       <div className="card-head">
@@ -135,6 +143,14 @@ export function AiRecoPanel({ courses: initialCourses }: { courses: AiRecoCourse
         <span>AI 추천</span>
       </div>
       <p>오늘의 날씨와 평소 러닝 패턴에 따른 맞춤 코스를 추천해드릴게요!</p>
+      {course.isDefaultRecommendation && (
+        <div className="ai-reco-default-notice">
+          <span>사용자 선호 정보가 없어서 기본 추천 정보를 안내해요!</span>
+          <button type="button" className="ghost-btn small" onClick={handleAddPreferencesClick}>
+            선호도 정보 추가
+          </button>
+        </div>
+      )}
       <div className="ai-reco-inner">
         <button
           type="button"

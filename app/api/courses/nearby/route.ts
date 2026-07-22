@@ -12,6 +12,15 @@ import {
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// 코스 거리 구간 — 마라톤 페이지의 거리 구간 기준(전체/5km/10km/15km/하프/풀)과 동일한 경계.
+const DISTANCE_BUCKET_RANGES: Record<string, [number, number | null]> = {
+  KM5: [0, 5000],
+  KM10: [5000, 10000],
+  KM15: [10000, 19000],
+  HALF: [19000, 30000],
+  FULL: [30000, null]
+};
+
 export async function GET(
   request: NextRequest
 ) {
@@ -29,6 +38,12 @@ export async function GET(
 
   const query =
     searchParams.get('q')?.trim() || null;
+
+  const distanceBucket =
+    searchParams.get('distance_bucket')?.trim() || null;
+
+  const courseType =
+    searchParams.get('course_type')?.trim() || null;
 
   if (
     !Number.isFinite(lat) ||
@@ -66,48 +81,45 @@ export async function GET(
       await searchCourseIdsElasticsearch(query);
   }
 
-  let extraCondition = '';
-  let queryValues: unknown[] = [lat, lng];
+  // lat/lng는 항상 $1/$2로 고정하고, 그 뒤로 필요한 조건만 순서대로 붙인다.
+  const conditions: string[] = [
+    `w.waypoint_type = 'START'`,
+    `c.visibility = 'PUBLIC'`,
+    `c.status = 'ACTIVE'`,
+    `c.deleted_at IS NULL`
+  ];
+  const values: unknown[] = [lat, lng];
 
   if (query && useElasticsearch) {
-    extraCondition = `
-      AND c.course_id::text =
-        ANY($3::text[])
-    `;
-
-    queryValues = [
-      lat,
-      lng,
-      courseIds ?? []
-    ];
+    values.push(courseIds ?? []);
+    conditions.push(`c.course_id::text = ANY($${values.length}::text[])`);
   } else if (query) {
-    extraCondition = `
-      AND (
-        c.course_name ILIKE $3
-        OR c.description ILIKE $3
-        OR c.region ILIKE $3
-      )
-    `;
-
-    queryValues = [
-      lat,
-      lng,
-      `%${query}%`
-    ];
+    values.push(`%${query}%`);
+    conditions.push(
+      `(c.course_name ILIKE $${values.length} OR c.description ILIKE $${values.length} OR c.region ILIKE $${values.length})`
+    );
   } else if (!showAll) {
-    extraCondition = `
-      AND ST_DWithin(
-        w.location::geography,
-        ST_MakePoint($2, $1)::geography,
-        $3
-      )
-    `;
+    values.push(radiusM);
+    conditions.push(
+      `ST_DWithin(w.location::geography, ST_MakePoint($2, $1)::geography, $${values.length})`
+    );
+  }
 
-    queryValues = [
-      lat,
-      lng,
-      radiusM
-    ];
+  if (distanceBucket && DISTANCE_BUCKET_RANGES[distanceBucket]) {
+    const [min, max] = DISTANCE_BUCKET_RANGES[distanceBucket];
+    values.push(min);
+    const minParam = values.length;
+    if (max === null) {
+      conditions.push(`c.distance_m > $${minParam}`);
+    } else {
+      values.push(max);
+      conditions.push(`c.distance_m > $${minParam} AND c.distance_m <= $${values.length}`);
+    }
+  }
+
+  if (courseType) {
+    values.push(courseType);
+    conditions.push(`c.course_type = $${values.length}`);
   }
 
   const pool = getPool();
@@ -160,16 +172,11 @@ export async function GET(
       LEFT JOIN course.course_statistics s
         ON s.course_id = c.course_id
 
-      WHERE
-        w.waypoint_type = 'START'
-        AND c.visibility = 'PUBLIC'
-        AND c.status = 'ACTIVE'
-        AND c.deleted_at IS NULL
-        ${extraCondition}
+      WHERE ${conditions.join(' AND ')}
 
       ORDER BY distance_from_user_m
     `,
-    queryValues
+    values
   );
 
   const courses = nearby.map((row) => {

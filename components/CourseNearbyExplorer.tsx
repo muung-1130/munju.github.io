@@ -20,6 +20,21 @@ const ROUTE_COLOR_PALETTE = [
   '#135be8', '#ff8b1a', '#3aa655', '#e0439a', '#00a3a3', '#7d5cff', '#d63c3c', '#b8860b'
 ];
 
+type DistanceBucket = 'KM5' | 'KM10' | 'KM15' | 'HALF' | 'FULL';
+
+const DISTANCE_BUCKET_OPTIONS: { value: DistanceBucket; label: string; range: string }[] = [
+  { value: 'KM5', label: '5km', range: '~5km' },
+  { value: 'KM10', label: '10km', range: '6~10km' },
+  { value: 'KM15', label: '15km', range: '11~19km' },
+  { value: 'HALF', label: '하프', range: '20~30km' },
+  { value: 'FULL', label: '풀', range: '31km~' }
+];
+
+const COURSE_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: '마라톤', label: '마라톤' },
+  { value: '시티런', label: '시티런' }
+];
+
 type NearbyCourse = {
   courseId: string;
   name: string;
@@ -49,6 +64,8 @@ export function CourseNearbyExplorer() {
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState<string | null>(null);
   const [fitSignal, setFitSignal] = useState(0);
+  const [distanceBucket, setDistanceBucket] = useState<DistanceBucket | ''>('');
+  const [courseType, setCourseType] = useState('');
   const radiusIndexRef = useRef(RADIUS_PRESETS_KM.indexOf(5));
 
   async function applyLocation(point: { lat: number; lng: number }, fallback: boolean) {
@@ -124,12 +141,20 @@ export function CourseNearbyExplorer() {
 
   useEffect(() => {
     if (!location) return;
-    const params = activeSearch
-      ? `lat=${location.lat}&lng=${location.lng}&q=${encodeURIComponent(activeSearch)}`
-      : showAll
-        ? `lat=${location.lat}&lng=${location.lng}&all=true`
-        : `lat=${location.lat}&lng=${location.lng}&radius_m=${radiusKm * 1000}`;
-    fetch(`/api/courses/nearby?${params}`)
+    const params = new URLSearchParams();
+    params.set('lat', String(location.lat));
+    params.set('lng', String(location.lng));
+    if (activeSearch) {
+      params.set('q', activeSearch);
+    } else if (showAll) {
+      params.set('all', 'true');
+    } else {
+      params.set('radius_m', String(radiusKm * 1000));
+    }
+    if (distanceBucket) params.set('distance_bucket', distanceBucket);
+    if (courseType) params.set('course_type', courseType);
+
+    fetch(`/api/courses/nearby?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : { courses: [] }))
       .then((json) => {
         const results: NearbyCourse[] = json.courses ?? [];
@@ -142,7 +167,7 @@ export function CourseNearbyExplorer() {
         if (activeSearch) setFitSignal((n) => n + 1);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, radiusKm, showAll, activeSearch]);
+  }, [location, radiusKm, showAll, activeSearch, distanceBucket, courseType]);
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault();
@@ -154,6 +179,14 @@ export function CourseNearbyExplorer() {
   function clearSearch() {
     setSearchInput('');
     setActiveSearch(null);
+  }
+
+  function toggleDistanceBucket(value: DistanceBucket) {
+    setDistanceBucket((prev) => (prev === value ? '' : value));
+  }
+
+  function toggleCourseType(value: string) {
+    setCourseType((prev) => (prev === value ? '' : value));
   }
 
   if (!location) {
@@ -226,6 +259,40 @@ export function CourseNearbyExplorer() {
         </div>
       </div>
 
+      <div className="course-filter-row">
+        <div className="course-filter-buttons">
+          <button type="button" className={distanceBucket === '' ? 'active' : ''} onClick={() => setDistanceBucket('')}>
+            <strong>전체 거리</strong>
+          </button>
+          {DISTANCE_BUCKET_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={distanceBucket === opt.value ? 'active' : ''}
+              onClick={() => toggleDistanceBucket(opt.value)}
+            >
+              <strong>{opt.label}</strong>
+              <span>{opt.range}</span>
+            </button>
+          ))}
+        </div>
+        <div className="course-filter-buttons">
+          <button type="button" className={courseType === '' ? 'active' : ''} onClick={() => setCourseType('')}>
+            <strong>전체</strong>
+          </button>
+          {COURSE_TYPE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={courseType === opt.value ? 'active' : ''}
+              onClick={() => toggleCourseType(opt.value)}
+            >
+              <strong>{opt.label}</strong>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {activeSearch && (
         <p className="course-nearby-search-status">
           &quot;{activeSearch}&quot; 검색 결과 {courses?.length ?? 0}건
@@ -248,7 +315,7 @@ export function CourseNearbyExplorer() {
         />
       </div>
 
-      <div className="course-nearby-list">
+      <div className={`course-nearby-list ${activeSearch ? 'search-mode' : ''}`}>
         {courses === null ? (
           <p className="muted">코스를 찾는 중…</p>
         ) : courses.length === 0 ? (

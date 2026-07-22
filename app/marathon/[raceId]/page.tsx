@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card, PageTitle } from '@/components/UI';
 import { useAuthModal } from '@/components/AuthModalContext';
+import { formatKstDateTime } from '@/lib/format';
 
 type MarathonRace = {
   raceId: number;
@@ -28,7 +29,7 @@ type MyReservation = { status: string; submittedAt: string };
 const STATUS_POLL_MS = 5000;
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return formatKstDateTime(iso, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 function useCountdown(target: string | null): string | null {
@@ -195,9 +196,15 @@ export default function MarathonDetailPage() {
           </div>
         )}
 
-        <a href={race.officialWebsite} target="_blank" rel="noreferrer" className="marathon-official-link" style={{ display: 'inline-block', marginTop: 12 }}>
-          공식 홈페이지 ↗
-        </a>
+        {race.officialWebsite.startsWith('/') ? (
+          <Link href={race.officialWebsite} className="marathon-official-link" style={{ display: 'inline-block', marginTop: 12 }}>
+            공식 홈페이지 ↗
+          </Link>
+        ) : (
+          <a href={race.officialWebsite} target="_blank" rel="noreferrer" className="marathon-official-link" style={{ display: 'inline-block', marginTop: 12 }}>
+            공식 홈페이지 ↗
+          </a>
+        )}
       </Card>
 
       {race.isExclusiveCollab && (

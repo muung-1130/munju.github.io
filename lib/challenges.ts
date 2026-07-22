@@ -48,26 +48,74 @@ export async function getPersonalChallenges(userId: string): Promise<ChallengeSu
             cp.progress_value AS my_progress_value, cp.progress_ratio AS my_progress_ratio, cp.status AS my_status
        FROM challenge.challenges c
        LEFT JOIN challenge.challenge_participations cp ON cp.challenge_id = c.challenge_id AND cp.user_id = $1
-      WHERE c.challenge_type = 'PERSONAL' AND c.creator_user_id = $1
+      WHERE c.challenge_type = 'PERSONAL' AND c.creator_user_id = $1 AND c.status <> 'CANCELLED'
+        AND (cp.status IS NULL OR cp.status <> 'COMPLETED')
       ORDER BY c.status = 'ACTIVE' DESC, c.start_at DESC`,
     [userId]
   );
   return rows.map(mapSummaryRow);
 }
 
-// 공개 챌린지: "다같이 참가하는 챌린지" — 진행중/완료된 PUBLIC 챌린지를 참가자 수와 함께 보여준다.
+export type CompletedChallengeEntry = {
+  participationId: string;
+  challengeId: string;
+  name: string;
+  challengeType: string;
+  completedAt: string;
+};
+
+// 마이페이지 "완료한 챌린지" — 개인/공개 상관없이 완주(completed_at이 찍힌) 참가 이력을 전부 보여준다.
+// 공개 챌린지는 매주 인스턴스가 새로 생기므로, 완주할 때마다 한 줄씩 쌓여 주차별 완주 이력이 된다.
+export async function getCompletedChallenges(userId: string): Promise<CompletedChallengeEntry[]> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT p.participation_id, c.challenge_id, c.name, c.challenge_type, p.completed_at
+       FROM challenge.challenge_participations p
+       JOIN challenge.challenges c ON c.challenge_id = p.challenge_id
+      WHERE p.user_id = $1 AND p.completed_at IS NOT NULL
+      ORDER BY p.completed_at DESC`,
+    [userId]
+  );
+  return rows.map((row) => ({
+    participationId: row.participation_id,
+    challengeId: row.challenge_id,
+    name: row.name,
+    challengeType: row.challenge_type,
+    completedAt: row.completed_at
+  }));
+}
+
+// 개인 챌린지는 본인만 만들고 참여하므로, 삭제도 소유자 본인만 가능하다 — 실제 row는 남기고
+// status만 CANCELLED로 바꿔 목록에서 빠지게 한다(진행 이력/이벤트는 그대로 보존).
+export async function deletePersonalChallenge(challengeId: string, userId: string): Promise<'ok' | 'not-found'> {
+  const pool = getPool();
+  const { rowCount } = await pool.query(
+    `UPDATE challenge.challenges SET status = 'CANCELLED'
+      WHERE challenge_id = $1 AND creator_user_id = $2 AND challenge_type = 'PERSONAL' AND status <> 'CANCELLED'`,
+    [challengeId, userId]
+  );
+  return (rowCount ?? 0) > 0 ? 'ok' : 'not-found';
+}
+
+// 공개 챌린지: "다같이 참가하는 챌린지" — 매주 월요일마다 새 인스턴스가 생기므로, 같은 시리즈의
+// 지난 주차는 목록에서 감추고 시리즈별 최신(이번 주) 인스턴스만 보여준다. series_id가 없는
+// 레거시 일회성 챌린지는 자기 자신이 곧 "최신"이다.
 export async function getPublicChallenges(userId: string | null): Promise<ChallengeSummary[]> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT c.challenge_id, c.challenge_type, c.name, c.description, c.metric_type, c.target_value,
-            c.start_at, c.end_at, c.status,
-            (SELECT COUNT(*) FROM challenge.challenge_participations p WHERE p.challenge_id = c.challenge_id) AS participant_count,
-            cp.progress_value AS my_progress_value, cp.progress_ratio AS my_progress_ratio, cp.status AS my_status
-       FROM challenge.challenges c
-       LEFT JOIN challenge.challenge_participations cp
-         ON cp.challenge_id = c.challenge_id AND cp.user_id = $1 AND cp.status = 'ACTIVE'
-      WHERE c.challenge_type = 'PUBLIC' AND c.visibility = 'PUBLIC' AND c.status IN ('ACTIVE', 'COMPLETED')
-      ORDER BY c.status = 'ACTIVE' DESC, c.start_at DESC`,
+    `SELECT * FROM (
+       SELECT DISTINCT ON (COALESCE(c.series_id, c.challenge_id))
+              c.challenge_id, c.challenge_type, c.name, c.description, c.metric_type, c.target_value,
+              c.start_at, c.end_at, c.status,
+              (SELECT COUNT(*) FROM challenge.challenge_participations p WHERE p.challenge_id = c.challenge_id AND p.status <> 'CANCELLED') AS participant_count,
+              cp.progress_value AS my_progress_value, cp.progress_ratio AS my_progress_ratio, cp.status AS my_status
+         FROM challenge.challenges c
+         LEFT JOIN challenge.challenge_participations cp
+           ON cp.challenge_id = c.challenge_id AND cp.user_id = $1 AND cp.status IN ('ACTIVE', 'WAITING')
+        WHERE c.challenge_type = 'PUBLIC' AND c.visibility = 'PUBLIC' AND c.status IN ('ACTIVE', 'COMPLETED')
+        ORDER BY COALESCE(c.series_id, c.challenge_id), c.start_at DESC
+     ) latest
+     ORDER BY latest.status = 'ACTIVE' DESC, latest.start_at DESC`,
     [userId]
   );
   return rows.map(mapSummaryRow);
@@ -88,13 +136,13 @@ export async function getChallengeDetail(challengeId: string, userId: string | n
             c.start_at, c.end_at, c.status, c.visibility, c.created_at,
             u.nickname AS creator_nickname,
             crew.crew_name,
-            (SELECT COUNT(*) FROM challenge.challenge_participations p WHERE p.challenge_id = c.challenge_id) AS participant_count,
+            (SELECT COUNT(*) FROM challenge.challenge_participations p WHERE p.challenge_id = c.challenge_id AND p.status <> 'CANCELLED') AS participant_count,
             cp.progress_value AS my_progress_value, cp.progress_ratio AS my_progress_ratio, cp.status AS my_status
        FROM challenge.challenges c
        LEFT JOIN auth_user.users u ON u.user_id = c.creator_user_id
        LEFT JOIN crew.crews crew ON crew.crew_id = c.crew_id
        LEFT JOIN challenge.challenge_participations cp
-         ON cp.challenge_id = c.challenge_id AND cp.user_id = $2 AND cp.status = 'ACTIVE'
+         ON cp.challenge_id = c.challenge_id AND cp.user_id = $2 AND cp.status IN ('ACTIVE', 'WAITING')
       WHERE c.challenge_id = $1`,
     [challengeId, userId]
   );
@@ -107,6 +155,63 @@ export async function getChallengeDetail(challengeId: string, userId: string | n
     crewName: row.crew_name,
     createdAt: row.created_at
   };
+}
+
+export type DailyLogEntry = {
+  date: string;
+  dayLabel: string;
+  isToday: boolean;
+  isFuture: boolean;
+  value: number;
+  succeeded: boolean;
+};
+
+// 챌린지 상세 페이지의 "성공/실패 증거" — 이번 회차(challenges.start_at~end_at) 동안 지금
+// 로그인한 사용자가 언제 조건을 충족하는 러닝을 했는지 하루 단위로 보여준다. 미래 날짜는 아직
+// 결과가 없으니 succeeded를 매기지 않고 isFuture로만 구분한다.
+export async function getChallengeDailyLog(challengeId: string, userId: string): Promise<DailyLogEntry[]> {
+  const pool = getPool();
+  const { rows: challengeRows } = await pool.query(`SELECT start_at, end_at FROM challenge.challenges WHERE challenge_id = $1`, [
+    challengeId
+  ]);
+  if (challengeRows.length === 0) return [];
+  const startDateKst = toDateStr(challengeRows[0].start_at);
+  const endDateKst = toDateStr(challengeRows[0].end_at);
+
+  const { rows: partRows } = await pool.query(
+    `SELECT participation_id FROM challenge.challenge_participations
+      WHERE challenge_id = $1 AND user_id = $2 AND status IN ('ACTIVE', 'COMPLETED', 'FAILED')`,
+    [challengeId, userId]
+  );
+
+  const byDay = new Map<string, number>();
+  if (partRows.length > 0) {
+    const { rows: dayRows } = await pool.query<{ day: string | Date; total: string }>(
+      `SELECT (occurred_at AT TIME ZONE 'Asia/Seoul')::date AS day, SUM(increment_value) AS total
+         FROM challenge.challenge_progress_events
+        WHERE participation_id = $1
+        GROUP BY day`,
+      [partRows[0].participation_id]
+    );
+    for (const r of dayRows) byDay.set(toDateStr(r.day), Number(r.total ?? 0));
+  }
+
+  const todayKst = todayKstStr();
+  const days: DailyLogEntry[] = [];
+  let cursor = startDateKst;
+  for (let i = 0; cursor <= endDateKst && i < 31; i++) {
+    const value = byDay.get(cursor) ?? 0;
+    days.push({
+      date: cursor,
+      dayLabel: DAY_LABELS[(new Date(`${cursor}T00:00:00Z`).getUTCDay() + 6) % 7],
+      isToday: cursor === todayKst,
+      isFuture: cursor > todayKst,
+      value,
+      succeeded: value > 0
+    });
+    cursor = addDaysStr(cursor, 1);
+  }
+  return days;
 }
 
 export type HallOfFameEntry = {
@@ -201,7 +306,9 @@ function addDaysStr(dateStr: string, days: number): string {
 }
 
 function toDateStr(value: string | Date): string {
-  return typeof value === 'string' ? value : value.toISOString().slice(0, 10);
+  // start_at/end_at는 timestamptz(실제 순간)라 .toISOString()(UTC)로 자르면 KST 자정 근처에서
+  // 하루가 밀린다 — todayKstStr()과 동일하게 KST 기준으로 날짜만 뽑아야 한다.
+  return typeof value === 'string' ? value : value.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 }
 
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
@@ -256,13 +363,21 @@ function todayKstStr(): string {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
 }
 
+function isMondayKst(): boolean {
+  return new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Seoul', weekday: 'short' }) === 'Mon';
+}
+
+// 공개 챌린지는 매주 월요일에만 새 참여가 곧바로 활성화된다. 월요일에 신청하면 이번 주(오늘 막
+// 시작된) 인스턴스에 바로 ACTIVE로 참여하고, 그 외 요일에 신청하면 이번 주는 WAITING으로 대기만
+// 하다가 challenge-weekly-scheduler가 다음 주 인스턴스를 만들 때 자동으로 그쪽 ACTIVE 참여로
+// 이관해준다(참여자 본인이 다시 신청할 필요 없음).
 export async function joinPublicChallenge(
   challengeId: string,
   userId: string
-): Promise<'ok' | 'not-found' | 'already-joined' | 'not-open-yet'> {
+): Promise<'ok' | 'ok-waiting' | 'not-found' | 'already-joined'> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT challenge_type, visibility, status, start_at FROM challenge.challenges WHERE challenge_id = $1`,
+    `SELECT challenge_type, visibility, status FROM challenge.challenges WHERE challenge_id = $1`,
     [challengeId]
   );
   const challenge = rows[0];
@@ -270,24 +385,29 @@ export async function joinPublicChallenge(
     return 'not-found';
   }
 
-  // 신청은 시작일 바로 전날(KST)에만 가능하다 — 너무 일찍 몰려서 신청하거나
-  // 이미 시작된 챌린지에 뒤늦게 신청해 진행률 계산이 꼬이는 것을 막는다.
-  const startDateKst = toDateStr(challenge.start_at);
-  const openDateKst = addDaysStr(startDateKst, -1);
-  if (todayKstStr() !== openDateKst) return 'not-open-yet';
-
   const existing = await pool.query(
-    `SELECT 1 FROM challenge.challenge_participations WHERE challenge_id = $1 AND user_id = $2 AND status = 'ACTIVE'`,
+    `SELECT 1 FROM challenge.challenge_participations WHERE challenge_id = $1 AND user_id = $2 AND status IN ('ACTIVE', 'WAITING')`,
     [challengeId, userId]
   );
   if (existing.rows.length > 0) return 'already-joined';
 
+  const status = isMondayKst() ? 'ACTIVE' : 'WAITING';
   await pool.query(
     `INSERT INTO challenge.challenge_participations (challenge_id, user_id, status, progress_value, progress_ratio)
-     VALUES ($1, $2, 'ACTIVE', 0, 0)`,
+     VALUES ($1, $2, $3, 0, 0)`,
+    [challengeId, userId, status]
+  );
+  return status === 'ACTIVE' ? 'ok' : 'ok-waiting';
+}
+
+export async function leavePublicChallenge(challengeId: string, userId: string): Promise<'ok' | 'not-joined'> {
+  const pool = getPool();
+  const { rowCount } = await pool.query(
+    `UPDATE challenge.challenge_participations SET status = 'CANCELLED'
+      WHERE challenge_id = $1 AND user_id = $2 AND status IN ('ACTIVE', 'WAITING')`,
     [challengeId, userId]
   );
-  return 'ok';
+  return (rowCount ?? 0) > 0 ? 'ok' : 'not-joined';
 }
 
 export type ChallengeRuleInput = {
@@ -310,10 +430,31 @@ export type CreateChallengeInput = {
   description: string | null;
   metricType: MetricType;
   targetValue: number;
-  startAt: string;
-  endAt: string;
+  // PERSONAL만 사용 — PUBLIC은 항상 이번 주(오늘이 월요일이면 이번 주, 아니면 다음 주) 월~일로
+  // 서버가 직접 계산하고 클라이언트가 보낸 값은 무시한다.
+  startAt?: string;
+  endAt?: string;
   rules: ChallengeRuleInput | null;
 };
+
+function mondayRangeKst(mondayKstMidnight: Date): { startAt: string; endAt: string } {
+  const startAt = new Date(mondayKstMidnight.getTime() - 9 * 60 * 60 * 1000).toISOString();
+  const endAt = new Date(
+    mondayKstMidnight.getTime() + 6 * 24 * 60 * 60 * 1000 + (24 * 60 * 60 * 1000 - 1000) - 9 * 60 * 60 * 1000
+  ).toISOString();
+  return { startAt, endAt };
+}
+
+// 오늘이 월요일(KST)이면 이번 주, 아니면 다음 월요일부터 시작하는 주간 범위.
+function currentOrNextMondayRangeKst(): { startAt: string; endAt: string } {
+  const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const dow = nowKst.getUTCDay(); // 0=일 ... 1=월
+  const daysUntilMonday = dow === 1 ? 0 : dow === 0 ? 1 : 8 - dow;
+  const mondayKstMidnight = new Date(
+    Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth(), nowKst.getUTCDate() + daysUntilMonday)
+  );
+  return mondayRangeKst(mondayKstMidnight);
+}
 
 export class ChallengeValidationError extends Error {}
 
@@ -332,18 +473,24 @@ const RULE_FIELD_MAP: [keyof ChallengeRuleInput, string][] = [
 
 // "챌린지 만들기" — PERSONAL/PUBLIC 공통. 세부 조건(challenge_rules)은 선택이지만, 사용하기로
 // 했다면(rules !== null) 최소 하나의 필드는 채워져 있어야 한다(빈 규칙 행을 만들지 않기 위함).
-// PERSONAL은 만든 사람이 곧 유일한 참가자이므로 생성과 동시에 참가 처리한다. PUBLIC은 다른
-// 사용자와 동일하게 시작일 전날에만 "참여하기"로 신청하게 한다(자기 챌린지라고 예외를 두지 않음).
+// PERSONAL은 만든 사람이 곧 유일한 참가자이므로 생성과 동시에 참가 처리하고, 시작/종료일을 직접
+// 고를 수 있다. PUBLIC은 매주 월~일 자동 반복 시리즈로 만들어진다 — 시작/종료일은 서버가 계산하고
+// (오늘이 월요일이면 이번 주, 아니면 다음 월요일부터), 다른 사용자와 동일하게 월요일에만 곧바로
+// 참여할 수 있어 생성자도 자동 참여시키지 않는다.
 export async function createChallenge(creatorUserId: string, input: CreateChallengeInput): Promise<string> {
   const name = input.name.trim();
   if (!name) throw new ChallengeValidationError('챌린지 이름을 입력해 주세요.');
   if (name.length > 150) throw new ChallengeValidationError('챌린지 이름은 150자 이내로 입력해 주세요.');
   if (!(input.targetValue > 0)) throw new ChallengeValidationError('목표값은 0보다 커야 해요.');
-  if (!(new Date(input.startAt) < new Date(input.endAt))) {
-    throw new ChallengeValidationError('종료일은 시작일보다 늦어야 해요.');
-  }
-  if (input.startAt < todayKstStr()) {
-    throw new ChallengeValidationError('시작일은 오늘 이후여야 해요.');
+
+  if (input.challengeType === 'PERSONAL') {
+    if (!input.startAt || !input.endAt) throw new ChallengeValidationError('시작일과 종료일을 입력해 주세요.');
+    if (!(new Date(input.startAt) < new Date(input.endAt))) {
+      throw new ChallengeValidationError('종료일은 시작일보다 늦어야 해요.');
+    }
+    if (input.startAt < todayKstStr()) {
+      throw new ChallengeValidationError('시작일은 오늘 이후여야 해요.');
+    }
   }
 
   const ruleEntries = input.rules
@@ -353,43 +500,55 @@ export async function createChallenge(creatorUserId: string, input: CreateChalle
   if (input.rules && ruleEntries.length === 0 && !hasSourceTypes) {
     throw new ChallengeValidationError('세부 조건을 사용하려면 최소 한 가지 항목은 채워야 해요.');
   }
+  const ruleColumns = ruleEntries.map(([, column]) => column);
+  const ruleValues: (number | string[] | null | undefined)[] = ruleEntries.map(([key]) => input.rules![key]);
+  if (hasSourceTypes) {
+    ruleColumns.push('allowed_source_types');
+    ruleValues.push(input.rules!.allowedSourceTypes);
+  }
 
   const pool = getPool();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    let challengeId: string;
 
-    const visibility = input.challengeType === 'PUBLIC' ? 'PUBLIC' : 'PRIVATE';
-    const { rows } = await client.query(
-      `INSERT INTO challenge.challenges
-         (creator_user_id, challenge_type, name, description, metric_type, target_value, start_at, end_at, visibility, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
-       RETURNING challenge_id`,
-      [
-        creatorUserId,
-        input.challengeType,
-        name,
-        input.description?.trim() || null,
-        input.metricType,
-        input.targetValue,
-        input.startAt,
-        input.endAt,
-        visibility
-      ]
-    );
-    const challengeId = rows[0].challenge_id as string;
+    if (input.challengeType === 'PUBLIC') {
+      const { rows: seriesRows } = await client.query(
+        `INSERT INTO challenge.challenge_series
+           (name, description, metric_type, target_value, visibility, creator_user_id${ruleColumns.length ? ', ' + ruleColumns.join(', ') : ''})
+         VALUES ($1, $2, $3, $4, 'PUBLIC', $5${ruleColumns.length ? ', ' + ruleValues.map((_, i) => `$${i + 6}`).join(', ') : ''})
+         RETURNING series_id`,
+        [name, input.description?.trim() || null, input.metricType, input.targetValue, creatorUserId, ...ruleValues]
+      );
+      const seriesId = seriesRows[0].series_id as string;
+      const { startAt, endAt } = currentOrNextMondayRangeKst();
 
-    if (ruleEntries.length > 0 || hasSourceTypes) {
-      const columns = ruleEntries.map(([, column]) => column);
-      const values: (number | string[] | null | undefined)[] = ruleEntries.map(([key]) => input.rules![key]);
-      columns.push('allowed_source_types');
-      values.push(hasSourceTypes ? input.rules!.allowedSourceTypes : null);
+      const { rows } = await client.query(
+        `INSERT INTO challenge.challenges
+           (creator_user_id, challenge_type, name, description, metric_type, target_value, start_at, end_at, visibility, status, series_id)
+         VALUES ($1, 'PUBLIC', $2, $3, $4, $5, $6, $7, 'PUBLIC', 'ACTIVE', $8)
+         RETURNING challenge_id`,
+        [creatorUserId, name, input.description?.trim() || null, input.metricType, input.targetValue, startAt, endAt, seriesId]
+      );
+      challengeId = rows[0].challenge_id as string;
+    } else {
+      const { rows } = await client.query(
+        `INSERT INTO challenge.challenges
+           (creator_user_id, challenge_type, name, description, metric_type, target_value, start_at, end_at, visibility, status)
+         VALUES ($1, 'PERSONAL', $2, $3, $4, $5, $6, $7, 'PRIVATE', 'ACTIVE')
+         RETURNING challenge_id`,
+        [creatorUserId, name, input.description?.trim() || null, input.metricType, input.targetValue, input.startAt, input.endAt]
+      );
+      challengeId = rows[0].challenge_id as string;
+    }
 
-      const placeholders = values.map((_, i) => `$${i + 2}`).join(', ');
+    if (ruleColumns.length > 0) {
+      const placeholders = ruleValues.map((_, i) => `$${i + 2}`).join(', ');
       await client.query(
-        `INSERT INTO challenge.challenge_rules (challenge_id, ${columns.join(', ')})
+        `INSERT INTO challenge.challenge_rules (challenge_id, ${ruleColumns.join(', ')})
          VALUES ($1, ${placeholders})`,
-        [challengeId, ...values]
+        [challengeId, ...ruleValues]
       );
     }
 
@@ -410,3 +569,4 @@ export async function createChallenge(creatorUserId: string, input: CreateChalle
     client.release();
   }
 }
+

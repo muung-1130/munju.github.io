@@ -52,10 +52,21 @@ export function ShoeWearAnalysisUploader({
     }
   }
 
+  if (submitting) {
+    return (
+      <Card className="wear-upload-card">
+        <div className="wear-loading">
+          <span className="wear-spinner" />
+          <p>AI가 사진을 분석하고 있어요...</p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="wear-upload-card">
       <div className="card-head">
-        <h2>사진으로 마모도 분석하기</h2>
+        <h2>사진으로 새로 분석하기</h2>
       </div>
       <p className="muted">
         밑창 전체(왼/오), 양쪽 뒤꿈치 정면, 바깥쪽 측면(왼/오) — 총 5장이 필요해요. AI가 사진을 확인해
@@ -65,15 +76,21 @@ export function ShoeWearAnalysisUploader({
       <WearPhotoUploadGrid files={files} onPick={pickFile} />
 
       <label>구매일</label>
-      <input type="date" value={purchaseDate} onChange={(event) => setPurchaseDate(event.target.value)} max={new Date().toISOString().slice(0, 10)} />
+      <input
+        type="date"
+        value={purchaseDate}
+        max={new Date().toISOString().slice(0, 10)}
+        onClick={(event) => event.currentTarget.showPicker?.()}
+        onChange={(event) => setPurchaseDate(event.target.value)}
+      />
 
-      <button className="primary-btn full-width" disabled={!allSelected || !purchaseDate || submitting} onClick={submit}>
-        {submitting ? 'AI가 분석하는 중...' : '수명 분석 요청하기'}
+      <button className="primary-btn full-width" disabled={!allSelected || !purchaseDate} onClick={submit}>
+        수명 분석 요청하기
       </button>
 
       {error && <p className="field-error">{error}</p>}
 
-      {result && <WearAnalysisResultView result={result} />}
+      {result && <WearAnalysisResultView result={result} userShoeId={userShoeId} />}
     </Card>
   );
 }

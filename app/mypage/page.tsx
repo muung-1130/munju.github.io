@@ -5,6 +5,7 @@ import { WithdrawAccountButton } from '@/components/WithdrawAccountButton';
 import { RunningStatsSection } from '@/components/RunningStatsSection';
 import { MyCrewsSection } from '@/components/MyCrewsSection';
 import { MyChallengesSection } from '@/components/MyChallengesSection';
+import { CompletedChallengesSection } from '@/components/CompletedChallengesSection';
 import { RecentRunsTable } from '@/components/RecentRunsTable';
 import { ShoesSection } from '@/components/ShoesSection';
 import { LikedShoesSection } from '@/components/LikedShoesSection';
@@ -17,11 +18,13 @@ import {
   formatDuration
 } from '@/lib/runningRecord';
 import { getMyActiveCrews } from '@/lib/crew';
-import { getMyActiveChallengesWeeklyProgress } from '@/lib/challenges';
+import { getMyActiveChallengesWeeklyProgress, getCompletedChallenges } from '@/lib/challenges';
 import { getUserShoesDetailed, getUserLikedShoes } from '@/lib/shoes';
 import { getUserLikedCourses } from '@/lib/courseSocial';
 import { getUserWeightKgForDisplay } from '@/lib/calorie';
 import { WeightEditableCalorieStat } from '@/components/WeightEditableCalorieStat';
+import { getRunningPreferences } from '@/lib/runningPreferences';
+import { PreferencesSummarySection } from '@/components/PreferencesSummarySection';
 
 function formatJoinDate(iso?: string) {
   if (!iso) return '-';
@@ -39,16 +42,30 @@ export default async function MyPage() {
   const email = session?.user?.email ?? '-';
   const joinDate = formatJoinDate(session?.user?.createdAt);
 
-  const [summary, streak, myCrews, myChallenges, recentRuns, myShoes, likedShoes, likedCourses, weightKg] = await Promise.all([
+  const [
+    summary,
+    streak,
+    myCrews,
+    myChallenges,
+    completedChallenges,
+    recentRuns,
+    myShoes,
+    likedShoes,
+    likedCourses,
+    weightKg,
+    runningPreferences
+  ] = await Promise.all([
     userId ? getRunningSummary(userId) : Promise.resolve(null),
     userId ? getCurrentRunStreak(userId) : Promise.resolve(0),
     userId ? getMyActiveCrews(userId) : Promise.resolve([]),
     userId ? getMyActiveChallengesWeeklyProgress(userId) : Promise.resolve([]),
+    userId ? getCompletedChallenges(userId) : Promise.resolve([]),
     userId ? getRecentRunsDetailed(userId) : Promise.resolve([]),
     userId ? getUserShoesDetailed(userId) : Promise.resolve([]),
     userId ? getUserLikedShoes(userId) : Promise.resolve([]),
     userId ? getUserLikedCourses(userId) : Promise.resolve([]),
-    userId ? getUserWeightKgForDisplay(userId) : Promise.resolve(66)
+    userId ? getUserWeightKgForDisplay(userId) : Promise.resolve(66),
+    userId ? getRunningPreferences(userId) : Promise.resolve(null)
   ]);
 
   const avgDistanceM = summary && summary.runCount > 0 ? summary.totalDistanceM / summary.runCount : null;
@@ -93,11 +110,15 @@ export default async function MyPage() {
 
       <RunningStatsSection />
 
+      <PreferencesSummarySection preferences={runningPreferences} />
+
       <LikedCoursesSection courses={likedCourses} />
 
       <MyCrewsSection crews={myCrews} />
 
       <MyChallengesSection challenges={myChallenges} />
+
+      <CompletedChallengesSection challenges={completedChallenges} />
 
       {streak > 0 && (
         <div className="run-streak-banner">

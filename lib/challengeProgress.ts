@@ -16,6 +16,8 @@ type ParticipationRow = {
   start_at: string;
   end_at: string;
   challenge_status: string;
+  challenge_type: string;
+  name: string;
 };
 
 // running_record.runs에 새 완료 기록이 생겼거나 자정이 지나 챌린지 기간이 끝났을 때
@@ -31,7 +33,8 @@ export async function syncUserChallengeProgress(userId: string): Promise<void> {
   const { rows } = await pool.query<ParticipationRow>(
     `SELECT p.participation_id, p.challenge_id, p.user_id, p.status, p.progress_value,
             p.streak_count, p.joined_at, p.completed_at,
-            c.metric_type, c.target_value, c.start_at, c.end_at, c.status AS challenge_status
+            c.metric_type, c.target_value, c.start_at, c.end_at, c.status AS challenge_status,
+            c.challenge_type, c.name
        FROM challenge.challenge_participations p
        JOIN challenge.challenges c ON c.challenge_id = p.challenge_id
       WHERE p.user_id = $1 AND p.status = 'ACTIVE' AND c.metric_type IN ('DISTANCE', 'COUNT', 'STREAK')`,
@@ -139,6 +142,17 @@ async function applyProgress(row: ParticipationRow, progressValue: number, strea
       WHERE participation_id = $6`,
     [progressValue, progressRatio, streakCount, newStatus, completedAt, row.participation_id]
   );
+
+  // syncUserChallengeProgress는 status='ACTIVE'인 참가만 조회하므로(위 SELECT 참고), 이 함수가
+  // 호출됐다는 것 자체가 row.status는 항상 ACTIVE였다는 뜻 — newStatus가 COMPLETED면 지금 이
+  // 호출에서 막 완주로 전환된 것이라 알림도 정확히 한 번만 나간다.
+  if (newStatus === 'COMPLETED' && row.challenge_type === 'PERSONAL') {
+    await pool.query(
+      `INSERT INTO notification.notifications (user_id, notification_type, title, body, target_url, reference_type, reference_id)
+       VALUES ($1, 'CHALLENGE_COMPLETED', '챌린지 달성 성공!', $2, $3, 'CHALLENGE', $4)`,
+      [row.user_id, `'${row.name}' 챌린지 달성에 성공했어요!`, `/challenges/${row.challenge_id}`, row.challenge_id]
+    );
+  }
 
   // 완주가 확정되면 이 참가에 걸려있던 진행 이벤트 원장은 더 이상 필요 없다 — 동기화 대상은
   // status='ACTIVE'인 참가만이라(syncUserChallengeProgress 참고) COMPLETED로 넘어간 참가는

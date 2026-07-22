@@ -17,10 +17,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const userShoeId = await createUserShoe(session.user.id, {
-      shoeModelId: Number(body.shoeModelId),
+      shoeModelId: body.shoeModelId === null || body.shoeModelId === undefined ? null : Number(body.shoeModelId),
       nickname: body.nickname ? String(body.nickname) : null,
-      purchaseDate: String(body.purchaseDate ?? ''),
-      initialDistanceM: body.initialDistanceM ? Number(body.initialDistanceM) : 0
+      purchaseDate: String(body.purchaseDate ?? '')
     });
     return NextResponse.json({ userShoeId }, { status: 201 });
   } catch (error) {

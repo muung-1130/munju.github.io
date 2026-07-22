@@ -13,6 +13,8 @@ import { ChatProvider, useChat } from './ChatContext';
 import { AuthModalProvider, useAuthModal } from './AuthModalContext';
 import { CrewChatProvider, useCrewChat } from './CrewChatContext';
 import { CrewChatWidget } from './CrewChatWidget';
+import { PreferencesModalProvider } from './PreferencesModalContext';
+import { RunningPreferencesOnboardingModal } from './RunningPreferencesOnboardingModal';
 
 const navItems = [
   { href: '/', label: '홈' },
@@ -29,6 +31,7 @@ type AppNotification = {
   notificationType: string;
   title: string;
   body: string;
+  targetUrl: string | null;
   referenceType: string | null;
   referenceId: string | null;
   crewName: string | null;
@@ -150,6 +153,13 @@ function NotificationBell({ session }: { session: ReturnType<typeof useSession>[
                       </button>
                     </div>
                   </>
+                ) : n.targetUrl ? (
+                  <Link href={n.targetUrl} className="notification-link" onClick={() => dismiss(n.notificationId)}>
+                    <p>
+                      <b>{n.title}</b>
+                    </p>
+                    <p className="notification-message">{n.body}</p>
+                  </Link>
                 ) : (
                   <p>{n.body}</p>
                 )}
@@ -199,7 +209,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
       <header className="top-nav">
         <div className="top-nav-row1">
           <Link href="/" className="brand" aria-label="DAI RUN 홈">
-            <Image src="/assets/logo-mark-navy-v2.png" alt="" width={36} height={36} className="brand-mark" priority />
+            <Image src="/assets/logo-mark-navy-transparent.png" alt="" width={36} height={36} className="brand-mark" priority />
             <span className="brand-text">DAI RUN</span>
           </Link>
 
@@ -256,6 +266,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
       <main className="page-wrap">{children}</main>
       <AssistantChatWidget />
       <CrewChatWidget />
+      <RunningPreferencesOnboardingModal />
       {session?.user && session.user.profileComplete === false && (
         <CompleteProfileModal currentNickname={session.user.name} onDone={() => update()} />
       )}
@@ -277,7 +288,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <ChatProvider>
       <AuthModalProvider>
         <CrewChatProvider>
-          <AppShellInner>{children}</AppShellInner>
+          <PreferencesModalProvider>
+            <AppShellInner>{children}</AppShellInner>
+          </PreferencesModalProvider>
         </CrewChatProvider>
       </AuthModalProvider>
     </ChatProvider>

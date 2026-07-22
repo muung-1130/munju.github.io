@@ -8,6 +8,30 @@ export async function hasRunningPreferences(userId: string): Promise<boolean> {
   return rows.length > 0;
 }
 
+export type RunningPreferences = {
+  runningGoal: 'HEALTH' | 'DIET' | 'ENDURANCE' | 'MARATHON' | null;
+  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | null;
+  preferredDistanceM: number | null;
+  preferredScenery: string | null;
+};
+
+// 마이페이지 선호도 시각화, 설문 모달 프리필(수정 진입) 용도로 저장된 값을 그대로 돌려준다.
+export async function getRunningPreferences(userId: string): Promise<RunningPreferences | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT running_goal, difficulty, preferred_distance_m, preferred_scenery
+       FROM auth_user.user_running_preferences WHERE user_id = $1`,
+    [userId]
+  );
+  if (rows.length === 0) return null;
+  return {
+    runningGoal: rows[0].running_goal,
+    difficulty: rows[0].difficulty,
+    preferredDistanceM: rows[0].preferred_distance_m,
+    preferredScenery: rows[0].preferred_scenery
+  };
+}
+
 export type OnboardingPreferencesInput = {
   runningGoal: 'HEALTH' | 'DIET' | 'ENDURANCE' | 'MARATHON' | null;
   difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | null;

@@ -14,8 +14,8 @@ const adminId = adminRows[0].user_id;
 async function addShoe({ shoeModelId, nickname, purchaseDate, firstUsedAt, accumulatedDistanceM, status, retiredAt }) {
   const { rows } = await client.query(
     `INSERT INTO shoe.user_shoes
-       (user_id, shoe_model_id, nickname, purchase_date, first_used_at, initial_distance_m, accumulated_distance_m, status, retired_at)
-     VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8)
+       (user_id, shoe_model_id, nickname, purchase_date, first_used_at, accumulated_distance_m, status, retired_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING user_shoe_id`,
     [adminId, shoeModelId, nickname, purchaseDate, firstUsedAt, accumulatedDistanceM, status, retiredAt]
   );

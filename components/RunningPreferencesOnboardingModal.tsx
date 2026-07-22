@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
+import { usePreferencesModal } from './PreferencesModalContext';
 
 const DISMISS_KEY = 'runningPrefsOnboardingDismissed';
 
@@ -33,39 +35,69 @@ const SCENERY_OPTIONS = [
 
 export function RunningPreferencesOnboardingModal() {
   const { data: session } = useSession();
+  const pathname = usePathname();
+  const { open, openPreferencesModal, closePreferencesModal } = usePreferencesModal();
   const nickname = session?.user?.name ?? '러너';
-  const [open, setOpen] = useState(false);
   const [goal, setGoal] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<string | null>(null);
   const [distanceM, setDistanceM] = useState<number | null>(null);
   const [scenery, setScenery] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const autoCheckedRef = useRef(false);
 
+  // /courses 진입 시, 선호도가 아예 없는 로그인 사용자에게 자동으로 설문을 띄운다(세션당 1회).
   useEffect(() => {
+    if (pathname !== '/courses') return;
     if (!session?.user) return;
+    if (autoCheckedRef.current) return;
     if (sessionStorage.getItem(DISMISS_KEY)) return;
+    autoCheckedRef.current = true;
     fetch('/api/user-running-preferences')
       .then((res) => (res.ok ? res.json() : { hasPreferences: true }))
       .then((data) => {
-        if (!data.hasPreferences) setOpen(true);
+        if (!data.hasPreferences) openPreferencesModal();
       });
-  }, [session?.user]);
+  }, [pathname, session?.user, openPreferencesModal]);
+
+  // "선호도 정보 추가/수정" 버튼으로 열렸을 때는 기존 저장값으로 프리필한다.
+  useEffect(() => {
+    if (!open || !session?.user) return;
+    setSubmitError(null);
+    fetch('/api/user-running-preferences')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const prefs = data?.preferences;
+        setGoal(prefs?.runningGoal ?? null);
+        setDifficulty(prefs?.difficulty ?? null);
+        setDistanceM(prefs?.preferredDistanceM ?? null);
+        setScenery(prefs?.preferredScenery ?? null);
+      });
+  }, [open, session?.user]);
 
   function dismiss() {
     sessionStorage.setItem(DISMISS_KEY, '1');
-    setOpen(false);
+    closePreferencesModal();
   }
 
   async function submit() {
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      await fetch('/api/user-running-preferences', {
+      const res = await fetch('/api/user-running-preferences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ runningGoal: goal, difficulty, preferredDistanceM: distanceM, preferredScenery: scenery })
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setSubmitError(data?.error ?? '저장에 실패했어요. 잠시 후 다시 시도해주세요.');
+        return;
+      }
       sessionStorage.setItem(DISMISS_KEY, '1');
-      setOpen(false);
+      closePreferencesModal();
+    } catch {
+      setSubmitError('네트워크 오류로 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +118,12 @@ export function RunningPreferencesOnboardingModal() {
         <label>러닝 목표</label>
         <div className="env-grid onboarding-pref-grid">
           {GOAL_OPTIONS.map((opt) => (
-            <button key={opt.value} type="button" className={goal === opt.value ? 'selected' : ''} onClick={() => setGoal(opt.value)}>
+            <button
+              key={opt.value}
+              type="button"
+              className={goal === opt.value ? 'selected' : ''}
+              onClick={() => setGoal((prev) => (prev === opt.value ? null : opt.value))}
+            >
               {opt.label}
             </button>
           ))}
@@ -95,7 +132,12 @@ export function RunningPreferencesOnboardingModal() {
         <label>숙련도</label>
         <div className="env-grid onboarding-pref-grid">
           {DIFFICULTY_OPTIONS.map((opt) => (
-            <button key={opt.value} type="button" className={difficulty === opt.value ? 'selected' : ''} onClick={() => setDifficulty(opt.value)}>
+            <button
+              key={opt.value}
+              type="button"
+              className={difficulty === opt.value ? 'selected' : ''}
+              onClick={() => setDifficulty((prev) => (prev === opt.value ? null : opt.value))}
+            >
               {opt.label}
             </button>
           ))}
@@ -104,7 +146,12 @@ export function RunningPreferencesOnboardingModal() {
         <label>선호 거리</label>
         <div className="env-grid onboarding-pref-grid">
           {DISTANCE_OPTIONS.map((opt) => (
-            <button key={opt.value} type="button" className={distanceM === opt.value ? 'selected' : ''} onClick={() => setDistanceM(opt.value)}>
+            <button
+              key={opt.value}
+              type="button"
+              className={distanceM === opt.value ? 'selected' : ''}
+              onClick={() => setDistanceM((prev) => (prev === opt.value ? null : opt.value))}
+            >
               {opt.label}
             </button>
           ))}
@@ -113,11 +160,18 @@ export function RunningPreferencesOnboardingModal() {
         <label>선호 환경</label>
         <div className="env-grid onboarding-pref-grid">
           {SCENERY_OPTIONS.map((opt) => (
-            <button key={opt.value} type="button" className={scenery === opt.value ? 'selected' : ''} onClick={() => setScenery(opt.value)}>
+            <button
+              key={opt.value}
+              type="button"
+              className={scenery === opt.value ? 'selected' : ''}
+              onClick={() => setScenery((prev) => (prev === opt.value ? null : opt.value))}
+            >
               {opt.label}
             </button>
           ))}
         </div>
+
+        {submitError && <p className="field-error">{submitError}</p>}
 
         <div className="onboarding-pref-actions">
           <button className="ghost-btn" onClick={dismiss}>나중에 할게요</button>

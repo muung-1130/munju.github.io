@@ -1,6 +1,7 @@
 import { getPool } from '@/lib/db';
 import { getRandomCourses } from '@/lib/course';
-import { ensureTodaysRecommendation } from '@/lib/aiRecommendationOrchestrator';
+import { GUEST_DEFAULT_USER_ID, ensureGuestDefaultRecommendation, ensureTodaysRecommendation } from '@/lib/aiRecommendationOrchestrator';
+import { hasRunningPreferences } from '@/lib/runningPreferences';
 import type { AiRecoCourse } from '@/components/AiRecoPanel';
 
 export type AiRecommendedCourse = {
@@ -56,7 +57,26 @@ export async function getActiveRecommendationsForUser(userId: string): Promise<A
   if (!run) return [];
 
   // 이 사용자가 예전에 "마음에 안들어요"를 누른 코스는, 그게 이번 추천 실행이 아니었더라도
-  // 다시 보여주지 않는다 (course_id 기준으로 전역 판단).
+  // 다시 보여주지 않는다 (course_id 기준으로 전역 판단). 단, GUEST_DEFAULT_USER_ID는 비로그인
+  // 방문자 전원과 선호도 미입력 사용자 전원이 공유하는 가짜 user_id라, 이 필터를 그대로 적용하면
+  // 누군가 한 번 dismiss한 코스가 다른 모든 게스트에게서도 영구히 사라진다 — 그래서 이 경우엔
+  // 이 필터를 적용하지 않는다.
+  const itemsQuery =
+    userId === GUEST_DEFAULT_USER_ID
+      ? `SELECT i.course_id, i.rank_no, i.score, i.distance_score, i.difficulty_score,
+                i.environment_score, i.preference_score, i.reason
+           FROM course_recommendation.recommendation_items i
+          WHERE i.recommendation_id = $1
+          ORDER BY i.rank_no`
+      : `SELECT i.course_id, i.rank_no, i.score, i.distance_score, i.difficulty_score,
+                i.environment_score, i.preference_score, i.reason
+           FROM course_recommendation.recommendation_items i
+          WHERE i.recommendation_id = $1
+            AND NOT EXISTS (
+              SELECT 1 FROM course_recommendation.recommendation_feedback f
+               WHERE f.user_id = $2 AND f.course_id = i.course_id AND f.feedback_type = 'DISMISS'
+            )
+          ORDER BY i.rank_no`;
   const { rows: itemRows } = await pool.query<{
     course_id: string;
     rank_no: number;
@@ -66,18 +86,7 @@ export async function getActiveRecommendationsForUser(userId: string): Promise<A
     environment_score: string | null;
     preference_score: string | null;
     reason: string | null;
-  }>(
-    `SELECT i.course_id, i.rank_no, i.score, i.distance_score, i.difficulty_score,
-            i.environment_score, i.preference_score, i.reason
-       FROM course_recommendation.recommendation_items i
-      WHERE i.recommendation_id = $1
-        AND NOT EXISTS (
-          SELECT 1 FROM course_recommendation.recommendation_feedback f
-           WHERE f.user_id = $2 AND f.course_id = i.course_id AND f.feedback_type = 'DISMISS'
-        )
-      ORDER BY i.rank_no`,
-    [run.recommendation_id, userId]
-  );
+  }>(itemsQuery, userId === GUEST_DEFAULT_USER_ID ? [run.recommendation_id] : [run.recommendation_id, userId]);
   if (itemRows.length === 0) return [];
 
   const courseIds = itemRows.map((row) => row.course_id);
@@ -89,7 +98,8 @@ export async function getActiveRecommendationsForUser(userId: string): Promise<A
   }>(
     `SELECT course_id, course_name, distance_m, ST_AsGeoJSON(route_geom) AS route_geojson
        FROM course.courses
-      WHERE course_id = ANY($1)`,
+      WHERE course_id = ANY($1)
+        AND visibility = 'PUBLIC' AND status = 'ACTIVE' AND deleted_at IS NULL`,
     [courseIds]
   );
   const courseById = new Map(courseRows.map((row) => [row.course_id, row]));
@@ -174,16 +184,26 @@ export async function recordRecommendationFeedback(
 // 아니면 (로그인 전이거나 아직 추천을 받은 적 없으면) 기존처럼 무작위 코스로 대체한다 —
 // 패널 자체가 비어 보이는 것보다 이 편이 낫다는 판단.
 export async function getAiRecoPanelCourses(userId: string | null): Promise<AiRecoCourse[]> {
-  if (userId) {
+  if (userId && (await hasRunningPreferences(userId))) {
     // 오늘(KST 03:00 기준) 추천이 아직 없으면 여기서 만든다 — 로그인 후 첫 조회가 트리거.
     // AI 서비스가 안 떠 있거나 실패해도 조용히 넘어가고 아래에서 기존 추천/폴백으로 처리된다.
     await ensureTodaysRecommendation(userId).catch(() => {});
 
     const recommended = await getActiveRecommendationsForUser(userId);
     if (recommended.length > 0) {
-      return recommended.map((course) => ({ ...course }));
+      return recommended.map((course) => ({ ...course, isDefaultRecommendation: false }));
     }
+    const randomCourses = await getRandomCourses(3);
+    return randomCourses.map((course) => ({ ...course, recommendationId: null, isDefaultRecommendation: false }));
+  }
+
+  // 선호도가 없는 로그인 사용자와 비로그인 방문자는 매일 한 번만 계산되는 공용 기본 추천을
+  // 공유한다 — 사람마다 똑같은(선호 없음) 입력으로 Bedrock을 반복 호출하지 않기 위함.
+  await ensureGuestDefaultRecommendation().catch(() => {});
+  const guestRecommended = await getActiveRecommendationsForUser(GUEST_DEFAULT_USER_ID);
+  if (guestRecommended.length > 0) {
+    return guestRecommended.map((course) => ({ ...course, isDefaultRecommendation: true }));
   }
   const randomCourses = await getRandomCourses(3);
-  return randomCourses.map((course) => ({ ...course, recommendationId: null }));
+  return randomCourses.map((course) => ({ ...course, recommendationId: null, isDefaultRecommendation: true }));
 }

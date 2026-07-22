@@ -14,6 +14,7 @@ type WeatherPoint = {
   humidity_pct: string | null;
   wind_speed_ms: string | null;
   precipitation_prob_pct: string | null;
+  collected_at: string;
 };
 
 type AirQuality = {
@@ -22,6 +23,7 @@ type AirQuality = {
   pm10_grade: string | null;
   pm25_value: string | null;
   pm25_grade: string | null;
+  collected_at: string;
 } | null;
 
 type WeatherResponse = {
@@ -54,16 +56,9 @@ function pad2(n: number) {
   return String(n).padStart(2, '0');
 }
 
-// forecast_date는 'YYYYMMDD', forecast_time은 'HHmm' 문자열이라 그대로 잘라서 표기한다.
-function formatForecastRef(date: string, time: string) {
-  const y = date.slice(0, 4);
-  const m = date.slice(4, 6);
-  const d = date.slice(6, 8);
-  const hh = time.slice(0, 2);
-  const mm = time.slice(2, 4);
-  return `${y}.${m}.${d} ${hh}:${mm}`;
-}
-
+// 화면에 보여주는 기온/습도 등은 가장 가까운 미래 예보 슬롯 값이라, "OO시 기준"이라고 쓰면
+// 아직 오지 않은 시각을 근거로 삼은 것처럼 보인다. 실제로 우리가 이 값을 언제 수집했는지
+// (collected_at)를 기준 시각으로 표시해서 데이터 신선도를 정직하게 보여준다.
 function formatMeasuredAt(measuredAt: string) {
   const kst = new Date(new Date(measuredAt).getTime() + 9 * 60 * 60 * 1000);
   const y = kst.getUTCFullYear();
@@ -260,7 +255,7 @@ export function WeatherPanel() {
           <>
             <p>{current.sky_condition} · 습도 {Math.round(Number(current.humidity_pct))}% · 기온 {Number(current.temperature_c).toFixed(1)}°C</p>
             <p>바람 {Number(current.wind_speed_ms).toFixed(1)} m/s · 강수확률 {Math.round(Number(current.precipitation_prob_pct))}%</p>
-            <p className="data-source-note">기상청 단기예보 · {formatForecastRef(current.forecast_date, current.forecast_time)} 기준</p>
+            <p className="data-source-note">기상청 단기예보 · {formatMeasuredAt(current.collected_at)} 수집 기준</p>
           </>
         )}
       </Card>
@@ -275,7 +270,7 @@ export function WeatherPanel() {
               <span>PM2.5 <b>{Math.round(Number(dust.pm25_value))}</b>㎍/m³</span>
             </div>
             <div className="range-bar"><i /></div>
-            <p className="data-source-note">에어코리아 · {formatMeasuredAt(dust.measured_at)} 기준</p>
+            <p className="data-source-note">에어코리아 · {formatMeasuredAt(dust.collected_at)} 수집 기준</p>
           </>
         ) : (
           <p>{data ? '미세먼지 정보를 아직 수집하지 못했어요.' : '불러오는 중…'}</p>

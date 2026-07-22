@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { WEAR_ROLES, WearPhotoUploadGrid } from '@/components/WearPhotoUploadGrid';
 import { WearAnalysisResponse, WearAnalysisResultView } from '@/components/WearAnalysisResultView';
 
 type CatalogOption = { shoeId: number; shoeName: string; brandName: string; imageUrl: string };
 
+// 등록(create)/수정(edit) 겸용 모달. 등록 시엔 사진 5장이 필수(그 자리에서 AI 수명 예측까지
+// 이어서 보여줌), 수정 시엔 선택(다시 분석하고 싶을 때만 5장 모두 올리면 재분석).
 export function ShoeFormModal({
   mode,
   userShoeId,
@@ -22,16 +24,16 @@ export function ShoeFormModal({
   const [modelOptions, setModelOptions] = useState<CatalogOption[]>([]);
   const [selectedModel, setSelectedModel] = useState<CatalogOption | null>(null);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [noModel, setNoModel] = useState(false);
   const [nickname, setNickname] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
-  const [initialDistanceKm, setInitialDistanceKm] = useState('0');
   const [files, setFiles] = useState<Partial<Record<string, File>>>({});
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<WearAnalysisResponse | null>(null);
+  const [savedShoeId, setSavedShoeId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (mode !== 'edit' || !userShoeId) return;
@@ -40,22 +42,26 @@ export function ShoeFormModal({
       .then((data) => {
         if (!data?.shoe) return;
         const shoe = data.shoe;
-        setSelectedModel({ shoeId: shoe.shoeModelId, shoeName: shoe.shoeName, brandName: shoe.brandName, imageUrl: shoe.imageUrl });
+        if (shoe.shoeModelId === null) {
+          setNoModel(true);
+        } else {
+          setSelectedModel({ shoeId: shoe.shoeModelId, shoeName: shoe.shoeName, brandName: shoe.brandName, imageUrl: shoe.imageUrl });
+        }
         setNickname(shoe.nickname ?? '');
         setPurchaseDate(shoe.purchaseDate ?? '');
-        setInitialDistanceKm(shoe.initialDistanceM ? String(shoe.initialDistanceM / 1000) : '0');
       })
       .finally(() => setLoadingExisting(false));
   }, [mode, userShoeId]);
 
   useEffect(() => {
+    if (noModel) return;
     const timer = setTimeout(() => {
       fetch(`/api/shoes/catalog-search?q=${encodeURIComponent(modelQuery)}`)
         .then((res) => (res.ok ? res.json() : { shoes: [] }))
         .then((data) => setModelOptions(data.shoes ?? []));
     }, 200);
     return () => clearTimeout(timer);
-  }, [modelQuery]);
+  }, [modelQuery, noModel]);
 
   function pickFile(role: string, file: File | undefined) {
     setFiles((prev) => ({ ...prev, [role]: file }));
@@ -67,7 +73,8 @@ export function ShoeFormModal({
 
   async function submit() {
     setError(null);
-    if (!selectedModel) return setError('러닝화 모델을 검색해서 선택해 주세요.');
+    if (!noModel && !selectedModel) return setError('러닝화 모델을 검색해서 선택하거나, "모델을 선택하지 않음"을 체크해 주세요.');
+    if (noModel && !nickname.trim()) return setError('모델을 선택하지 않은 경우 이름을 꼭 입력해 주세요.');
     if (!purchaseDate) return setError('구매일을 선택해 주세요.');
     if (mode === 'create' && !allPhotosSelected) return setError('수명 예측을 위해 사진 5장을 모두 올려주세요.');
     if (mode === 'edit' && anyPhotoSelected && !allPhotosSelected) return setError('재분석하려면 사진 5장을 모두 올려주세요.');
@@ -75,10 +82,9 @@ export function ShoeFormModal({
     setSubmitting(true);
     try {
       const payload = {
-        shoeModelId: selectedModel.shoeId,
+        shoeModelId: noModel ? null : selectedModel!.shoeId,
         nickname: nickname || null,
-        purchaseDate,
-        initialDistanceM: Math.round(Number(initialDistanceKm || '0') * 1000)
+        purchaseDate
       };
 
       let targetShoeId = userShoeId;
@@ -106,6 +112,7 @@ export function ShoeFormModal({
           return;
         }
       }
+      setSavedShoeId(targetShoeId ?? null);
 
       if (mode === 'create' || anyPhotoSelected) {
         const form = new FormData();
@@ -135,10 +142,15 @@ export function ShoeFormModal({
 
         {loadingExisting ? (
           <p className="muted">불러오는 중...</p>
+        ) : submitting ? (
+          <div className="wear-loading">
+            <span className="wear-spinner" />
+            <p>AI가 사진을 분석하고 있어요...</p>
+          </div>
         ) : saved ? (
           <>
-            {result ? (
-              <WearAnalysisResultView result={result} />
+            {result && savedShoeId ? (
+              <WearAnalysisResultView result={result} userShoeId={savedShoeId} />
             ) : (
               <p className="field-ok">저장했어요.</p>
             )}
@@ -154,6 +166,7 @@ export function ShoeFormModal({
             <div className="shoe-model-picker">
               <input
                 value={selectedModel ? `${selectedModel.brandName} ${selectedModel.shoeName}` : modelQuery}
+                disabled={noModel}
                 onChange={(event) => {
                   setSelectedModel(null);
                   setModelQuery(event.target.value);
@@ -162,7 +175,7 @@ export function ShoeFormModal({
                 onFocus={() => setModelDropdownOpen(true)}
                 placeholder="브랜드 또는 모델명 검색"
               />
-              {modelDropdownOpen && !selectedModel && modelOptions.length > 0 && (
+              {modelDropdownOpen && !selectedModel && !noModel && modelOptions.length > 0 && (
                 <ul className="shoe-model-dropdown">
                   {modelOptions.map((opt) => (
                     <li
@@ -179,22 +192,35 @@ export function ShoeFormModal({
                 </ul>
               )}
             </div>
+            <label className="crew-filter-toggle" style={{ marginTop: 10 }}>
+              <input
+                type="checkbox"
+                checked={noModel}
+                onChange={(event) => {
+                  setNoModel(event.target.checked);
+                  setSelectedModel(null);
+                  setModelQuery('');
+                }}
+              />
+              <span>모델을 선택하지 않음 (목록에 없는 러닝화)</span>
+            </label>
 
-            <label>별명 (선택)</label>
-            <input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="예: 평일 러닝화" />
+            <label>{noModel ? '이름' : '별명 (선택)'}</label>
+            <input
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              placeholder={noModel ? '예: 알 수 없는 트레일화' : '예: 평일 러닝화'}
+            />
+            {noModel && <p className="muted" style={{ marginTop: 4 }}>썸네일은 아래에서 올리는 측면 사진으로 자동 설정돼요.</p>}
 
             <label>구매일</label>
             <input
-              ref={dateInputRef}
               type="date"
               value={purchaseDate}
               max={new Date().toISOString().slice(0, 10)}
               onClick={(event) => event.currentTarget.showPicker?.()}
               onChange={(event) => setPurchaseDate(event.target.value)}
             />
-
-            <label>이미 신은 거리 (km)</label>
-            <input type="number" min="0" step="0.1" value={initialDistanceKm} onChange={(event) => setInitialDistanceKm(event.target.value)} />
 
             <label style={{ marginTop: 16 }}>
               수명 예측 사진 {mode === 'edit' && <span className="muted">(선택 — 다시 분석하려면 5장 모두 올려주세요)</span>}

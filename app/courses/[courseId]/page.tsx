@@ -10,6 +10,7 @@ import { CourseReviewSection } from '@/components/CourseReviewSection';
 import { getPool } from '@/lib/db';
 import { authOptions } from '@/lib/auth';
 import { DIFFICULTY_COLOR, DIFFICULTY_LABEL } from '@/lib/course';
+import { formatKstDateTime } from '@/lib/format';
 import { getCourseLikeState, getCourseOwnerProfile, getCourseReviews, incrementCourseViewCount } from '@/lib/courseSocial';
 
 export const dynamic = 'force-dynamic';
@@ -85,7 +86,7 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
     positions: course.positions
   };
 
-  const createdAtLabel = new Date(course.createdAt).toLocaleString('ko-KR', {
+  const createdAtLabel = formatKstDateTime(course.createdAt, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

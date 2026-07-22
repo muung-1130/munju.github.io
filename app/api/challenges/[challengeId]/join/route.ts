@@ -16,8 +16,5 @@ export async function POST(request: Request, { params }: { params: { challengeId
   if (result === 'already-joined') {
     return NextResponse.json({ error: '이미 참여 중인 챌린지예요.' }, { status: 409 });
   }
-  if (result === 'not-open-yet') {
-    return NextResponse.json({ error: '참여 신청은 챌린지 시작일 전날에만 할 수 있어요.' }, { status: 403 });
-  }
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, waiting: result === 'ok-waiting' });
 }

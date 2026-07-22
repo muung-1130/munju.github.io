@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
   const weatherResult = await pool.query(
     `SELECT forecast_date, forecast_time, sky_condition, precipitation_type, temperature_c,
-            humidity_pct, wind_speed_ms, precipitation_prob_pct, precipitation_amount, snow_amount
+            humidity_pct, wind_speed_ms, precipitation_prob_pct, precipitation_amount, snow_amount, collected_at
        FROM environment.weather_hourly
       WHERE district = $1
         AND (forecast_date > $2 OR (forecast_date = $2 AND forecast_time >= $3))
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   );
 
   const airResult = await pool.query(
-    `SELECT measured_at, pm10_value, pm10_grade, pm25_value, pm25_grade
+    `SELECT measured_at, pm10_value, pm10_grade, pm25_value, pm25_grade, collected_at
        FROM environment.air_quality_hourly
       WHERE station_name = $1
       ORDER BY measured_at DESC

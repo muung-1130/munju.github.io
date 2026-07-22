@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { ShoeOwnershipError, WEAR_IMAGE_ROLES, WearImageRole, requestShoeWearAnalysis } from '@/lib/shoeWearAnalysis';
+import { getEditableUserShoe, setCustomThumbnailKey } from '@/lib/userShoes';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,19 @@ export async function POST(request: NextRequest, { params }: { params: { userSho
     if (httpStatus >= 400) {
       return NextResponse.json({ error: body?.detail ?? '요청을 처리할 수 없어요.' }, { status: httpStatus });
     }
+
+    // 카탈로그 모델을 선택하지 않은 신발이면, 방금 분석에 쓴 측면 사진을 그대로 목록 썸네일로
+    // 재사용한다 — 별도 업로드를 요구하지 않기 위함.
+    if (body?.status === 'COMPLETED') {
+      const thumbnailKey = body?.storage?.image_keys?.left_side;
+      if (thumbnailKey) {
+        const shoe = await getEditableUserShoe(session.user.id, params.userShoeId);
+        if (shoe && shoe.shoeModelId === null) {
+          await setCustomThumbnailKey(params.userShoeId, thumbnailKey);
+        }
+      }
+    }
+
     return NextResponse.json(body);
   } catch (error) {
     if (error instanceof ShoeOwnershipError) {

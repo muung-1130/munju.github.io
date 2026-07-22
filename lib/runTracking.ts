@@ -136,7 +136,7 @@ export async function finishRun(runId: string, userId: string, input: FinishRunI
             route_geom = CASE WHEN $10::text IS NULL THEN NULL ELSE ST_GeomFromEWKT($10) END,
             calories_kcal = $11, my_shoe_id = $12
       WHERE run_id = $1 AND user_id = $2 AND status = 'IN_PROGRESS'
-      RETURNING run_id, course_id, my_shoe_id, source_type, started_at, completed_at,
+      RETURNING run_id, course_id, my_shoe_id, source_type, started_at, completed_at, created_at,
                 distance_m, duration_sec, moving_duration_sec, average_pace_sec_per_km,
                 best_pace_sec_per_km, average_heart_rate, max_heart_rate, average_cadence,
                 calories_kcal, elevation_gain_m`,
@@ -171,6 +171,7 @@ export async function finishRun(runId: string, userId: string, input: FinishRunI
       sourceType: row.source_type,
       startedAt: row.started_at,
       completedAt: row.completed_at,
+      createdAt: row.created_at,
       distanceM: row.distance_m,
       durationSec: row.duration_sec,
       movingDurationSec: row.moving_duration_sec,

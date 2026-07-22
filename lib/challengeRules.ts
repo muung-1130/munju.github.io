@@ -16,12 +16,22 @@ function kstHour(iso: string): number {
   return kst.getUTCHours();
 }
 
+// "HH:MM:SS" 형태로 KST 기준 시:분:초만 뽑아 challenge_rules의 time 컬럼과 문자열로 비교한다.
+function kstTimeOfDay(iso: string): string {
+  const kst = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000);
+  const hh = String(kst.getUTCHours()).padStart(2, '0');
+  const mm = String(kst.getUTCMinutes()).padStart(2, '0');
+  const ss = String(kst.getUTCSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
 type ParticipationRow = {
   participation_id: string;
   progress_value: string;
   streak_count: number;
   status: string;
   challenge_id: string;
+  challenge_type: string;
   name: string;
   metric_type: 'DISTANCE' | 'COUNT' | 'PACE' | 'STREAK';
   target_value: string;
@@ -36,6 +46,8 @@ type ParticipationRow = {
   min_avg_cadence: number | null;
   min_elevation_gain_m: string | null;
   allowed_source_types: string[] | null;
+  start_time_of_day: string | null;
+  end_time_of_day: string | null;
   extra_conditions: { before_hour_kst?: number } | null;
 };
 
@@ -54,6 +66,13 @@ function runQualifies(run: RunCompletedEventPayload, rule: ParticipationRow): bo
   if (rule.min_elevation_gain_m !== null && (run.elevationGainM === null || run.elevationGainM < Number(rule.min_elevation_gain_m))) return false;
   if (rule.allowed_source_types && rule.allowed_source_types.length > 0 && !rule.allowed_source_types.includes(run.sourceType)) return false;
   if (rule.extra_conditions?.before_hour_kst !== undefined && kstHour(run.startedAt) >= rule.extra_conditions.before_hour_kst) return false;
+  // 시작 시각(started_at)은 사용자가 수동 입력 시 임의로 적을 수 있어 믿을 수 없다 — 서버가
+  // 실제로 기록을 받은 시각(created_at)을 기준으로 시간대 조건을 검사한다.
+  if (rule.start_time_of_day !== null || rule.end_time_of_day !== null) {
+    const createdTime = kstTimeOfDay(run.createdAt);
+    if (rule.start_time_of_day !== null && createdTime < rule.start_time_of_day) return false;
+    if (rule.end_time_of_day !== null && createdTime > rule.end_time_of_day) return false;
+  }
   return true;
 }
 
@@ -77,10 +96,11 @@ export async function applyChallengeProgress(eventId: string, run: RunCompletedE
 
   const { rows: participations } = await pool.query<ParticipationRow>(
     `SELECT p.participation_id, p.progress_value, p.streak_count, p.status,
-            c.challenge_id, c.name, c.metric_type, c.target_value,
+            c.challenge_id, c.challenge_type, c.name, c.metric_type, c.target_value,
             r.min_distance_m, r.max_distance_m, r.min_pace_sec_per_km, r.max_pace_sec_per_km,
             r.min_duration_sec, r.max_duration_sec, r.min_avg_heart_rate, r.max_avg_heart_rate,
-            r.min_avg_cadence, r.min_elevation_gain_m, r.allowed_source_types, r.extra_conditions
+            r.min_avg_cadence, r.min_elevation_gain_m, r.allowed_source_types,
+            r.start_time_of_day, r.end_time_of_day, r.extra_conditions
        FROM challenge.challenge_participations p
        JOIN challenge.challenges c ON c.challenge_id = p.challenge_id
        LEFT JOIN challenge.challenge_rules r ON r.challenge_id = c.challenge_id
@@ -160,7 +180,21 @@ export async function applyChallengeProgress(eventId: string, run: RunCompletedE
       [p.participation_id, progressAfter, ratio, newStreak, isNowComplete]
     );
 
-    if (isNowComplete) completedChallengeNames.push(p.name);
+    if (isNowComplete) {
+      completedChallengeNames.push(p.name);
+      // 개인 챌린지는 완주해도 그룹 참가 현황 같은 다른 화면에서 눈에 띄지 않으니, 완주 순간
+      // 알림으로 한 번 알려준다. 진행도 이벤트(challenge_progress_events)가 이미
+      // (source_event_id, participation_id) UNIQUE로 같은 러닝 이벤트의 중복 처리를 막아주므로
+      // (line 149의 continue) 여기 도달했다는 것 자체가 "처음 완주한 순간"이라 별도 멱등키 없이도
+      // 한 번만 실행된다.
+      if (p.challenge_type === 'PERSONAL') {
+        await pool.query(
+          `INSERT INTO notification.notifications (user_id, notification_type, title, body, target_url, reference_type, reference_id)
+           VALUES ($1, 'CHALLENGE_COMPLETED', '챌린지 달성 성공!', $2, $3, 'CHALLENGE', $4)`,
+          [run.userId, `'${p.name}' 챌린지 달성에 성공했어요!`, `/challenges/${p.challenge_id}`, p.challenge_id]
+        );
+      }
+    }
   }
 
   return { completedChallengeNames };

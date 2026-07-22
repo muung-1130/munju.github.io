@@ -2,61 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/UI';
+import { LineTrendChart } from '@/components/LineTrendChart';
 
 type StatBucket = { label: string; distanceKm: number; avgHeartRate: number | null; isCurrent: boolean };
 type StatsResponse = { period: 'year' | 'month' | 'week'; buckets: StatBucket[]; hasAnyHeartRate: boolean };
 
 const PERIOD_LABEL: Record<StatsResponse['period'], string> = { year: '올해', month: '이번달', week: '이번주' };
 
-const CHART_WIDTH = 640;
-const CHART_HEIGHT = 170;
-const CHART_TOP = 24;
-const CHART_BOTTOM = 128;
-
 function StatsChart({ buckets }: { buckets: StatBucket[] }) {
-  const gap = buckets.length > 7 ? 8 : 14;
-  const maxKm = Math.max(...buckets.map((b) => b.distanceKm), 1);
-  const barWidth = (CHART_WIDTH - gap * (buckets.length + 1)) / buckets.length;
-
   return (
-    <svg className="mypage-stats-chart" width="100%" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label="러닝 통계 그래프">
-      <defs>
-        <linearGradient id="statsBarFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#2f6bff" />
-          <stop offset="1" stopColor="#5ca2ff" />
-        </linearGradient>
-        <linearGradient id="statsBarFillCurrent" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#ff8a3d" />
-          <stop offset="1" stopColor="#ffb26b" />
-        </linearGradient>
-      </defs>
-      <line x1="0" y1={CHART_BOTTOM} x2={CHART_WIDTH} y2={CHART_BOTTOM} stroke="#e2e8f2" strokeWidth="1" />
-      {buckets.map((b, i) => {
-        const barHeight = maxKm > 0 ? (b.distanceKm / maxKm) * (CHART_BOTTOM - CHART_TOP) : 0;
-        const x = gap + i * (barWidth + gap);
-        const y = CHART_BOTTOM - barHeight;
-        return (
-          <g key={b.label + i}>
-            <rect x={x} y={y} width={barWidth} height={Math.max(barHeight, 2)} rx="6" fill={b.isCurrent ? 'url(#statsBarFillCurrent)' : 'url(#statsBarFill)'} />
-            {b.distanceKm > 0 && (
-              <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" fontSize="11" fontWeight="800" fill="#0e2a54">
-                {b.distanceKm.toFixed(1)}
-              </text>
-            )}
-            <text
-              x={x + barWidth / 2}
-              y={CHART_BOTTOM + 18}
-              textAnchor="middle"
-              fontSize="11"
-              fontWeight={b.isCurrent ? 900 : 700}
-              fill={b.isCurrent ? '#ff8a3d' : '#64748b'}
-            >
-              {b.label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+    <LineTrendChart
+      points={buckets.map((b) => ({ label: b.label, value: b.distanceKm, highlighted: b.isCurrent }))}
+      ariaLabel="러닝 통계 그래프"
+      height={120}
+    />
   );
 }
 

@@ -188,18 +188,22 @@ export type ShoeSearchParams = {
   brand?: string | null;
   purpose?: string | null;
   recommendLevel?: string | null;
+  footWidth?: string | null;
   carbonPlate?: boolean | null;
   priceMin?: number | null;
   priceMax?: number | null;
-  sort?: 'popular' | 'price_asc' | 'price_desc' | 'score';
+  sort?: 'default' | 'popular' | 'price_asc' | 'price_desc' | 'weight_asc' | 'weight_desc' | 'score';
   limit: number;
   offset: number;
 };
 
 const SORT_SQL: Record<NonNullable<ShoeSearchParams['sort']>, string> = {
+  default: 'sc.shoe_name ASC',
   popular: 'like_count DESC, sc.score DESC',
   price_asc: 'pr.price ASC NULLS LAST',
   price_desc: 'pr.price DESC NULLS LAST',
+  weight_asc: 'sp.weight_g ASC NULLS LAST',
+  weight_desc: 'sp.weight_g DESC NULLS LAST',
   score: 'sc.score DESC'
 };
 
@@ -231,12 +235,13 @@ export async function searchShoeCatalog(
   if (params.brand) addCondition('sc.brand_name = $$', params.brand);
   if (params.purpose) addCondition('sp.purpose = $$', params.purpose);
   if (params.recommendLevel) addCondition('sp.recommend_level = $$', params.recommendLevel);
+  if (params.footWidth) addCondition('sp.foot_width = $$', params.footWidth);
   if (params.carbonPlate !== null && params.carbonPlate !== undefined) addCondition('sp.carbon_plate = $$', params.carbonPlate);
   if (params.priceMin !== null && params.priceMin !== undefined) addCondition('pr.price >= $$', params.priceMin);
   if (params.priceMax !== null && params.priceMax !== undefined) addCondition('pr.price <= $$', params.priceMax);
 
   const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  const orderSql = SORT_SQL[params.sort ?? 'popular'];
+  const orderSql = SORT_SQL[params.sort ?? 'default'];
 
   const baseQuery = `
     FROM shoe.shoe_catalog sc
@@ -308,22 +313,25 @@ export type ShoeFilterOptions = {
   brands: string[];
   purposes: string[];
   recommendLevels: string[];
+  footWidths: string[];
 };
 
-// 필터 바 옵션. purpose/recommendLevel은 DB에 이미 CHECK 없이 varchar지만 실제 값 종류가
-// 적으므로(데일리/템포/레이싱, 초보/중급/고급) 매번 DISTINCT로 조회해 실데이터 기준으로만 보여준다
-// — 스펙에 없는 값이 추가돼도 코드 수정 없이 자동 반영된다.
+// 필터 바 옵션. purpose/recommendLevel/footWidth는 DB에 이미 CHECK 없이 varchar지만 실제 값
+// 종류가 적으므로(데일리/템포/레이싱, 초보/중급/고급, 좁음/보통/넓음) 매번 DISTINCT로 조회해
+// 실데이터 기준으로만 보여준다 — 스펙에 없는 값이 추가돼도 코드 수정 없이 자동 반영된다.
 export async function getShoeFilterOptions(): Promise<ShoeFilterOptions> {
   const pool = getPool();
-  const [brandRows, purposeRows, levelRows] = await Promise.all([
+  const [brandRows, purposeRows, levelRows, footWidthRows] = await Promise.all([
     pool.query(`SELECT DISTINCT brand_name FROM shoe.shoe_catalog ORDER BY brand_name`),
     pool.query(`SELECT DISTINCT purpose FROM shoe.shoe_spec WHERE purpose IS NOT NULL ORDER BY purpose`),
-    pool.query(`SELECT DISTINCT recommend_level FROM shoe.shoe_spec WHERE recommend_level IS NOT NULL ORDER BY recommend_level`)
+    pool.query(`SELECT DISTINCT recommend_level FROM shoe.shoe_spec WHERE recommend_level IS NOT NULL ORDER BY recommend_level`),
+    pool.query(`SELECT DISTINCT foot_width FROM shoe.shoe_spec WHERE foot_width IS NOT NULL ORDER BY foot_width`)
   ]);
   return {
     brands: brandRows.rows.map((r) => r.brand_name),
     purposes: purposeRows.rows.map((r) => r.purpose),
-    recommendLevels: levelRows.rows.map((r) => r.recommend_level)
+    recommendLevels: levelRows.rows.map((r) => r.recommend_level),
+    footWidths: footWidthRows.rows.map((r) => r.foot_width)
   };
 }
 
@@ -514,16 +522,16 @@ export type ShoeLifeSnapshot = {
 
 export type UserShoeDetail = {
   userShoeId: string;
-  shoeName: string;
-  brandName: string;
-  imageUrl: string;
+  shoeName: string | null;
+  brandName: string | null;
+  imageUrl: string | null;
+  hasCustomThumbnail: boolean;
   category: string | null;
   weightG: number | null;
   dropMm: number | null;
   nickname: string | null;
   purchaseDate: string | null;
   firstUsedAt: string | null;
-  initialDistanceM: number;
   accumulatedDistanceM: number;
   status: string;
   registeredAt: string;
@@ -532,18 +540,19 @@ export type UserShoeDetail = {
 };
 
 // 마이페이지 "보유 러닝화" 섹션용 — shoe.user_shoes에 shoe_catalog/shoe_spec 정보를 붙이고,
-// 가장 최근 shoe_life_snapshots 한 건(교체 권장일 예측)을 같이 내려준다.
+// 가장 최근 shoe_life_snapshots 한 건(교체 권장일 예측)을 같이 내려준다. shoe_model_id가 없는
+// (카탈로그 미선택) 신발도 보여야 하므로 shoe_catalog/shoe_spec은 LEFT JOIN한다.
 export async function getUserShoesDetailed(userId: string): Promise<UserShoeDetail[]> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT us.user_shoe_id, us.nickname, us.purchase_date, us.first_used_at, us.initial_distance_m,
-            us.accumulated_distance_m, us.status, us.registered_at, us.retired_at,
+    `SELECT us.user_shoe_id, us.nickname, us.purchase_date, us.first_used_at,
+            us.accumulated_distance_m, us.status, us.registered_at, us.retired_at, us.custom_thumbnail_key,
             sc.shoe_name, sc.brand_name, sc.image_url, sc.category,
             sp.weight_g, sp.drop_mm,
             sls.estimated_remaining_distance_m, sls.estimated_remaining_days,
             sls.replacement_recommended_at, sls.replacement_probability
        FROM shoe.user_shoes us
-       JOIN shoe.shoe_catalog sc ON sc.shoe_id = us.shoe_model_id
+       LEFT JOIN shoe.shoe_catalog sc ON sc.shoe_id = us.shoe_model_id
        LEFT JOIN shoe.shoe_spec sp ON sp.shoe_id = us.shoe_model_id
        LEFT JOIN LATERAL (
          SELECT * FROM shoe.shoe_life_snapshots s
@@ -570,13 +579,13 @@ export async function getUserShoesDetailed(userId: string): Promise<UserShoeDeta
       shoeName: row.shoe_name,
       brandName: row.brand_name,
       imageUrl: row.image_url,
+      hasCustomThumbnail: !!row.custom_thumbnail_key,
       category: row.category,
       weightG: row.weight_g,
       dropMm: row.drop_mm !== null ? Number(row.drop_mm) : null,
       nickname: row.nickname,
       purchaseDate: row.purchase_date ? toDateStr(row.purchase_date) : null,
       firstUsedAt: row.first_used_at ? toDateStr(row.first_used_at) : null,
-      initialDistanceM: row.initial_distance_m,
       accumulatedDistanceM: row.accumulated_distance_m,
       status: row.status,
       registeredAt: row.registered_at,
@@ -609,10 +618,11 @@ export type WearAnalysis = {
 export async function getShoeWearAnalyses(
   userShoeId: string,
   userId: string
-): Promise<{ shoeName: string; purchaseDate: string | null; analyses: WearAnalysis[] } | null> {
+): Promise<{ shoeName: string; purchaseDate: string | null; status: string; analyses: WearAnalysis[] } | null> {
   const pool = getPool();
   const { rows: shoeRows } = await pool.query(
-    `SELECT sc.shoe_name, us.purchase_date FROM shoe.user_shoes us JOIN shoe.shoe_catalog sc ON sc.shoe_id = us.shoe_model_id
+    `SELECT COALESCE(sc.shoe_name, us.nickname) AS shoe_name, us.purchase_date, us.status
+       FROM shoe.user_shoes us LEFT JOIN shoe.shoe_catalog sc ON sc.shoe_id = us.shoe_model_id
       WHERE us.user_shoe_id = $1 AND us.user_id = $2`,
     [userShoeId, userId]
   );
@@ -626,6 +636,7 @@ export async function getShoeWearAnalyses(
   return {
     shoeName: shoeRows[0].shoe_name,
     purchaseDate: shoeRows[0].purchase_date ? toDateStr(shoeRows[0].purchase_date) : null,
+    status: shoeRows[0].status,
     analyses: rows.map((r) => ({
       wearAnalysisId: r.wear_analysis_id,
       status: r.status,
@@ -637,4 +648,35 @@ export async function getShoeWearAnalyses(
       completedAt: r.completed_at
     }))
   };
+}
+
+// "다시보기" — shoe-life-ai가 분석 시점에 저장해둔 전체 응답(wear_analysis/life_estimation)을
+// 그대로 다시 보여준다. 사진을 다시 올릴 필요 없이 shoe.shoe_wear_analyses.result_json만 읽으면 된다.
+export async function getWearAnalysisResult(
+  wearAnalysisId: string,
+  userShoeId: string,
+  userId: string
+): Promise<unknown | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT wa.result_json
+       FROM shoe.shoe_wear_analyses wa
+       JOIN shoe.user_shoes us ON us.user_shoe_id = wa.user_shoe_id
+      WHERE wa.wear_analysis_id = $1 AND wa.user_shoe_id = $2 AND us.user_id = $3`,
+    [wearAnalysisId, userShoeId, userId]
+  );
+  return rows.length > 0 ? rows[0].result_json : null;
+}
+
+export async function getLatestWearAnalysisResult(userShoeId: string, userId: string): Promise<unknown | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT wa.result_json
+       FROM shoe.shoe_wear_analyses wa
+       JOIN shoe.user_shoes us ON us.user_shoe_id = wa.user_shoe_id
+      WHERE wa.user_shoe_id = $1 AND us.user_id = $2 AND wa.status = 'COMPLETED'
+      ORDER BY wa.requested_at DESC LIMIT 1`,
+    [userShoeId, userId]
+  );
+  return rows.length > 0 ? rows[0].result_json : null;
 }

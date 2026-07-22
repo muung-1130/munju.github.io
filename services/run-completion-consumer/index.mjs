@@ -2,6 +2,7 @@
 // 즉시 재계산, AI 코치 축하 메시지)를 Next.js의 내부 전용 API 한 번 호출로 위임한다. 이 소비자
 // 자체는 DB에 직접 쓰지 않는다 — 실제 도메인 로직(challenge/crew/ai_assistant 스키마 소유권)은
 // 전부 Next.js lib 코드에 그대로 두고, 여기서는 순수하게 Kafka → HTTP 브릿지 역할만 한다.
+import './otel.mjs';
 import { Kafka } from 'kafkajs';
 
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.201:29092').split(',');

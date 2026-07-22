@@ -29,7 +29,14 @@ type ShoeItem = {
   likedByUser: boolean;
 };
 
-type FilterOptions = { brands: string[]; purposes: string[]; recommendLevels: string[] };
+type FilterOptions = { brands: string[]; purposes: string[]; recommendLevels: string[]; footWidths: string[] };
+type SortOption = 'default' | 'popular' | 'price_asc' | 'weight_asc' | 'weight_desc';
+const SORT_OPTIONS: { value: Exclude<SortOption, 'default'>; label: string }[] = [
+  { value: 'popular', label: '찜 순' },
+  { value: 'price_asc', label: '가격 순' },
+  { value: 'weight_asc', label: '가벼운 순' },
+  { value: 'weight_desc', label: '무거운 순' }
+];
 
 const FUNCTION_LABEL: Record<string, string> = {
   cushioning: '쿠셔닝',
@@ -78,7 +85,7 @@ function ShoeDetailCard({
         </div>
       )}
       <div className="shoe-card-footer">
-        <span className="shoe-catalog-score">종합 {shoe.catalogScore}점 · ♥ {shoe.likeCount}</span>
+        <span className="shoe-catalog-score">♥ {shoe.likeCount}</span>
         <a href={shoe.detailUrl} target="_blank" rel="noreferrer">
           <button>상세 보기</button>
         </a>
@@ -90,11 +97,11 @@ function ShoeDetailCard({
   );
 }
 
-export function ShoeCatalogBrowser() {
+export function ShoeCatalogBrowser({ initialExpanded = false }: { initialExpanded?: boolean }) {
   const { data: session } = useSession();
   const { openAuthModal } = useAuthModal();
 
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initialExpanded);
   const [shoes, setShoes] = useState<ShoeItem[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -106,8 +113,14 @@ export function ShoeCatalogBrowser() {
   const [brand, setBrand] = useState('');
   const [purpose, setPurpose] = useState('');
   const [recommendLevel, setRecommendLevel] = useState('');
+  const [footWidth, setFootWidth] = useState('');
   const [carbonOnly, setCarbonOnly] = useState(false);
+  const [sort, setSort] = useState<SortOption>('default');
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+
+  function toggleSort(value: Exclude<SortOption, 'default'>) {
+    setSort((prev) => (prev === value ? 'default' : value));
+  }
 
   async function load(offset: number, append: boolean) {
     setLoading(true);
@@ -117,7 +130,9 @@ export function ShoeCatalogBrowser() {
       if (brand) params.set('brand', brand);
       if (purpose) params.set('purpose', purpose);
       if (recommendLevel) params.set('recommendLevel', recommendLevel);
+      if (footWidth) params.set('footWidth', footWidth);
       if (carbonOnly) params.set('carbonPlate', 'true');
+      params.set('sort', sort);
       params.set('offset', String(offset));
       const res = await fetch(`/api/shoes?${params.toString()}`);
       if (res.ok) {
@@ -131,20 +146,29 @@ export function ShoeCatalogBrowser() {
     }
   }
 
+  function loadFilterOptions() {
+    if (filterOptions) return;
+    fetch('/api/shoes/filters')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setFilterOptions(data));
+  }
+
   function handleExpand() {
     setExpanded(true);
-    if (!filterOptions) {
-      fetch('/api/shoes/filters')
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => data && setFilterOptions(data));
-    }
+    loadFilterOptions();
   }
+
+  useEffect(() => {
+    if (!initialExpanded) return;
+    loadFilterOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!expanded) return;
     load(0, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded, query, brand, purpose, recommendLevel, carbonOnly]);
+  }, [expanded, query, brand, purpose, recommendLevel, footWidth, carbonOnly, sort]);
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault();
@@ -192,6 +216,17 @@ export function ShoeCatalogBrowser() {
         <button type="submit">검색</button>
       </form>
 
+      <div className="shoe-catalog-sort">
+        <button type="button" className={sort === 'default' ? 'active' : ''} onClick={() => setSort('default')}>
+          전체
+        </button>
+        {SORT_OPTIONS.map((opt) => (
+          <button key={opt.value} type="button" className={sort === opt.value ? 'active' : ''} onClick={() => toggleSort(opt.value)}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <div className="shoe-catalog-filters">
         <select value={brand} onChange={(event) => setBrand(event.target.value)}>
           <option value="">브랜드 전체</option>
@@ -214,6 +249,14 @@ export function ShoeCatalogBrowser() {
           {filterOptions?.recommendLevels.map((lv) => (
             <option key={lv} value={lv}>
               {lv}
+            </option>
+          ))}
+        </select>
+        <select value={footWidth} onChange={(event) => setFootWidth(event.target.value)}>
+          <option value="">발볼 전체</option>
+          {filterOptions?.footWidths.map((fw) => (
+            <option key={fw} value={fw}>
+              {fw}
             </option>
           ))}
         </select>

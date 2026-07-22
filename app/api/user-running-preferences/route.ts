@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { hasRunningPreferences, saveOnboardingPreferences } from '@/lib/runningPreferences';
+import { saveOnboardingPreferences, getRunningPreferences } from '@/lib/runningPreferences';
 
 export const dynamic = 'force-dynamic';
 
 const GOALS = ['HEALTH', 'DIET', 'ENDURANCE', 'MARATHON'];
 const DIFFICULTIES = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 
-// 코스탐색 온보딩 팝업 노출 여부 판단용 — 이미 선호도가 있으면 다시 물어보지 않는다.
+// 코스탐색 온보딩 팝업 노출 여부 판단(hasPreferences)과, 설문 모달 프리필/마이페이지 시각화에
+// 쓰이는 실제 저장값(preferences)을 함께 내려준다.
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json({ hasPreferences: true });
+    return NextResponse.json({ hasPreferences: true, preferences: null });
   }
-  const hasPreferences = await hasRunningPreferences(session.user.id);
-  return NextResponse.json({ hasPreferences });
+  const preferences = await getRunningPreferences(session.user.id);
+  return NextResponse.json({ hasPreferences: preferences !== null, preferences });
 }
 
 export async function POST(request: NextRequest) {
@@ -34,11 +35,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '숙련도 값이 올바르지 않아요.' }, { status: 400 });
   }
 
-  await saveOnboardingPreferences(session.user.id, {
-    runningGoal: body.runningGoal ?? null,
-    difficulty: body.difficulty ?? null,
-    preferredDistanceM: body.preferredDistanceM ? Number(body.preferredDistanceM) : null,
-    preferredScenery: body.preferredScenery ?? null
-  });
+  try {
+    await saveOnboardingPreferences(session.user.id, {
+      runningGoal: body.runningGoal ?? null,
+      difficulty: body.difficulty ?? null,
+      preferredDistanceM: body.preferredDistanceM ? Number(body.preferredDistanceM) : null,
+      preferredScenery: body.preferredScenery ?? null
+    });
+  } catch {
+    return NextResponse.json({ error: '저장 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.' }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }

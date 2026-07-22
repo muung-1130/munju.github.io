@@ -4,6 +4,15 @@ import { computeScores } from '@/lib/recommendationScoring';
 const AI_SERVICE_URL = process.env.AI_RECOMMENDATION_SERVICE_URL ?? 'http://192.168.0.201:8001';
 const DAILY_CUTOFF_HOUR = 3; // FastAPI 쪽 repository.py의 _todays_recommendation_cutoff와 동일 기준 (KST 03:00)
 
+// 로그인은 했지만 user_running_preferences가 없는 사용자와, 아예 로그인하지 않은 방문자는
+// 입력값이 사실상 동일(선호 없음)하므로 사람마다 따로 Bedrock을 부르지 않고 이 고정 UUID 아래
+// "공용 기본 추천" 하나만 매일 계산해서 공유한다 — 실제 auth_user.users에 없는 값이지만
+// course_recommendation 스키마는 user_id를 물리 FK가 아니라 논리 참조로만 쓰고 있어 문제없다.
+export const GUEST_DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000000';
+// 위치가 필수 입력은 아니지만(schemas.py의 preferred_distance_km처럼 optional), 그래도 아무 기준점 없이
+// 넣는 것보다는 의미 있는 서울 중심부 지점을 쓰는 게 나아서 종로3가역 좌표를 기본 앵커로 쓴다.
+const JONGNO_3GA_STATION = { latitude: 37.5703, longitude: 126.991 };
+
 const DIFFICULTY_TO_INT: Record<string, number> = { BEGINNER: 1, INTERMEDIATE: 2, ADVANCED: 3 };
 
 type Candidate = {
@@ -75,7 +84,8 @@ async function buildPreference(userId: string): Promise<{
 
   // recommendation_type 추론: 이 사용자가 LIKE/START_RUN을 남긴 코스들의 점수 breakdown 중
   // 어떤 항목이 평균적으로 가장 높았는지로 "이 사람은 뭘 중요하게 보는지" 판단한다.
-  // 데이터가 부족하면(3건 미만) 개인화할 근거가 없으므로 "선호 거리 매칭"을 기본값으로 쓴다.
+  // 데이터가 부족하면(3건 미만) 개인화할 근거가 없으므로 특정 축(거리)에 치우치지 않는
+  // "인기 기반"을 기본값으로 쓴다 — 조회수/찜/리뷰/평점을 종합 반영해 무난하게 검증된 코스를 우선한다.
   const { rows: feedbackScoreRows } = await pool.query<{
     distance_score: string | null;
     difficulty_score: string | null;
@@ -89,7 +99,7 @@ async function buildPreference(userId: string): Promise<{
     [userId]
   );
 
-  let recommendationType = 'distance_based';
+  let recommendationType = 'popular_based';
   if (feedbackScoreRows.length >= 3) {
     const avg = (values: (string | null)[]) => {
       const nums = values.filter((v): v is string => v !== null).map(Number);
@@ -256,19 +266,28 @@ async function insertRecommendationItem(
   );
 }
 
-// 홈/코스탐색 페이지 진입 시(로그인 상태) 호출한다. 오늘(KST 03:00 이후) 추천이 이미 있으면
-// 아무 것도 안 하고 조용히 반환 — Bedrock을 다시 부르지 않는다.
-export async function ensureTodaysRecommendation(userId: string): Promise<void> {
-  if (await hasTodaysRecommendation(userId)) return;
+type RecommendationPreference = {
+  preferredDistanceKm: number | null;
+  difficulty: number | null;
+  preferredEnvironment: string | null;
+  recommendationType: string;
+};
 
-  const dismissed = await getDismissedCourseIds(userId);
-  const preference = await buildPreference(userId);
+// ensureTodaysRecommendation과 ensureGuestDefaultRecommendation이 공유하는 핵심 로직 — 후보 조회,
+// Bedrock 호출, rank1(AI)/rank2(찜)/rank3(인기) 슬롯 채우기. 둘의 차이는 preference를 어떻게
+// 구하는지(개인화 vs 고정 기본값)와 location뿐이다.
+async function runRecommendation(
+  userId: string,
+  preference: RecommendationPreference,
+  location: { latitude: number; longitude: number },
+  dismissed: Set<string>
+): Promise<void> {
   const candidates = await getCandidatePool(dismissed);
   if (candidates.length === 0) return; // 추천할 후보 자체가 없음 (전부 dismiss했거나 코스가 없음)
 
   const requestBody = {
     owner_user_id: userId,
-    location: { latitude: 37.5665, longitude: 126.978, address: null }, // TODO: 실제 GPS 연동 전까지 서울 시청 기준 고정값
+    location: { latitude: location.latitude, longitude: location.longitude, address: null },
     preference: {
       search_radius_km: 5.0,
       preferred_distance_km: preference.preferredDistanceKm,
@@ -335,4 +354,30 @@ export async function ensureTodaysRecommendation(userId: string): Promise<void> 
       '지금 다른 러너들에게 가장 인기 있는 코스예요.'
     );
   }
+}
+
+// 홈/코스탐색 페이지 진입 시(로그인 + 선호도 보유 상태) 호출한다. 오늘(KST 03:00 이후) 추천이
+// 이미 있으면 아무 것도 안 하고 조용히 반환 — Bedrock을 다시 부르지 않는다.
+export async function ensureTodaysRecommendation(userId: string): Promise<void> {
+  if (await hasTodaysRecommendation(userId)) return;
+
+  const dismissed = await getDismissedCourseIds(userId);
+  const preference = await buildPreference(userId);
+  // TODO: 실제 GPS 연동 전까지 서울 시청 기준 고정값
+  await runRecommendation(userId, preference, { latitude: 37.5665, longitude: 126.978 }, dismissed);
+}
+
+// 로그인했지만 선호도가 없는 사용자와 비로그인 방문자가 공유하는 "공용 기본 추천" — 매일 한 번만
+// Bedrock을 호출해서 같은 결과를 재사용한다(중복 호출 방지). buildPreference처럼 개인화할 근거가
+// 없으므로 선호값은 전부 비워두고, 위치만 종로3가역으로 고정한다.
+export async function ensureGuestDefaultRecommendation(): Promise<void> {
+  if (await hasTodaysRecommendation(GUEST_DEFAULT_USER_ID)) return;
+
+  const preference: RecommendationPreference = {
+    preferredDistanceKm: null,
+    difficulty: null,
+    preferredEnvironment: null,
+    recommendationType: 'popular_based'
+  };
+  await runRecommendation(GUEST_DEFAULT_USER_ID, preference, JONGNO_3GA_STATION, new Set());
 }

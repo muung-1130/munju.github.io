@@ -29,10 +29,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { userSh
 
   try {
     await updateUserShoe(session.user.id, params.userShoeId, {
-      shoeModelId: Number(body.shoeModelId),
+      shoeModelId: body.shoeModelId === null || body.shoeModelId === undefined ? null : Number(body.shoeModelId),
       nickname: body.nickname ? String(body.nickname) : null,
-      purchaseDate: String(body.purchaseDate ?? ''),
-      initialDistanceM: body.initialDistanceM ? Number(body.initialDistanceM) : 0
+      purchaseDate: String(body.purchaseDate ?? '')
     });
     return NextResponse.json({ success: true });
   } catch (error) {

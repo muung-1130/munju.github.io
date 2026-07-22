@@ -21,6 +21,21 @@ function paceToSec(min: string, sec: string): number | undefined {
   return (Number(min) || 0) * 60 + (Number(sec) || 0);
 }
 
+// 공개 챌린지는 항상 월~일 자동 반복이라 시작/종료일을 직접 고를 수 없다 — 오늘이 월요일이면
+// 이번 주, 아니면 다음 월요일부터 시작한다는 걸 안내 문구로만 미리 보여준다(실제 날짜는 서버가
+// 계산해서 확정한다).
+function upcomingWeekLabel(): string {
+  const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const dow = nowKst.getUTCDay();
+  const daysUntilMonday = dow === 1 ? 0 : dow === 0 ? 1 : 8 - dow;
+  const mondayKst = new Date(Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth(), nowKst.getUTCDate() + daysUntilMonday));
+  const sundayKst = new Date(mondayKst.getTime() + 6 * 24 * 60 * 60 * 1000);
+  const fmt = (d: Date) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+  return daysUntilMonday === 0
+    ? `이번 주 월요일(${fmt(mondayKst)}) ~ 일요일(${fmt(sundayKst)})`
+    : `다음 주 월요일(${fmt(mondayKst)}) ~ 일요일(${fmt(sundayKst)})`;
+}
+
 export function CreateChallengeModal({
   defaultType,
   onClose,
@@ -70,7 +85,7 @@ export function CreateChallengeModal({
   async function submit() {
     setError(null);
     if (!name.trim()) return setError('챌린지 이름을 입력해 주세요.');
-    if (!startAt || !endAt) return setError('시작일과 종료일을 입력해 주세요.');
+    if (challengeType === 'PERSONAL' && (!startAt || !endAt)) return setError('시작일과 종료일을 입력해 주세요.');
 
     let finalTargetValue: number;
     if (metricType === 'PACE') {
@@ -184,17 +199,27 @@ export function CreateChallengeModal({
           </>
         )}
 
-        <div className="budget-row">
-          <div style={{ flex: 1 }}>
-            <label>시작일</label>
-            <input type="date" value={startAt} onChange={(e) => setStartAt(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+        {challengeType === 'PERSONAL' ? (
+          <div className="budget-row">
+            <div style={{ flex: 1 }}>
+              <label>시작일</label>
+              <input type="date" value={startAt} onChange={(e) => setStartAt(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label>종료일</label>
+              <input type="date" value={endAt} onChange={(e) => setEndAt(e.target.value)} min={startAt} />
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <label>종료일</label>
-            <input type="date" value={endAt} onChange={(e) => setEndAt(e.target.value)} min={startAt} />
+        ) : (
+          <div className="challenge-weekly-period-note">
+            <label>진행 기간</label>
+            <p className="muted">
+              공개 챌린지는 매주 월~일 자동 반복이에요. 이번엔 <strong>{upcomingWeekLabel()}</strong>부터 시작하고,
+              그 다음부턴 매주 월요일마다 새 회차가 자동으로 열려요.
+            </p>
+            <p className="muted">참여 신청은 언제든 할 수 있지만, 월요일에 신청해야 그 주부터 곧바로 활동으로 잡혀요. 다른 요일에 신청하면 다음 주부터 시작돼요.</p>
           </div>
-        </div>
-        <p className="muted" style={{ marginTop: 6 }}>참여 신청은 시작일 바로 전날에만 할 수 있어요.</p>
+        )}
 
         <label className="crew-filter-toggle" style={{ marginTop: 14 }}>
           <input type="checkbox" checked={useRules} onChange={(e) => setUseRules(e.target.checked)} />

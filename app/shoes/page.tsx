@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card, PageTitle } from '@/components/UI';
 import { useAuthModal } from '@/components/AuthModalContext';
@@ -33,8 +34,10 @@ type RecommendedShoeItem = ShoeItem & { matchScore: number; reason: string };
 
 type MyShoeItem = {
   userShoeId: string;
-  shoeName: string;
-  brandName: string;
+  shoeName: string | null;
+  brandName: string | null;
+  imageUrl: string | null;
+  hasCustomThumbnail: boolean;
   nickname: string | null;
   accumulatedDistanceM: number;
   status: string;
@@ -78,10 +81,21 @@ function ShoeTags({ shoe }: { shoe: ShoeItem }) {
 }
 
 export default function ShoesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ShoesPageInner />
+    </Suspense>
+  );
+}
+
+function ShoesPageInner() {
   const { data: session } = useSession();
   const { openAuthModal } = useAuthModal();
+  const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<'reco' | 'life' | 'manage'>('reco');
+  const tabParam = searchParams.get('tab');
+  const initialTab = tabParam === 'reco' ? 'reco' : tabParam === 'find' ? 'find' : 'life';
+  const [activeTab, setActiveTab] = useState<'life' | 'reco' | 'find'>(initialTab);
 
   const [sliders, setSliders] = useState({ cushion: 3, stability: 3, responsiveness: 3, grip: 3, distance: 3 });
   const [footType, setFootType] = useState('보통');
@@ -121,7 +135,7 @@ export default function ShoesPage() {
   }, [activeTab, loadMyShoes]);
 
   async function retireShoe(userShoeId: string) {
-    if (!confirm('이 러닝화를 버릴까요? (은퇴 처리되며 기록은 남아요)')) return;
+    if (!confirm('이 러닝화를 버릴까요? 목록에서는 사용 종료로 표시되고, 지금까지의 분석 기록은 그대로 보존돼요.')) return;
     setRetiringId(userShoeId);
     try {
       const res = await fetch(`/api/user-shoes/${userShoeId}/retire`, { method: 'POST' });
@@ -224,14 +238,14 @@ export default function ShoesPage() {
         }
       />
       <div className="tab-line">
-        <button className={activeTab === 'reco' ? 'active' : ''} onClick={() => setActiveTab('reco')}>
-          러닝화 추천
-        </button>
         <button className={activeTab === 'life' ? 'active' : ''} onClick={() => setActiveTab('life')}>
           러닝화 수명 예측
         </button>
-        <button className={activeTab === 'manage' ? 'active' : ''} onClick={() => setActiveTab('manage')}>
-          나의 러닝화 관리
+        <button className={activeTab === 'reco' ? 'active' : ''} onClick={() => setActiveTab('reco')}>
+          러닝화 추천
+        </button>
+        <button className={activeTab === 'find' ? 'active' : ''} onClick={() => setActiveTab('find')}>
+          러닝화 찾기
         </button>
       </div>
 
@@ -326,22 +340,30 @@ export default function ShoesPage() {
                 ))
               )}
             </div>
+            <button className="ghost-btn full-width" onClick={() => setActiveTab('find')}>
+              전체 러닝화 둘러보러 가기 →
+            </button>
           </Card>
         </div>
       )}
 
-      {activeTab === 'reco' && <ShoeCatalogBrowser />}
+      {activeTab === 'find' && <ShoeCatalogBrowser initialExpanded />}
 
       {activeTab === 'life' && (
         <div className="shoes-life-centered">
           <Card className="life-card">
             <div className="card-head">
               <h2>러닝화 수명 예측</h2>
-              {session?.user && (
-                <button className="primary-btn small" onClick={() => setShoeFormModal({ mode: 'create' })}>
-                  + 러닝화 추가
+              <div className="mypage-shoe-actions">
+                <button className="ghost-btn small" onClick={() => setActiveTab('reco')}>
+                  AI 러닝화 추천 받기 →
                 </button>
-              )}
+                {session?.user && (
+                  <button className="primary-btn small" onClick={() => setShoeFormModal({ mode: 'create' })}>
+                    + 러닝화 추가
+                  </button>
+                )}
+              </div>
             </div>
             <p>AI가 사진 5장(밑창·뒤꿈치·측면)을 보고 마모 단계와 잔여 수명을 예측해 드려요.</p>
             {!session?.user ? (
@@ -352,41 +374,47 @@ export default function ShoesPage() {
               <p className="muted">등록된 러닝화가 없어요. "+ 러닝화 추가"로 첫 러닝화를 등록해 보세요.</p>
             ) : (
               <div className="mypage-shoes-list">
-                {myShoes.map((shoe) => (
-                  <div key={shoe.userShoeId} className="mypage-shoe-row">
-                    <div className="mypage-shoe-info">
-                      <strong>{shoe.nickname || shoe.shoeName}</strong>
-                      <span className="muted">
-                        {shoe.brandName} · {shoe.shoeName}
-                        {shoe.status === 'RETIRED' && ' · 은퇴함'}
-                      </span>
-                      <span className="muted">누적 거리 {(shoe.accumulatedDistanceM / 1000).toFixed(1)}km</span>
-                    </div>
-                    <div className="mypage-shoe-life">
-                      {shoe.latestSnapshot?.replacementRecommendedAt ? (
-                        <>
-                          <span className="muted">교체 권장일</span>
-                          <strong>{shoe.latestSnapshot.replacementRecommendedAt}</strong>
-                        </>
-                      ) : (
-                        <span className="muted">수명 예측 정보가 아직 없어요.</span>
-                      )}
-                    </div>
-                    <div className="mypage-shoe-actions">
-                      <button className="ghost-btn small" onClick={() => setShoeFormModal({ mode: 'edit', userShoeId: shoe.userShoeId })}>
-                        수정
-                      </button>
-                      <Link href={`/shoes/${shoe.userShoeId}`} className="ghost-btn small">
-                        분석
-                      </Link>
-                      {shoe.status !== 'RETIRED' && (
-                        <button className="ghost-btn small" disabled={retiringId === shoe.userShoeId} onClick={() => retireShoe(shoe.userShoeId)}>
-                          {retiringId === shoe.userShoeId ? '처리 중...' : '버리기'}
+                {myShoes.map((shoe) => {
+                  const thumbnailSrc = shoe.imageUrl ?? (shoe.hasCustomThumbnail ? `/api/user-shoes/${shoe.userShoeId}/thumbnail` : null);
+                  return (
+                    <div key={shoe.userShoeId} className="mypage-shoe-row">
+                      {thumbnailSrc ? <img src={thumbnailSrc} alt="" /> : <div className="mypage-shoe-img-placeholder">👟</div>}
+                      <div className="mypage-shoe-info">
+                        <Link href={`/shoes/${shoe.userShoeId}`} className="mypage-shoe-name-link">
+                          <strong>{shoe.nickname || shoe.shoeName}</strong>
+                        </Link>
+                        <span className="muted">
+                          {shoe.brandName ? `${shoe.brandName} · ${shoe.shoeName}` : '직접 등록한 러닝화'}
+                          {shoe.status === 'RETIRED' && ' · 은퇴함'}
+                        </span>
+                        <span className="muted">누적 거리 {(shoe.accumulatedDistanceM / 1000).toFixed(1)}km</span>
+                      </div>
+                      <div className="mypage-shoe-life">
+                        {shoe.latestSnapshot?.replacementRecommendedAt ? (
+                          <>
+                            <span className="muted">교체 권장일</span>
+                            <strong>{shoe.latestSnapshot.replacementRecommendedAt}</strong>
+                          </>
+                        ) : (
+                          <span className="muted">수명 예측 정보가 아직 없어요.</span>
+                        )}
+                      </div>
+                      <div className="mypage-shoe-actions">
+                        <button className="ghost-btn small" onClick={() => setShoeFormModal({ mode: 'edit', userShoeId: shoe.userShoeId })}>
+                          수정
                         </button>
-                      )}
+                        <Link href={`/shoes/${shoe.userShoeId}`} className="ghost-btn small">
+                          분석
+                        </Link>
+                        {shoe.status !== 'RETIRED' && (
+                          <button className="ghost-btn small" disabled={retiringId === shoe.userShoeId} onClick={() => retireShoe(shoe.userShoeId)}>
+                            {retiringId === shoe.userShoeId ? '처리 중...' : '버리기'}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>
@@ -403,16 +431,6 @@ export default function ShoesPage() {
             loadMyShoes();
           }}
         />
-      )}
-
-      {activeTab === 'manage' && (
-        <Card className="shoes-manage-empty">
-          <h2>나의 러닝화 관리</h2>
-          <p className="muted">보유 중인 러닝화와 마모 분석 기록은 마이페이지에서 확인하고 관리할 수 있어요.</p>
-          <Link href="/mypage">
-            <button className="primary-btn">마이페이지로 이동</button>
-          </Link>
-        </Card>
       )}
 
       <Card className="ai-tip-strip">

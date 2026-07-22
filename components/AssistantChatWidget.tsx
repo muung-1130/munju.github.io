@@ -7,11 +7,16 @@ import { useChat } from './ChatContext';
 
 const ASSISTANT_MESSAGE_POLL_MS = 15000;
 
-// 특정 페이지에 처음 들어왔을 때 AI가 추가로 건네는 말 (페이지당 세션에 한 번)
+// 특정 페이지에 처음 들어왔을 때 AI가 추가로 건네는 말 (브라우저 세션당 한 번).
+// '/challenges'용으로 있던 고정 문구("5월 100K 챌린지 62.1/100km...")는 실제 챌린지 데이터와
+// 무관한 가짜 수치였어서 제거했다 — 실제 진행률은 마이페이지/챌린지 상세에 이미 표시된다.
 const pageEntryMessages: Record<string, string> = {
-  '/': '제가 추천하고 싶은 신상 코스 3가지인데 어때요?',
-  '/challenges': "지금 5월 100K 챌린지 62.1/100km, 62% 달성했어요! 이 페이스라면 주 3회, 회당 4.9km만 더 뛰어도 D-18 안에 목표를 달성할 수 있어요. 💡 보폭을 5cm만 늘려보세요! 마라토너의 보폭을 따라잡을 수 있어요."
+  '/': '제가 추천하고 싶은 신상 코스 3가지인데 어때요?'
 };
+const PAGE_ENTRY_SEEN_KEY = 'aiAssistantPageEntrySeen';
+const LAST_SEEN_MESSAGE_KEY_PREFIX = 'aiAssistantLastSeenMessageAt:';
+const SEEN_MESSAGE_IDS_KEY_PREFIX = 'aiAssistantSeenMessageIds:';
+const MAX_SEEN_MESSAGE_IDS = 200;
 
 const ICON_SIZE = 56;
 const MIN_PANEL_WIDTH = 340;
@@ -44,6 +49,10 @@ export function AssistantChatWidget() {
   const [input, setInput] = useState('');
   const coachedPathsRef = useRef(new Set<string>());
   const lastSeenAssistantMessageAtRef = useRef<string | null>(null);
+  const seenAssistantMessageIdsRef = useRef<Set<string>>(new Set());
+  const pollingRef = useRef(false);
+  const bedrockSessionIdRef = useRef<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   const [iconPos, setIconPos] = useState<{ top: number; left: number } | null>(null);
   const draggedRef = useRef(false);
@@ -101,33 +110,75 @@ export function AssistantChatWidget() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // coachedPathsRef가 컴포넌트 인스턴스에만 붙어있던 메모리 상태라, 새로고침/재진입마다
+  // AppShell이 다시 마운트되면서 매번 "처음 들어온 것"으로 착각해 같은 말을 반복했다.
+  // sessionStorage에 남겨서 같은 브라우저 세션에서는 페이지당 한 번만 뜨게 한다.
   useEffect(() => {
     const entryMessage = pageEntryMessages[pathname];
-    if (entryMessage && !coachedPathsRef.current.has(pathname)) {
-      coachedPathsRef.current.add(pathname);
-      addMessage({ from: 'ai', text: entryMessage });
+    if (!entryMessage || coachedPathsRef.current.has(pathname)) return;
+    let seenPaths: string[] = [];
+    try {
+      seenPaths = JSON.parse(sessionStorage.getItem(PAGE_ENTRY_SEEN_KEY) ?? '[]');
+    } catch {
+      seenPaths = [];
     }
+    coachedPathsRef.current.add(pathname);
+    if (seenPaths.includes(pathname)) return;
+    sessionStorage.setItem(PAGE_ENTRY_SEEN_KEY, JSON.stringify([...seenPaths, pathname]));
+    addMessage({ from: 'ai', text: entryMessage });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   // 러닝 완료 축하 메시지 등 서버(run-completion-consumer 경유)가 비동기로 남긴 AI 메시지를
   // 주기적으로 가져와 말풍선으로 띄운다 — 로그인 상태에서만 폴링한다.
+  //
+  // 진짜 근본 원인: PostgreSQL timestamptz는 마이크로초 정밀도지만, pg 드라이버가 이걸 JS
+  // Date로 파싱하는 순간(Date는 밀리초까지만 표현 가능) 마이크로초가 잘려나간다. 그래서
+  // "마지막으로 본 시각"을 그 잘린 값으로 저장해두면, 서버가 `created_at > since`로 비교할 때
+  // 원본(마이크로초 포함) 값이 잘린 값보다 항상 커서 같은 메시지가 폴링마다(15초 간격 + 새로고침
+  // 때마다) 영원히 다시 조회됐다 — "챗봇이 모든 말을 계속 반복한다"는 증상의 진짜 원인.
+  // 시각 커서만으로는 이 정밀도 문제를 못 피하므로, messageId 자체를 남겨서 한 번 보여준
+  // 메시지는 시각 비교 결과와 무관하게 다시 추가하지 않는다. sessionStorage(탭 닫으면 초기화)에
+  // 두면 새 브라우저 세션마다 과거 메시지가 전부 "새 메시지"로 다시 쏟아지므로, 브라우저를
+  // 껐다 켜도 유지되는 localStorage에 저장한다 — 한 번 본 메시지는 이후 어떤 세션에서도 다시
+  // 뜨지 않아야 한다.
   useEffect(() => {
     if (!session?.user) return;
+    const lastSeenKey = `${LAST_SEEN_MESSAGE_KEY_PREFIX}${session.user.id}`;
+    const seenIdsKey = `${SEEN_MESSAGE_IDS_KEY_PREFIX}${session.user.id}`;
+    lastSeenAssistantMessageAtRef.current = localStorage.getItem(lastSeenKey);
+    try {
+      const storedIds = JSON.parse(localStorage.getItem(seenIdsKey) ?? '[]');
+      if (Array.isArray(storedIds)) seenAssistantMessageIdsRef.current = new Set(storedIds);
+    } catch {
+      // 손상된 값이면 빈 집합으로 시작한다.
+    }
 
     let cancelled = false;
     async function poll() {
+      // session?.user?.id가 로딩 중 여러 번 바뀌면서 이 effect 자체가 짧은 간격으로 두 번
+      // 재실행되는 경우가 있었다 — 그때 이전 poll()의 fetch가 아직 진행 중이면 같은 since로
+      // 겹쳐서 다시 요청해 같은 메시지를 두 번 addMessage하게 됐다. 뮤텍스로 겹침을 막는다.
+      if (pollingRef.current) return;
+      pollingRef.current = true;
       try {
         const params = lastSeenAssistantMessageAtRef.current ? `?since=${encodeURIComponent(lastSeenAssistantMessageAtRef.current)}` : '';
         const res = await fetch(`/api/ai-assistant/messages${params}`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
         for (const message of data.messages ?? []) {
+          if (seenAssistantMessageIdsRef.current.has(message.messageId)) continue;
+          seenAssistantMessageIdsRef.current.add(message.messageId);
+          const idList = Array.from(seenAssistantMessageIdsRef.current).slice(-MAX_SEEN_MESSAGE_IDS);
+          localStorage.setItem(seenIdsKey, JSON.stringify(idList));
           addMessage({ from: 'ai', text: message.content });
           lastSeenAssistantMessageAtRef.current = message.createdAt;
+          localStorage.setItem(lastSeenKey, message.createdAt);
         }
       } catch {
         // 폴링 실패는 조용히 넘어가고 다음 주기에 다시 시도한다.
+      } finally {
+        pollingRef.current = false;
       }
     }
 
@@ -170,14 +221,44 @@ export function AssistantChatWidget() {
     openChat();
   }
 
-  function handleSend() {
+  function getCurrentCoords(): Promise<{ latitude: number; longitude: number } | null> {
+    if (!navigator.geolocation) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        () => resolve(null),
+        { timeout: 3000 }
+      );
+    });
+  }
+
+  async function handleSend() {
     const text = input.trim();
-    if (!text) return;
+    if (!text || sending) return;
     addMessage({ from: 'user', text });
     setInput('');
-    setTimeout(() => {
-      addMessage({ from: 'ai', text: '네, 확인했어요! 잠시 후 답변 드릴게요 🏃' });
-    }, 600);
+    setSending(true);
+    try {
+      const coords = await getCurrentCoords();
+      const res = await fetch('/api/ai-assistant/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: text,
+          sessionId: bedrockSessionIdRef.current,
+          latitude: coords?.latitude ?? null,
+          longitude: coords?.longitude ?? null
+        })
+      });
+      if (!res.ok) throw new Error('request failed');
+      const data = await res.json();
+      if (data.sessionId) bedrockSessionIdRef.current = data.sessionId;
+      addMessage({ from: 'ai', text: data.answer || '답변을 가져오지 못했어요.' });
+    } catch {
+      addMessage({ from: 'ai', text: '죄송해요, 지금은 답변을 가져오지 못했어요. 잠시 후 다시 시도해주세요.' });
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -236,8 +317,13 @@ export function AssistantChatWidget() {
             handleSend();
           }}
         >
-          <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="AI 러닝 비서에게 물어보세요..." />
-          <button type="submit" aria-label="전송">➤</button>
+          <input
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder={sending ? 'AI 러닝 비서가 답변을 준비하고 있어요...' : 'AI 러닝 비서에게 물어보세요...'}
+            disabled={sending}
+          />
+          <button type="submit" aria-label="전송" disabled={sending}>➤</button>
         </form>
       </aside>
     </>

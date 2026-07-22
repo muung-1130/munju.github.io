@@ -320,9 +320,15 @@ export default function MarathonPage() {
                           <strong>{race.raceName}</strong>
                           {race.isExclusiveCollab && <span className="marathon-collab-badge">DAI RUN 단독</span>}
                           {race.officialWebsite && (
-                            <a href={race.officialWebsite} target="_blank" rel="noreferrer" className="marathon-official-link">
-                              공식 홈페이지 ↗
-                            </a>
+                            race.officialWebsite.startsWith('/') ? (
+                              <Link href={race.officialWebsite} className="marathon-official-link">
+                                공식 홈페이지 ↗
+                              </Link>
+                            ) : (
+                              <a href={race.officialWebsite} target="_blank" rel="noreferrer" className="marathon-official-link">
+                                공식 홈페이지 ↗
+                              </a>
+                            )
                           )}
                         </div>
                       </td>

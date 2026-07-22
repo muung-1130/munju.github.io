@@ -67,6 +67,78 @@ export async function sendRunCongratsMessage(
   await pool.query(`UPDATE ai_assistant.chat_sessions SET last_message_at = now() WHERE session_id = $1`, [sessionId]);
 }
 
+const AI_RAG_SERVICE_URL = process.env.AI_RAG_SERVICE_URL ?? 'http://192.168.0.201:8000';
+
+type AskAssistantResult = { answer: string; sessionId: string | null; blocked: boolean };
+
+// AssistantChatWidget의 실제 사용자 질문을 ai-rag-service(RAG + Tool Calling)로 전달하고,
+// 로그인 사용자면 대화를 ai_assistant.chat_sessions/chat_messages에 남긴다.
+export async function askAssistant(
+  userId: string | null,
+  question: string,
+  bedrockSessionId: string | null,
+  latitude: number | null,
+  longitude: number | null
+): Promise<AskAssistantResult> {
+  const res = await fetch(`${AI_RAG_SERVICE_URL}/api/v1/ai/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, sessionId: bedrockSessionId, userId, latitude, longitude }),
+    cache: 'no-store'
+  });
+  if (!res.ok) throw new Error(`AI 비서 서비스 요청 실패: ${res.status}`);
+  const data = await res.json();
+  const answer: string = data.answer ?? '답변을 생성하지 못했어요.';
+  const blocked: boolean = !!data.blocked;
+
+  if (userId && !blocked) {
+    await persistChatTurn(userId, question, answer).catch(() => {
+      // 대화 로그 저장 실패는 사용자에게 보여줄 답변 자체와는 무관하므로 조용히 넘어간다.
+    });
+  }
+
+  return { answer, sessionId: data.sessionId ?? null, blocked };
+}
+
+async function persistChatTurn(userId: string, question: string, answer: string): Promise<void> {
+  const pool = getPool();
+  const { rows: sessionRows } = await pool.query(
+    `SELECT session_id FROM ai_assistant.chat_sessions
+      WHERE user_id = $1 AND assistant_type = 'RUNNING_COACH' AND status = 'ACTIVE'
+      ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+
+  let sessionId: string;
+  if (sessionRows.length > 0) {
+    sessionId = sessionRows[0].session_id;
+  } else {
+    const { rows: created } = await pool.query(
+      `INSERT INTO ai_assistant.chat_sessions (user_id, assistant_type, title, status)
+       VALUES ($1, 'RUNNING_COACH', 'AI 러닝 비서', 'ACTIVE')
+       RETURNING session_id`,
+      [userId]
+    );
+    sessionId = created[0].session_id;
+  }
+
+  const { rows: seqRows } = await pool.query(
+    `SELECT COALESCE(MAX(sequence_no), 0) AS max_seq FROM ai_assistant.chat_messages WHERE session_id = $1`,
+    [sessionId]
+  );
+  const nextSeq = Number(seqRows[0].max_seq) + 1;
+
+  await pool.query(
+    `INSERT INTO ai_assistant.chat_messages (session_id, role, content, sequence_no) VALUES ($1, 'USER', $2, $3)`,
+    [sessionId, question, nextSeq]
+  );
+  await pool.query(
+    `INSERT INTO ai_assistant.chat_messages (session_id, role, content, sequence_no) VALUES ($1, 'ASSISTANT', $2, $3)`,
+    [sessionId, answer, nextSeq + 1]
+  );
+  await pool.query(`UPDATE ai_assistant.chat_sessions SET last_message_at = now() WHERE session_id = $1`, [sessionId]);
+}
+
 export type NewAssistantMessage = { messageId: string; content: string; createdAt: string };
 
 // AssistantChatWidget이 폴링해서 아직 못 본 ASSISTANT 메시지가 있으면 말풍선으로 띄운다.

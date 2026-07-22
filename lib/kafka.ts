@@ -105,6 +105,7 @@ export type RunCompletedEventPayload = {
   sourceType: string;
   startedAt: string;
   completedAt: string;
+  createdAt: string;
   distanceM: number;
   durationSec: number | null;
   movingDurationSec: number | null;

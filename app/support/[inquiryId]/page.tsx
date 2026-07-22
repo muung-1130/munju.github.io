@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, PageTitle } from '@/components/UI';
+import { formatKstDateTime } from '@/lib/format';
 
 type InquiryDetail = {
   inquiryId: string;
@@ -89,7 +90,7 @@ export default function SupportDetailPage() {
           <h2>{inquiry.title}</h2>
         </div>
         <p className="muted">
-          {inquiry.nickname} · {new Date(inquiry.createdAt).toLocaleString('ko-KR')}
+          {inquiry.nickname} · {formatKstDateTime(inquiry.createdAt, {})}
         </p>
         <p className="support-detail-content">{inquiry.content}</p>
 
@@ -97,7 +98,7 @@ export default function SupportDetailPage() {
           <div className="support-admin-reply">
             <strong>운영자 답변</strong>
             <p>{inquiry.adminReply}</p>
-            {inquiry.repliedAt && <span className="muted">{new Date(inquiry.repliedAt).toLocaleString('ko-KR')}</span>}
+            {inquiry.repliedAt && <span className="muted">{formatKstDateTime(inquiry.repliedAt, {})}</span>}
           </div>
         )}
 

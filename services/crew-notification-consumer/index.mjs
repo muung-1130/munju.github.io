@@ -2,6 +2,7 @@
 // Next.js API(join-request 신청, join-requests/[id]/decision 승인)가 크루 도메인 데이터(crew_join_requests,
 // crew_members)는 요청 안에서 이미 동기로 반영하고, "누구에게 어떤 알림을 띄울지"만 이벤트로 흘려보낸다 —
 // 이 프로세스가 그걸 받아 알림 서비스 소유 테이블(notification.notifications)에만 반영한다.
+import './otel.mjs';
 import { Kafka } from 'kafkajs';
 import { Client } from 'pg';
 

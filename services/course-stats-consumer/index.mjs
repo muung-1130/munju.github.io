@@ -2,6 +2,7 @@
 // 소비자. Next.js API(app/api/courses/[courseId]/like)가 찜을 누를 때마다 이벤트를 publish하고,
 // 이 프로세스가 그걸 받아 집계 테이블에만 반영한다 (course_likes 관계 테이블 자체는 API 요청 안에서
 // 이미 동기로 반영됨 — 여기서는 오직 집계용 카운터만 다룬다).
+import './otel.mjs';
 import { Kafka } from 'kafkajs';
 import { Client } from 'pg';
 

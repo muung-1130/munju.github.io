@@ -32,9 +32,13 @@ const CHALLENGE_ICONS: Record<string, string> = {
   COUNT: '🏆'
 };
 
-function daysLeft(endAt: string): number {
-  const diff = new Date(endAt).getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+// "종료까지 며칠"(D-6)이 아니라 "시작한지 며칠째"(D+2)를 보여준다 — 매주 반복되는 챌린지라
+// 종료일보다 지금이 몇 일차인지가 더 와닿는다는 판단.
+function daysSinceStart(startAt: string): number {
+  const startKst = new Date(startAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+  const diffMs = new Date(`${todayKst}T00:00:00Z`).getTime() - new Date(`${startKst}T00:00:00Z`).getTime();
+  return Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 export default function ChallengesPage() {
@@ -45,6 +49,9 @@ export default function ChallengesPage() {
   const [publicChallenges, setPublicChallenges] = useState<ChallengeSummary[] | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<{ id: string; message: string } | null>(null);
+  const [joinNotice, setJoinNotice] = useState<{ id: string; message: string } | null>(null);
+  const [leavingId, setLeavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [createModalType, setCreateModalType] = useState<'PUBLIC' | 'PERSONAL' | null>(null);
 
   function load() {
@@ -68,16 +75,48 @@ export default function ChallengesPage() {
     }
     setJoiningId(challengeId);
     setJoinError(null);
+    setJoinNotice(null);
     try {
       const res = await fetch(`/api/challenges/${challengeId}/join`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        if (data.waiting) {
+          setJoinNotice({ id: challengeId, message: '참여 신청이 완료됐어요! 월요일부터 시작되니, 그 전까지 대기 리스트에 등록해드릴게요.' });
+        }
         load();
       } else {
-        const data = await res.json().catch(() => ({}));
         setJoinError({ id: challengeId, message: data.error ?? '참여할 수 없어요.' });
       }
     } finally {
       setJoiningId(null);
+    }
+  }
+
+  async function leaveChallenge(challengeId: string, progressRatio: number | null) {
+    const ratio = Math.round(progressRatio ?? 0);
+    const confirmed = confirm(
+      ratio > 0
+        ? `정말 그만두시겠어요? 현재 ${ratio}% 달성했어요 — 조금만 더 채워서 완주해보는 건 어때요?`
+        : '정말 그만두시겠어요?'
+    );
+    if (!confirmed) return;
+    setLeavingId(challengeId);
+    try {
+      const res = await fetch(`/api/challenges/${challengeId}/leave`, { method: 'POST' });
+      if (res.ok) load();
+    } finally {
+      setLeavingId(null);
+    }
+  }
+
+  async function deletePersonalChallenge(challengeId: string) {
+    if (!confirm('이 챌린지를 삭제할까요? 삭제하면 되돌릴 수 없어요.')) return;
+    setDeletingId(challengeId);
+    try {
+      const res = await fetch(`/api/challenges/${challengeId}`, { method: 'DELETE' });
+      if (res.ok) load();
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -102,6 +141,7 @@ export default function ChallengesPage() {
         ) : (
           publicChallenges.map((challenge) => {
             const joined = challenge.myStatus === 'ACTIVE';
+            const waiting = challenge.myStatus === 'WAITING';
             return (
               <Card key={challenge.challengeId} className="public-challenge-card">
                 <div className="card-head">
@@ -113,7 +153,7 @@ export default function ChallengesPage() {
                 <div className="public-challenge-meta">
                   <span>🎯 목표 {formatMetricValue(challenge.metricType, challenge.targetValue)}</span>
                   <span>👥 {challenge.participantCount.toLocaleString()}명 참가</span>
-                  <span>⏳ {challenge.status === 'COMPLETED' ? '종료' : `D-${daysLeft(challenge.endAt)}`}</span>
+                  <span>⏳ {challenge.status === 'COMPLETED' ? '종료' : `D+${daysSinceStart(challenge.startAt)}`}</span>
                 </div>
                 {joined && challenge.myProgressRatio !== null && (
                   <div className="progress">
@@ -123,14 +163,30 @@ export default function ChallengesPage() {
                 <Link href={`/challenges/${challenge.challengeId}`} className="ghost-btn full-width" style={{ marginBottom: 8 }}>
                   상세 보기
                 </Link>
-                <button
-                  className={`ghost-btn full-width ${joined ? 'joined' : ''}`}
-                  onClick={() => joinChallenge(challenge.challengeId)}
-                  disabled={joined || joiningId === challenge.challengeId}
-                >
-                  {joined ? '참여 완료 ✓' : joiningId === challenge.challengeId ? '참여 중...' : '참여하기'}
-                </button>
+                {joined || waiting ? (
+                  <div className="challenge-joined-actions">
+                    <button className={`ghost-btn full-width ${joined ? 'joined' : 'waiting'}`} disabled>
+                      {joined ? '참여 완료 ✓' : '대기 중 (다음 주부터)'}
+                    </button>
+                    <button
+                      className="ghost-btn full-width"
+                      disabled={leavingId === challenge.challengeId}
+                      onClick={() => leaveChallenge(challenge.challengeId, challenge.myProgressRatio)}
+                    >
+                      {leavingId === challenge.challengeId ? '처리 중...' : '그만두기'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="ghost-btn full-width"
+                    onClick={() => joinChallenge(challenge.challengeId)}
+                    disabled={joiningId === challenge.challengeId}
+                  >
+                    {joiningId === challenge.challengeId ? '참여 중...' : '참여하기'}
+                  </button>
+                )}
                 {joinError?.id === challenge.challengeId && <p className="field-error">{joinError.message}</p>}
+                {joinNotice?.id === challenge.challengeId && <p className="field-ok">{joinNotice.message}</p>}
               </Card>
             );
           })
@@ -168,9 +224,18 @@ export default function ChallengesPage() {
                 <i style={{ width: `${Math.min(100, challenge.myProgressRatio ?? 0)}%` }} />
               </div>
               <span className="muted">진행률 {(challenge.myProgressRatio ?? 0).toFixed(0)}%</span>
-              <Link href={`/challenges/${challenge.challengeId}`} className="ghost-btn">
-                상세 보기
-              </Link>
+              <div className="challenge-personal-actions">
+                <Link href={`/challenges/${challenge.challengeId}`} className="ghost-btn">
+                  상세 보기
+                </Link>
+                <button
+                  className="ghost-btn"
+                  disabled={deletingId === challenge.challengeId}
+                  onClick={() => deletePersonalChallenge(challenge.challengeId)}
+                >
+                  {deletingId === challenge.challengeId ? '삭제 중...' : '삭제'}
+                </button>
+              </div>
             </Card>
           ))
         )}

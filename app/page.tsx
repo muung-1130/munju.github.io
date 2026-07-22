@@ -36,6 +36,8 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <AiRecoPanel courses={recoCourses} />
+
       <section className="home-top-row">
         <Card className="run-summary-card">
           <div className="card-head"><h3>나의 러닝 요약</h3><span className="muted">최근 4주</span></div>

@@ -38,6 +38,7 @@ export async function GET(
     purpose: searchParams.get('purpose'),
     recommendLevel:
       searchParams.get('recommendLevel'),
+    footWidth: searchParams.get('footWidth'),
     carbonPlate:
       carbonPlateParam === 'true'
         ? true

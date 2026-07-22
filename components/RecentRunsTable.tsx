@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Card } from '@/components/UI';
 import { formatPace } from '@/lib/runningRecord';
+import { formatKstDateTime } from '@/lib/format';
 
 type DetailedRun = {
   runId: string;
@@ -18,7 +19,7 @@ type DetailedRun = {
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return formatKstDateTime(iso, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDurationShort(sec: number) {

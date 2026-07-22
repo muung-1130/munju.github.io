@@ -63,6 +63,38 @@ jobs:
           format: table
           exit-code: "0"
 
+      # 위 스텝은 사람이 읽는 CI 로그(table)용이고, 이 스텝은 Grafana로 보낼 수치 집계용으로
+      # 같은 스캔을 JSON으로 한 번 더 돌린다(자체 로컬 이미지라 재스캔 비용이 크지 않음).
+      - name: Trivy image vulnerability scan (JSON, Grafana용)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          format: json
+          output: trivy-results.json
+          exit-code: "0"
+
+      # CI 잡은 끝나면 사라져서 Prometheus가 직접 스크레이프할 대상이 없다 — 이 호스트의
+      # ~/monitoring 스택에 떠있는 Pushgateway로 결과를 밀어넣는다(job/instance를 고정해서
+      # Pushgateway에 매 실행마다 새 그룹이 쌓이지 않고 항상 "최신 스캔 결과"만 남게 한다).
+      # 이 러너가 monitoring 스택과 다른 호스트에서 동작한다면 PUSHGATEWAY_URL을 그에 맞게 바꿔야 한다.
+      - name: Push Trivy metrics to Pushgateway
+        env:
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL || 'http://localhost:9091' }}
+        run: |
+          CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-results.json)
+          HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' trivy-results.json)
+
+          cat <<EOF | curl -sS --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/trivy/instance/dai-run"
+          # TYPE trivy_vulnerabilities gauge
+          trivy_vulnerabilities{severity="CRITICAL",image="dai-run"} ${CRITICAL}
+          trivy_vulnerabilities{severity="HIGH",image="dai-run"} ${HIGH}
+          # TYPE trivy_scan_timestamp_seconds gauge
+          trivy_scan_timestamp_seconds{image="dai-run"} $(date +%s)
+          EOF
+
       - name: Tag version and latest image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
