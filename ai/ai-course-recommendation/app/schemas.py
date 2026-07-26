@@ -41,10 +41,16 @@ class CandidateRoute(BaseModel):
 
 
 class AiGeneratedCourseRequest(BaseModel):
-    owner_user_id: UUID | None = None
+    # 추천 결과를 사용자별로 저장/재사용(하루 1회 제한)하려면 반드시 필요하다 —
+    # 사용자 없는 추천은 캐시/스로틀링 기준을 세울 수 없어 이제 필수값으로 바꿨다.
+    owner_user_id: UUID
     location: UserLocation
     preference: CoursePreference = Field(default_factory=CoursePreference)
     candidate_routes: list[CandidateRoute] = Field(default_factory=list)
+    force_refresh: bool = Field(
+        default=False,
+        description="true면 하루 1회 제한을 무시하고 Bedrock을 다시 호출한다 (프론트의 '추천 새로고침' 버튼용)",
+    )
 
 
 class AiGeneratedCourseResult(BaseModel):
@@ -57,8 +63,20 @@ class AiGeneratedCourseResult(BaseModel):
     region: str | None = None
 
 
+class RecommendationItemOut(BaseModel):
+    course_id: str
+    rank_no: int
+    score: float | None = None
+    distance_score: float | None = None
+    difficulty_score: float | None = None
+    environment_score: float | None = None
+    preference_score: float | None = None
+    reason: str | None = None
+
+
 class AiGeneratedCourseResponse(BaseModel):
-    ai_course_id: str
+    recommendation_id: UUID
     status: str
-    result: AiGeneratedCourseResult
-    request_context: dict[str, Any]
+    # true면 오늘 이미 계산해둔 결과를 재사용한 것 (Bedrock 재호출 없음)
+    cached: bool
+    items: list[RecommendationItemOut]
