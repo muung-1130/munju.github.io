@@ -1,0 +1,13 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+.git
+.env
+.env.*
+!.env.example
+test-images
+*.png
+*.svg
+*.zip
+RUNNING_SHOE_AI_CODE.md

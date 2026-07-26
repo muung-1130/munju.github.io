@@ -30,7 +30,7 @@ http://localhost:3000
 
 ```bash
 docker compose down --remove-orphans
-docker rm -f dai-run-nginx dai-run-next 2>/dev/null || true
+docker rm -f dai-run-nginx dai-run-frontend dai-run-backend 2>/dev/null || true
 docker compose up -d --build --force-recreate
 ```
 
@@ -50,8 +50,9 @@ http://서버IP:8080
 
 ```bash
 docker compose ps
-docker logs dai-run-next --tail=50
+docker logs dai-run-frontend --tail=50
+docker logs dai-run-backend --tail=50
 docker logs dai-run-nginx --tail=50
-curl -I http://localhost:3000
 curl -I http://localhost:8080
+curl -I http://localhost:8080/api/health
 ```

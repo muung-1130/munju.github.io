@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --ink: #18231d;
+      --muted: #68756d;
+      --line: #dfe7e1;
+      --surface: #ffffff;
+      --canvas: #f3f6f2;
+      --green: #237a4b;
+      --green-dark: #155c37;
+      --green-soft: #e8f4ec;
+      --amber: #a86308;
+      --amber-soft: #fff3dd;
+      --red: #b43a35;
+      --red-soft: #fdebea;
+      --shadow: 0 18px 50px rgba(29, 55, 39, .10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 90% 0%, #dfeee4 0, transparent 30rem),
+        var(--canvas);
+      font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system, sans-serif;
+    }
+    button, input { font: inherit; }
+    .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 46px 0 72px; }
+    .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 24px; align-items: end; margin-bottom: 28px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--green); font-size: 13px; font-weight: 800; letter-spacing: .08em; }
+    .eyebrow::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 5px #dceee3; }
+    h1 { margin: 14px 0 10px; font-size: clamp(32px, 5vw, 54px); line-height: 1.08; letter-spacing: -.04em; }
+    .hero p { margin: 0; color: var(--muted); line-height: 1.7; }
+    .hero-note { padding: 20px; border: 1px solid #cfe0d4; border-radius: 20px; background: rgba(255,255,255,.72); color: #425149; font-size: 14px; line-height: 1.65; }
+    .panel { background: var(--surface); border: 1px solid rgba(207, 222, 212, .85); border-radius: 28px; box-shadow: var(--shadow); overflow: hidden; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 25px 28px; border-bottom: 1px solid var(--line); }
+    .panel-head h2 { margin: 0; font-size: 21px; letter-spacing: -.02em; }
+    .step { padding: 7px 11px; border-radius: 999px; color: var(--green-dark); background: var(--green-soft); font-size: 12px; font-weight: 800; }
+    form { padding: 28px; }
+    .upload-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .upload-card { position: relative; min-width: 0; }
+    .upload-card input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .dropzone {
+      display: flex; min-height: 190px; padding: 14px; align-items: center; justify-content: center;
+      border: 1.5px dashed #b9c9be; border-radius: 18px; background: #f8faf8; cursor: pointer;
+      overflow: hidden; text-align: center; transition: .18s ease;
+    }
+    .dropzone:hover, .dropzone:focus-within { border-color: var(--green); background: #f1f8f3; transform: translateY(-2px); }
+    .dropzone.has-image { padding: 0; border-style: solid; }
+    .dropzone img { width: 100%; height: 190px; object-fit: cover; display: none; }
+    .dropzone.has-image img { display: block; }
+    .dropzone.has-image .placeholder { display: none; }
+    .plus { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 12px; border-radius: 14px; color: white; background: var(--green); font-size: 25px; line-height: 1; }
+    .upload-title { display: block; font-size: 14px; font-weight: 800; }
+    .upload-hint { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .file-name { display: block; margin-top: 8px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .form-bottom { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: end; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .input-fields { display: flex; flex-wrap: wrap; gap: 14px; }
+    .date-field label { display: block; margin-bottom: 9px; font-size: 14px; font-weight: 800; }
+    .date-field input { width: min(100%, 300px); padding: 13px 14px; border: 1px solid #cbd7cf; border-radius: 12px; color: var(--ink); background: white; }
+    .submit { min-width: 190px; padding: 14px 22px; border: 0; border-radius: 14px; color: white; background: var(--green); font-weight: 800; cursor: pointer; box-shadow: 0 8px 20px rgba(35,122,75,.23); }
+    .submit:hover { background: var(--green-dark); }
+    .submit:disabled { cursor: wait; opacity: .65; }
+    .status { display: none; margin: 24px 28px 0; padding: 14px 16px; border-radius: 14px; font-size: 14px; line-height: 1.55; }
+    .status.show { display: block; }
+    .status.info { color: #155c37; background: var(--green-soft); }
+    .status.error { color: #8d2825; background: var(--red-soft); }
+    .status.warn { color: #7c4a07; background: var(--amber-soft); }
+    #result { display: none; margin-top: 28px; }
+    #result.show { display: block; }
+    .result-layout { display: grid; grid-template-columns: .78fr 1.22fr; gap: 24px; }
+    .score-panel { padding: 30px; color: white; background: linear-gradient(145deg, #1a6a40, #11472d); }
+    .score-label { font-size: 13px; opacity: .74; }
+    .condition { margin: 9px 0 24px; font-size: 30px; font-weight: 900; letter-spacing: -.035em; }
+    .range { display: flex; align-items: baseline; gap: 7px; margin-bottom: 10px; }
+    .range strong { font-size: 42px; letter-spacing: -.04em; }
+    .range span { font-size: 14px; opacity: .76; }
+    .confidence-line { margin: -2px 0 10px; font-size: 14px; font-weight: 800; color: #d5f2df; }
+    .confidence-line small { margin-left: 6px; font-size: 11px; font-weight: 500; opacity: .72; }
+    .estimate-note { margin: -2px 0 14px; font-size: 12px; line-height: 1.5; opacity: .78; }
+    .bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,.18); overflow: hidden; }
+    .bar-fill { height: 100%; width: 0; border-radius: inherit; background: #b7e9c7; transition: width .7s ease; }
+    .score-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
+    .score-meta div { padding: 13px; border-radius: 13px; background: rgba(255,255,255,.10); }
+    .score-meta small { display: block; margin-bottom: 5px; opacity: .67; }
+    .details { padding: 28px; }
+    .details h3 { margin: 0 0 14px; font-size: 18px; }
+    .observations { display: grid; gap: 10px; margin: 0 0 24px; padding: 0; list-style: none; }
+    .observations li { position: relative; padding: 13px 14px 13px 40px; border-radius: 13px; background: #f5f8f5; color: #3d4b43; line-height: 1.5; }
+    .observations li::before { content: "✓"; position: absolute; left: 15px; top: 13px; color: var(--green); font-weight: 900; }
+    .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .metric { padding: 13px 14px; border: 1px solid var(--line); border-radius: 13px; }
+    .metric span { display: block; color: var(--muted); font-size: 12px; }
+    .metric strong { display: block; margin-top: 5px; font-size: 18px; }
+    .notice { margin-top: 18px; padding: 14px; border-left: 3px solid #9eb4a5; color: var(--muted); background: #f7f9f7; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 900px) {
+      .hero, .result-layout { grid-template-columns: 1fr; }
+      .upload-grid { grid-template-columns: repeat(2, 1fr); }
+      .upload-card:last-child { grid-column: span 2; }
+    }
+    @media (max-width: 560px) {
+      .shell { width: min(100% - 20px, 1120px); padding-top: 28px; }
+      .hero-note { display: none; }
+      .panel-head, form { padding: 20px; }
+      .upload-grid { grid-template-columns: 1fr; }
+      .upload-card:last-child { grid-column: auto; }
+      .dropzone, .dropzone img { min-height: 170px; height: 170px; }
+      .form-bottom { grid-template-columns: 1fr; }
+      .date-field input, .submit { width: 100%; }
+      .status { margin: 20px 20px 0; }
+      .metrics { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">VISIBLE WEAR CHECK</div>
+        <h1>러닝화의 현재 상태를<br>사진으로 확인하세요</h1>
+        <p>밑창·뒤꿈치·측면 사진을 분석해 눈으로 확인 가능한 마모 상태와 교체 점검 시점을 안내합니다.</p>
+      </div>
+      <div class="hero-note">밝은 곳에서 신발이 잘리지 않도록 촬영해 주세요. 흙과 먼지는 가볍게 제거하면 홈과 균열을 더 정확히 확인할 수 있습니다.</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>사진과 구매일 입력</h2><span class="step">필수 사진 5장</span></div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <form id="analysisForm">
+        <div class="upload-grid" id="uploads"></div>
+        <div class="form-bottom">
+          <div class="input-fields">
+            <div class="date-field">
+              <label for="purchaseDate">이 러닝화를 언제 구매하셨나요?</label>
+              <input id="purchaseDate" name="purchase_date" type="date" required>
+            </div>
+          </div>
+          <button class="submit" id="submitButton" type="submit">상태 분석하기</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" id="result" aria-live="polite">
+      <div class="result-layout">
+        <div class="score-panel">
+          <div class="score-label">사진 기반 외관 상태</div>
+          <div class="condition" id="condition">-</div>
+          <div class="range"><strong id="lifeDays">-</strong><span>통합 예상 잔여일</span></div>
+          <div class="confidence-line">추정 신뢰도 <span id="confidenceHeadline">-</span><small>데이터 충분도 기준</small></div>
+          <div class="estimate-note" id="estimateNote">사진상 마모와 구매 후 경과 기간을 결합한 MVP 추정 범위</div>
+          <div class="bar"><div class="bar-fill" id="lifeBar"></div></div>
+          <div class="score-meta">
+            <div><small>시각적 마모 단계</small><strong id="wearLevel">-</strong></div>
+            <div><small>추정 신뢰도</small><strong id="lifeRange">-</strong></div>
+            <div><small>구매 후 경과</small><strong id="elapsed">-</strong></div>
+            <div><small>계산 방식</small><strong id="calculationMethod">사진 + 구매일</strong></div>
+          </div>
+        </div>
+        <div class="details">
+          <h3>사진에서 확인된 내용</h3>
+          <ul class="observations" id="observations"></ul>
+          <h3>계산 근거</h3>
+          <div class="metrics" id="metrics"></div>
+          <div class="notice" id="notice"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const views = [
+      ["left_outsole", "왼쪽 밑창", "밑창 전체가 보이게"],
+      ["right_outsole", "오른쪽 밑창", "밑창 전체가 보이게"],
+      ["heels", "양쪽 뒤꿈치", "뒤에서 나란히"],
+      ["left_side", "왼쪽 바깥 측면", "미드솔 전체가 보이게"],
+      ["right_side", "오른쪽 바깥 측면", "미드솔 전체가 보이게"]
+    ];
+    const uploads = document.querySelector("#uploads");
+    const statusBox = document.querySelector("#status");
+    const result = document.querySelector("#result");
+    const submitButton = document.querySelector("#submitButton");
+    document.querySelector("#purchaseDate").max = new Date().toISOString().slice(0, 10);
+
+    views.forEach(([name, label, hint]) => {
+      const card = document.createElement("div");
+      card.className = "upload-card";
+      card.innerHTML = `
+        <input id="${name}" name="${name}" type="file" accept="image/jpeg,image/png,image/webp" required>
+        <label class="dropzone" for="${name}">
+          <span class="placeholder"><span class="plus">+</span><span class="upload-title">${label}</span><span class="upload-hint">${hint}<br>JPG·PNG·WebP / 최대 5MB</span></span>
+          <img alt="${label} 미리보기">
+        </label>
+        <span class="file-name">선택된 파일 없음</span>`;
+      uploads.appendChild(card);
+      const input = card.querySelector("input");
+      input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (!file) return;
+        const zone = card.querySelector(".dropzone");
+        const image = card.querySelector("img");
+        image.src = URL.createObjectURL(file);
+        zone.classList.add("has-image");
+        card.querySelector(".file-name").textContent = file.name;
+      });
+    });
+
+    function showStatus(message, kind = "info") {
+      statusBox.textContent = message;
+      statusBox.className = `status show ${kind}`;
+    }
+
+    function renderResult(data) {
+      const life = data.life_estimation;
+      const wear = data.wear_analysis;
+      const range = life.estimated_remaining_life_percent;
+      const days = life.estimated_remaining_days;
+      const midpoint = Math.round((range.min + range.max) / 2);
+      document.querySelector("#condition").textContent = life.condition;
+      document.querySelector("#lifeDays").textContent = `약 ${days.min}–${days.max}일`;
+      const estimationConfidence = life.estimation_confidence;
+      document.querySelector("#confidenceHeadline").textContent = estimationConfidence
+        ? `${estimationConfidence.level} ${estimationConfidence.percent}%`
+        : "자료 부족";
+      document.querySelector("#lifeRange").textContent = estimationConfidence
+        ? `${estimationConfidence.level} ${estimationConfidence.percent}%`
+        : "자료 부족";
+      document.querySelector("#lifeBar").style.width = `${midpoint}%`;
+      document.querySelector("#wearLevel").textContent = `${life.visual_wear_level} / 5`;
+      document.querySelector("#elapsed").textContent = `${life.purchase_information.elapsed_months}개월`;
+      const hasRunningRecords = Boolean(life.running_record_summary);
+      document.querySelector("#calculationMethod").textContent = hasRunningRecords
+        ? "사진 + 구매일 + 러닝 기록"
+        : "사진 + 구매일";
+      document.querySelector("#estimateNote").textContent = hasRunningRecords
+        ? "사진상 마모·구매 후 경과 기간·누적거리·최근 러닝 빈도를 결합한 MVP 추정 범위"
+        : "사진상 마모와 구매 후 경과 기간을 결합한 MVP 추정 범위";
+      document.querySelector("#observations").innerHTML = wear.observations.map(item => `<li>${escapeHtml(item)}</li>`).join("");
+      const labels = {
+        outsole_average: "아웃솔 평균 마모",
+        heel_deformation_average: "뒤축 기울어짐·변형",
+        side_midsole_average: "측면 미드솔 평균",
+        highest_visible_damage_score: "가장 높은 손상 점수",
+        derived_wear_level: "세부 점수 계산 단계",
+        recorded_run_count: "완료 러닝 기록 수",
+        recorded_total_distance_km: "DB 기록 누적거리(km)",
+        recent_weekly_distance_km: "최근 주간 평균거리(km)",
+        estimated_total_distance_km: "수명 계산 적용 거리(km)",
+        estimated_remaining_distance_km: "거리 기준 잔여 주행거리(km)",
+        visual_purchase_remaining_days: "사진·구매일 기준 잔여일",
+        distance_usage_remaining_days: "거리·현재 빈도 기준 잔여일",
+        final_day_basis: "최종 잔여일 적용 근거"
+      };
+      const visibleMetricKeys = new Set([
+        "신발 분류",
+        "사진 기반 마모 단계",
+        "사진 분석 신뢰도",
+        "구매 후 경과",
+        "왼쪽 앞쪽 끝단 손상",
+        "오른쪽 앞쪽 끝단 손상",
+        "왼쪽 밑창 균열",
+        "오른쪽 밑창 균열",
+        "구조 손상 감지",
+        "추정 잔여 수명 비율",
+        "recorded_run_count",
+        "recorded_total_distance_km",
+        "recent_weekly_distance_km",
+        "estimated_total_distance_km",
+        "거리 기준 잔여 주행거리(km)",
+      ]);
+      document.querySelector("#metrics").innerHTML = Object.entries(life.calculation_evidence)
+        .filter(([key]) => visibleMetricKeys.has(key))
+        .map(([key, value]) => `<div class="metric"><span>${labels[key] || key}</span><strong>${value === null ? "자료 부족(미산정)" : value}</strong></div>`).join("");
+      const cautions = life.cautions?.length ? `<br><br>${life.cautions.map(escapeHtml).join(" ")}` : "";
+      document.querySelector("#notice").innerHTML = `${escapeHtml(life.notice)}${cautions}`;
+      result.classList.add("show");
+      result.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+    }
+
+    document.querySelector("#analysisForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      result.classList.remove("show");
+      submitButton.disabled = true;
+      submitButton.textContent = "사진 분석 중…";
+      showStatus("사진 5장을 확인하고 Bedrock Nova로 외관 마모를 분석하고 있습니다. 잠시 기다려 주세요.");
+      try {
+        const response = await fetch("/api/analyze", { method: "POST", body: new FormData(event.currentTarget) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "분석 요청에 실패했습니다.");
+        if (data.status === "COMPLETED") {
+          showStatus("분석이 완료되었습니다.", "info");
+          renderResult(data);
+        } else if (data.status === "RETAKE_REQUIRED") {
+          const names = (data.required_retake_views || []).map(key => views.find(view => view[0] === key)?.[1] || key);
+          showStatus(`다시 촬영해 주세요: ${names.join(", ")}. ${data.wear_analysis?.quality_reason || "핵심 부위를 판독하기 어렵습니다."}`, "warn");
+        } else if (data.status === "ANALYSIS_REJECTED") {
+          console.warn("분석 내부 검증 실패:", data.message);
+          showStatus("사진 분석 결과가 일시적으로 불안정합니다. 잠시 후 다시 분석하거나 사진을 밝고 선명하게 다시 촬영해 주세요.", "warn");
+        } else {
+          showStatus([data.message, data.notice].filter(Boolean).join(" ") || "검증된 분석 결과를 만들지 못했습니다.", "warn");
+        }
+      } catch (error) {
+        showStatus(error.message || "서버 연결에 실패했습니다.", "error");
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "상태 분석하기";
+      }
+    });
+  </script>
+</body>
+</html>

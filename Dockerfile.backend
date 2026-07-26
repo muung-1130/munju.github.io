@@ -1,4 +1,8 @@
 # syntax=docker/dockerfile:1
+#
+# 백엔드(API) 전용 이미지. 프론트엔드(Dockerfile.frontend)와 동일한 Next.js 빌드 산출물을 사용하고,
+# APP_ROLE=backend로만 실행 역할을 구분한다 (middleware.ts가 이 값을 보고 /api/* 이외 요청을 차단한다).
+# 코드 자체는 나누지 않았다 — app/api/* 백엔드 로직을 실제로 분리하려면 별도 서비스 추출이 필요하다.
 
 ARG ALPINE_VERSION=3.23
 
@@ -33,7 +37,7 @@ RUN npm run build
 
 
 # --------------------------------------------------
-# 3단계: 최소 운영 이미지
+# 3단계: 최소 운영 이미지 (백엔드 역할)
 # --------------------------------------------------
 FROM alpine:${ALPINE_VERSION} AS runner
 
@@ -42,7 +46,8 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
-    PORT=3000
+    PORT=3000 \
+    APP_ROLE=backend
 
 # Node 실행에 필요한 최소 라이브러리와 인증서만 설치
 RUN apk add --no-cache \

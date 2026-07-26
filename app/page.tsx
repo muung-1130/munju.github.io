@@ -25,8 +25,6 @@ export default async function HomePage() {
     <div className="home-page">
       <FeatureBanner />
 
-      <AiRecoPanel courses={recoCourses} />
-
       <section className="home-hero">
         <div className="hero-bg" />
         <div className="hero-content">
