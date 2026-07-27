@@ -9,7 +9,7 @@ import { WeatherPanel } from '@/components/WeatherPanel';
 import { WeeklyDistanceChart } from '@/components/WeeklyDistanceChart';
 import { authOptions } from '@/lib/auth';
 import { getRunningSummary, getThisWeekDailyDistances, formatDuration, formatPace } from '@/lib/runningRecord';
-import { getAiRecoPanelCourses } from '@/lib/aiRecommendation';
+import { fetchAiRecoPanelCourses } from '@/lib/aiRecoPanelClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export default async function HomePage() {
   const [summary, dailyDistances, recoCourses] = await Promise.all([
     session?.user?.id ? getRunningSummary(session.user.id) : Promise.resolve(null),
     session?.user?.id ? getThisWeekDailyDistances(session.user.id) : Promise.resolve([]),
-    getAiRecoPanelCourses(session?.user?.id ?? null)
+    fetchAiRecoPanelCourses()
   ]);
 
   return (

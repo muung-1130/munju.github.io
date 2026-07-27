@@ -1,18 +1,15 @@
-import { getServerSession } from 'next-auth';
 import { Card, PageTitle } from '@/components/UI';
 import { AiRecoPanel } from '@/components/AiRecoPanel';
 import { CourseNearbyExplorer } from '@/components/CourseNearbyExplorer';
 import { RunningPreferencesOnboardingModal } from '@/components/RunningPreferencesOnboardingModal';
-import { authOptions } from '@/lib/auth';
-import { getAiRecoPanelCourses } from '@/lib/aiRecommendation';
+import { fetchAiRecoPanelCourses } from '@/lib/aiRecoPanelClient';
 import { getCourseDistanceBucketCounts, getCourseOverallStats } from '@/lib/course';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CoursePage() {
-  const session = await getServerSession(authOptions);
   const [recoCourses, bucketCounts, overallStats] = await Promise.all([
-    getAiRecoPanelCourses(session?.user?.id ?? null),
+    fetchAiRecoPanelCourses(),
     getCourseDistanceBucketCounts(),
     getCourseOverallStats()
   ]);

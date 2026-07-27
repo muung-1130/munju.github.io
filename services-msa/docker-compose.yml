@@ -1,0 +1,181 @@
+name: dai-run-msa
+
+services:
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: dai-run-auth-service
+    restart: unless-stopped
+    ports:
+      - "4001:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-auth-service
+    networks:
+      - dai-run-net
+
+  course-service:
+    build:
+      context: ./course-service
+    container_name: dai-run-course-service
+    restart: unless-stopped
+    ports:
+      - "4002:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-course-service
+    networks:
+      - dai-run-net
+
+  course-recommendation-service:
+    build:
+      context: ./course-recommendation-service
+    container_name: dai-run-course-recommendation-service
+    restart: unless-stopped
+    ports:
+      - "4003:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-course-recommendation-service
+      AI_RECOMMENDATION_SERVICE_URL: http://192.168.0.201:8001
+    networks:
+      - dai-run-net
+
+  running-record-service:
+    build:
+      context: ./running-record-service
+    container_name: dai-run-running-record-service
+    restart: unless-stopped
+    ports:
+      - "4004:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-running-record-service
+      COURSE_SERVICE_URL: http://course-service:4000
+      MONGO_URI: mongodb://mongo:27017
+    networks:
+      - dai-run-net
+
+  crew-service:
+    build:
+      context: ./crew-service
+    container_name: dai-run-crew-service
+    restart: unless-stopped
+    ports:
+      - "4005:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-crew-service
+      MONGO_URI: mongodb://mongo:27017
+    networks:
+      - dai-run-net
+
+  coaching-service:
+    build:
+      context: ./coaching-service
+    container_name: dai-run-coaching-service
+    restart: unless-stopped
+    ports:
+      - "4006:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-coaching-service
+    networks:
+      - dai-run-net
+
+  ai-assistant-service:
+    build:
+      context: ./ai-assistant-service
+    container_name: dai-run-ai-assistant-service
+    restart: unless-stopped
+    ports:
+      - "4007:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-ai-assistant-service
+      AI_RAG_SERVICE_URL: http://192.168.0.201:8000
+    networks:
+      - dai-run-net
+
+  challenge-service:
+    build:
+      context: ./challenge-service
+    container_name: dai-run-challenge-service
+    restart: unless-stopped
+    ports:
+      - "4008:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-challenge-service
+    networks:
+      - dai-run-net
+
+  shoe-service:
+    build:
+      context: ./shoe-service
+    container_name: dai-run-shoe-service
+    restart: unless-stopped
+    ports:
+      - "4009:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-shoe-service
+      SHOE_LIFE_AI_SERVICE_URL: http://192.168.0.201:8002
+      MEDIA_SERVICE_URL: http://media-service:4000
+    networks:
+      - dai-run-net
+
+  marathon-service:
+    build:
+      context: ./marathon-service
+    container_name: dai-run-marathon-service
+    restart: unless-stopped
+    ports:
+      - "4010:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-marathon-service
+    networks:
+      - dai-run-net
+
+  notification-service:
+    build:
+      context: ./notification-service
+    container_name: dai-run-notification-service
+    restart: unless-stopped
+    ports:
+      - "4011:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-notification-service
+    networks:
+      - dai-run-net
+
+  media-service:
+    build:
+      context: ./media-service
+    container_name: dai-run-media-service
+    restart: unless-stopped
+    ports:
+      - "4012:4000"
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-media-service
+    networks:
+      - dai-run-net
+
+networks:
+  dai-run-net:
+    external: true

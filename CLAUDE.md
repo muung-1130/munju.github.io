@@ -78,7 +78,7 @@
 
 ### 2.5 향후 기능
 
-러닝화 추천·수명 예측, 마라톤 정보·신청, 자세 교정, 심박 Zone, 다국어 오디오, 스마트워치 연동은 확장 대상으로 설계하되 MVP 구현을 과도하게 복잡하게 만들지 않는다.
+러닝화 추천·수명 예측, 마라톤 정보·신청, 심박 Zone, 다국어 오디오, 스마트워치 연동은 확장 대상으로 설계하되 MVP 구현을 과도하게 복잡하게 만들지 않는다. 자세 교정(Posture Analysis)은 제품 범위에서 제외하기로 결정했다.
 
 ---
 
@@ -132,7 +132,6 @@ AI, 객체 저장소, 검색, 알림, 외부 API는 포트/어댑터 경계를 �
 | Crew Chat | `crew_chat` | 채팅방, 메시지, 읽음 상태 |
 | Coaching | `coaching`, `environment` | 오늘의 코칭, 날씨·대기질 정규화 |
 | AI Assistant | `ai_assistant` | 대화 세션, 메시지, Tool Calling 기록 |
-| Posture Analysis | `posture_analysis` | 자세 분석 요청·결과 |
 | Challenge | `challenge` | 챌린지, 참가, 진행 이벤트 |
 | Shoe | `shoe` | 제품, 선호, 보유 신발, 마모·수명 |
 | Marathon | `marathon` | 대회, 접수창, 예약 |
@@ -223,10 +222,6 @@ AI, 객체 저장소, 검색, 알림, 외부 API는 포트/어댑터 경계를 �
 
 - `chat_messages`
 - `chat_sessions`
-
-#### `posture_analysis`
-
-- `posture_analyses`
 
 #### `challenge`
 
@@ -320,7 +315,6 @@ P0 테이블을 먼저 구현한다. P1/P2를 이유 없이 선행 구현하지 
 - 코칭 강도: `LOW`, `MODERATE`, `HIGH`
 - 심박 구간: `ZONE_1` ~ `ZONE_5`
 - AI 메시지 역할: `USER`, `ASSISTANT`, `TOOL`, `SYSTEM`
-- 자세 분석 상태: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`
 - 챌린지 유형: `PERSONAL`, `PUBLIC`, `CREW`
 - 챌린지 지표: `DISTANCE`, `COUNT`, `PACE`, `STREAK`
 - 사용자 러닝화 상태: `ACTIVE`, `RETIRED`
@@ -556,8 +550,6 @@ AI 코칭 권장 순서:
 - `marathon.reservation.requested`
 - `marathon.reservation.confirmed`
 - `media.ready`
-- `posture.analysis.requested`
-- `posture.analysis.completed`
 - `notification.requested`
 
 실제 저장소에 이미 정의된 이름이 있으면 기존 이름을 따른다.

@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1
 #
-# 백엔드(API) 전용 이미지. 프론트엔드(Dockerfile.frontend)와 동일한 Next.js 빌드 산출물을 사용하고,
-# APP_ROLE=backend로만 실행 역할을 구분한다 (middleware.ts가 이 값을 보고 /api/* 이외 요청을 차단한다).
-# 코드 자체는 나누지 않았다 — app/api/* 백엔드 로직을 실제로 분리하려면 별도 서비스 추출이 필요하다.
+# NextAuth 세션/OAuth 전용 이미지. app/api/* 백엔드 로직 대부분은 services-msa/*로 이관됐고,
+# 이 컨테이너는 /api/auth/[...nextauth](로그인·세션·OAuth 콜백)와 /api/health만 nginx에서 넘겨받는다.
+# 프론트엔드(Dockerfile.frontend)와 동일한 Next.js 빌드 산출물을 쓰고 APP_ROLE=backend로 역할만
+# 구분한다(middleware.ts가 이 값을 보고 /api/* 이외 요청을 차단) — NextAuth v4가 Next.js 라우트 핸들러에
+# 강하게 결합돼 있어(CSRF 이중 제출 쿠키, JWT 인코딩 등) Express로 재구현하면 이미 배포된 11개
+# MSA 서비스가 검증하는 next-auth.session-token 쿠키 형식과 어긋날 위험이 있다 — 그래서 프로토콜을
+# 다시 구현하는 대신 이 역할만 남기고 나머지 코드/라우팅을 모두 걷어내는 방식으로 분리했다.
 
 ARG ALPINE_VERSION=3.23
 
