@@ -1,5 +1,7 @@
 import { getPool } from './db.js';
-import { leaveCrew } from './crew.js';
+
+const CREW_SERVICE_URL = process.env.CREW_SERVICE_URL ?? 'http://crew-service:4000';
+const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET!;
 
 // 회원 탈퇴: auth_user.users는 물리 삭제하지 않고 소프트 삭제(status='WITHDRAWN' + deleted_at)만
 // 한다. auth_user 스키마 밖(크루/코스/챌린지/러닝기록/크루채팅)은 이 user_id를 물리 FK 없이
@@ -15,15 +17,13 @@ import { leaveCrew } from './crew.js';
 export async function withdrawAccount(userId: string): Promise<void> {
   const pool = getPool();
 
-  // 본인이 리더/멤버로 있는 크루는 이미 만들어둔 "크루 나가기" 로직을 그대로 재사용한다 —
-  // 마지막 멤버면 크루가 삭제되고, 아니면 LEFT 처리만 되는 동작이 회원 탈퇴라고 다를 이유가 없다.
-  const { rows: myCrews } = await pool.query(
-    `SELECT crew_id FROM crew.crew_members WHERE user_id = $1 AND status = 'ACTIVE'`,
-    [userId]
-  );
-  for (const row of myCrews) {
-    await leaveCrew(row.crew_id, userId);
-  }
+  // 본인이 리더/멤버로 있는 크루에서 나가는 것(마지막 멤버면 크루 삭제까지)은 crew-service
+  // 소유 로직이라 이 서비스가 crew 스키마를 직접 건드리지 않고 내부 API로 위임한다.
+  const res = await fetch(`${CREW_SERVICE_URL}/api/crew/internal/users/${userId}/withdraw`, {
+    method: 'POST',
+    headers: { 'x-internal-secret': INTERNAL_API_SECRET }
+  });
+  if (!res.ok) throw new Error(`크루 탈퇴 처리 실패: ${res.status}`);
 
   // 계정 자체는 지우지 않으므로(하드 삭제가 아니므로), 진행 중인 세션은 명시적으로 회수해야 한다.
   await pool.query(

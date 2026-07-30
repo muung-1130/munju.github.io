@@ -312,43 +312,6 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001,mode=1777
 
-  run-completion-consumer:
-    build:
-      context: ./services/run-completion-consumer
-      dockerfile: Dockerfile
-    image: dai-run-run-completion-consumer:node20-min-v4
-    container_name: dai-run-run-completion-consumer
-    restart: unless-stopped
-
-    user: "10001:10001"
-    init: true
-    read_only: true
-
-    env_file:
-      - .env
-
-    environment:
-      INTERNAL_API_URL: http://running-record-service:4000/api/internal/run-completed
-      OTEL_SERVICE_NAME: dai-run-run-completion-consumer
-
-    networks:
-      - dai-run-net
-
-    security_opt:
-      - no-new-privileges:true
-      - seccomp=builtin
-      - apparmor=docker-default
-
-    cap_drop:
-      - ALL
-
-    pids_limit: 100
-    mem_limit: 256m
-    cpus: 0.5
-
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001,mode=1777
-
   nginx:
     image: nginx:1.27-alpine
     container_name: dai-run-nginx

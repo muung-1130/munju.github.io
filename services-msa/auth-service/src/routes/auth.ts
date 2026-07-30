@@ -10,6 +10,9 @@ import { validateEmail, validateNickname, validatePassword, validateUsername } f
 import { requireAuth } from '../middleware/session.js';
 import { getSessionId } from '../middleware/sessionId.js';
 
+const RUNNING_RECORD_SERVICE_URL = process.env.RUNNING_RECORD_SERVICE_URL ?? 'http://running-record-service:4000';
+const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET!;
+
 const router = Router();
 
 router.post('/signup', async (req, res) => {
@@ -355,12 +358,16 @@ router.patch('/weight', requireAuth, async (req, res) => {
   }
   const pool = getPool();
   await pool.query(`UPDATE auth_user.users SET weight_kg = $1, updated_at = now() WHERE user_id = $2`, [weightKg, req.userId]);
-  await pool.query(
-    `UPDATE running_record.runs
-        SET calories_kcal = ROUND((distance_m / 1000.0) * $1 * 1.036)
-      WHERE user_id = $2 AND status IN ('COMPLETED', 'STOPPED') AND distance_m IS NOT NULL AND distance_m > 0`,
-    [weightKg, req.userId]
-  );
+
+  // 과거 러닝 기록의 칼로리 재계산은 running_record 스키마 소유인 running-record-service의
+  // 내부 API로 위임한다(이 서비스가 그 스키마를 직접 UPDATE하지 않는다).
+  const calRes = await fetch(`${RUNNING_RECORD_SERVICE_URL}/api/internal/users/${req.userId}/recalculate-calories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_API_SECRET },
+    body: JSON.stringify({ weightKg })
+  });
+  if (!calRes.ok) console.error('칼로리 재계산 요청 실패:', calRes.status);
+
   res.json({ success: true, weightKg });
 });
 

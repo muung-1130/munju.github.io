@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Kafka, Partitioners } from 'kafkajs';
 
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.201:29092').split(',');
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.212:29092').split(',');
 export const RUN_COMPLETED_EVENTS_TOPIC = 'running.run-completed-events';
 
 let producer: ReturnType<Kafka['producer']> | undefined;
@@ -46,9 +46,12 @@ type RunCompletedEvent = {
   payload: RunCompletedEventPayload;
 };
 
-export async function publishRunCompletedEvent(payload: RunCompletedEventPayload) {
+// eventId는 항상 호출자(outboxPublisher)가 running_record.outbox_events.event_id를 그대로
+// 넘겨준다 — 이 값이 곧 다운스트림 컨슈머들의 멱등키(source_event_id)가 되므로, 여기서 새로
+// 발급하면 outbox에 적재된 eventId와 실제 발행되는 eventId가 어긋난다.
+export async function publishRunCompletedEvent(eventId: string, payload: RunCompletedEventPayload) {
   const event: RunCompletedEvent = {
-    eventId: randomUUID(),
+    eventId,
     eventType: 'RunCompleted',
     occurredAt: new Date().toISOString(),
     producer: 'running-record-service',

@@ -1,6 +1,6 @@
 import { getPool } from './db.js';
 import { defaultWeightKgForGender, estimateCaloriesKcal } from './calorie.js';
-import { publishRunCompletedEvent } from './kafka.js';
+import { writeRunCompletedOutboxEvent } from './outbox.js';
 
 export type CourseRouteInfo = {
   courseId: string;
@@ -30,7 +30,9 @@ export async function getCourseRouteForRun(courseId: string): Promise<CourseRout
 }
 
 // 출발 버튼 = running_record.runs 행 생성. my_shoe_id는 이번 화면에서 신발을 고르지 않으므로 NULL로 둔다.
-export async function startRun(userId: string, courseId: string): Promise<string> {
+// courseId가 없으면(자율 달리기) course_id는 NULL로 저장한다 — running_record.runs.course_id는
+// 원래 nullable 컬럼이라 스키마 변경 없이 지원 가능하다.
+export async function startRun(userId: string, courseId: string | null): Promise<string> {
   const pool = getPool();
   const { rows } = await pool.query(
     `INSERT INTO running_record.runs (user_id, course_id, my_shoe_id, source_type, status, started_at)
@@ -128,61 +130,74 @@ export async function finishRun(runId: string, userId: string, input: FinishRunI
     : defaultWeightKgForGender(userRows[0]?.gender ?? null);
   const caloriesKcal = estimateCaloriesKcal(input.distanceM, weightKg);
 
-  const { rows: updatedRows } = await pool.query(
-    `UPDATE running_record.runs
-        SET status = $3, source_type = $4, completed_at = now(),
-            duration_sec = $5, moving_duration_sec = $6, distance_m = $7,
-            average_pace_sec_per_km = $8, best_pace_sec_per_km = $9,
-            route_geom = CASE WHEN $10::text IS NULL THEN NULL ELSE ST_GeomFromEWKT($10) END,
-            calories_kcal = $11, my_shoe_id = $12
-      WHERE run_id = $1 AND user_id = $2 AND status = 'IN_PROGRESS'
-      RETURNING run_id, course_id, my_shoe_id, source_type, started_at, completed_at, created_at,
-                distance_m, duration_sec, moving_duration_sec, average_pace_sec_per_km,
-                best_pace_sec_per_km, average_heart_rate, max_heart_rate, average_cadence,
-                calories_kcal, elevation_gain_m`,
-    [
-      runId,
-      userId,
-      input.status,
-      input.sourceType,
-      input.durationSec,
-      input.movingDurationSec,
-      input.distanceM,
-      input.avgPaceSecPerKm,
-      input.bestPaceSecPerKm,
-      routeGeom,
-      caloriesKcal,
-      myShoeId
-    ]
-  );
-  if (updatedRows.length === 0) throw new Error('러닝 기록을 찾을 수 없거나 이미 종료됐어요.');
+  // runs UPDATE와 RunCompleted outbox 적재를 같은 트랜잭션으로 묶는다(Outbox 패턴) — 둘 중
+  // 하나만 커밋되는 상황(예: 커밋 직후 프로세스가 죽어 Kafka 발행을 놓치는 것)을 없애기 위해서다.
+  // 실제 Kafka 발행은 이 트랜잭션 밖, 별도 outboxPublisher가 이 행을 폴링해서 담당한다.
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: updatedRows } = await client.query(
+      `UPDATE running_record.runs
+          SET status = $3, source_type = $4, completed_at = now(),
+              duration_sec = $5, moving_duration_sec = $6, distance_m = $7,
+              average_pace_sec_per_km = $8, best_pace_sec_per_km = $9,
+              route_geom = CASE WHEN $10::text IS NULL THEN NULL ELSE ST_GeomFromEWKT($10) END,
+              calories_kcal = $11, my_shoe_id = $12
+        WHERE run_id = $1 AND user_id = $2 AND status = 'IN_PROGRESS'
+        RETURNING run_id, course_id, my_shoe_id, source_type, started_at, completed_at, created_at,
+                  distance_m, duration_sec, moving_duration_sec, average_pace_sec_per_km,
+                  best_pace_sec_per_km, average_heart_rate, max_heart_rate, average_cadence,
+                  calories_kcal, elevation_gain_m`,
+      [
+        runId,
+        userId,
+        input.status,
+        input.sourceType,
+        input.durationSec,
+        input.movingDurationSec,
+        input.distanceM,
+        input.avgPaceSecPerKm,
+        input.bestPaceSecPerKm,
+        routeGeom,
+        caloriesKcal,
+        myShoeId
+      ]
+    );
+    if (updatedRows.length === 0) throw new Error('러닝 기록을 찾을 수 없거나 이미 종료됐어요.');
 
-  // 챌린지 진행도/크루 배틀 즉시 갱신/AI 코치 축하 메시지는 이 서비스(running_record) 소유가
-  // 아니라 Kafka 이벤트로만 흘려보낸다 — 완주(COMPLETED)한 경우만 대상으로 한다(STOPPED는
-  // 중도 종료라 챌린지 달성으로 인정하지 않는다). 이벤트 발행 실패로 러닝 기록 저장 자체를
-  // 실패시키지 않도록 별도로 감싼다.
-  if (input.status === 'COMPLETED') {
-    const row = updatedRows[0];
-    publishRunCompletedEvent({
-      runId: row.run_id,
-      userId,
-      courseId: row.course_id,
-      myShoeId: row.my_shoe_id,
-      sourceType: row.source_type,
-      startedAt: row.started_at,
-      completedAt: row.completed_at,
-      createdAt: row.created_at,
-      distanceM: row.distance_m,
-      durationSec: row.duration_sec,
-      movingDurationSec: row.moving_duration_sec,
-      averagePaceSecPerKm: row.average_pace_sec_per_km,
-      bestPaceSecPerKm: row.best_pace_sec_per_km,
-      averageHeartRate: row.average_heart_rate,
-      maxHeartRate: row.max_heart_rate,
-      averageCadence: row.average_cadence,
-      caloriesKcal: row.calories_kcal,
-      elevationGainM: row.elevation_gain_m !== null ? Number(row.elevation_gain_m) : null
-    }).catch((err) => console.error('publishRunCompletedEvent 실패:', err));
+    // 챌린지 진행도/크루 배틀 갱신/AI 코치 축하 메시지는 이 서비스(running_record) 소유가 아니라
+    // Kafka 이벤트로만 흘려보낸다 — 완주(COMPLETED)한 경우만 대상으로 한다(STOPPED는 중도 종료라
+    // 챌린지 달성으로 인정하지 않는다).
+    if (input.status === 'COMPLETED') {
+      const row = updatedRows[0];
+      await writeRunCompletedOutboxEvent(client, {
+        runId: row.run_id,
+        userId,
+        courseId: row.course_id,
+        myShoeId: row.my_shoe_id,
+        sourceType: row.source_type,
+        startedAt: row.started_at,
+        completedAt: row.completed_at,
+        createdAt: row.created_at,
+        distanceM: row.distance_m,
+        durationSec: row.duration_sec,
+        movingDurationSec: row.moving_duration_sec,
+        averagePaceSecPerKm: row.average_pace_sec_per_km,
+        bestPaceSecPerKm: row.best_pace_sec_per_km,
+        averageHeartRate: row.average_heart_rate,
+        maxHeartRate: row.max_heart_rate,
+        averageCadence: row.average_cadence,
+        caloriesKcal: row.calories_kcal,
+        elevationGainM: row.elevation_gain_m !== null ? Number(row.elevation_gain_m) : null
+      });
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 }
 

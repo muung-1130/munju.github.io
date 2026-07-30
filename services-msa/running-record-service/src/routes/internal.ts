@@ -1,46 +1,37 @@
 import { Router } from 'express';
-import { applyChallengeProgress } from '../lib/challengeRules.js';
-import { refreshCrewBattlesForUser } from '../lib/crewBattle.js';
-import { sendRunCongratsMessage } from '../lib/aiChatMessages.js';
-import type { RunCompletedEventPayload } from '../lib/kafka.js';
+import { getPool } from '../lib/db.js';
 
 const router = Router();
 
-// run-completion-consumer(Kafka 소비자)가 running.run-completed-events를 받을 때마다 호출하는
-// 내부 전용 엔드포인트다. 브라우저에서는 절대 호출할 일이 없으므로 세션이 아니라 공유 비밀값으로
-// 검증한다.
-//
-// MVP 타협: 챌린지 진행도(Challenge)/크루 배틀 갱신(Crew)/AI 축하 메시지(AI Assistant)는
-// 원래 각자 다른 서비스 소유 로직인데, 지금은 이벤트로 완전히 쪼개지 않고 이 서비스가 그 세
-// 서비스의 로직을 그대로 복사해 동기 호출하고 있다 — 서비스 경계는 물리적으로 나눴지만 이
-// 한 곳만은 아직 결합돼 있다는 뜻. 나중에 각 서비스가 Kafka 이벤트를 직접 구독하는 방식으로
-// 바꾸는 게 정석이다.
-router.post('/run-completed', async (req, res) => {
+// media-service의 /api/internal/media와 동일한 x-internal-secret 검증 패턴.
+router.use((req, res, next) => {
   const secret = req.headers['x-internal-secret'];
   if (!secret || secret !== process.env.INTERNAL_API_SECRET) {
     res.status(401).json({ error: 'unauthorized' });
     return;
   }
+  next();
+});
 
-  const body = req.body;
-  const eventId: string | undefined = body?.eventId;
-  const run: RunCompletedEventPayload | undefined = body?.payload;
-  if (!eventId || !run?.runId || !run?.userId) {
-    res.status(400).json({ error: 'invalid payload' });
+// auth-service가 체중 변경(PATCH /api/auth/weight) 시 호출한다. 과거 러닝 기록의 칼로리는
+// 그 시점의 체중을 몰라 재계산이 필요한데, running_record.runs는 이 서비스 소유라 auth-service가
+// 직접 UPDATE하지 않고 이 내부 API를 통해서만 반영한다. 공식은 calorie.ts의 estimateCaloriesKcal와
+// 동일(체중 × 거리(km) × 1.036) — 즉시 반영이 필요해 이벤트가 아니라 동기 호출로 처리한다.
+router.post('/users/:userId/recalculate-calories', async (req, res) => {
+  const { userId } = req.params;
+  const weightKg = Number(req.body?.weightKg);
+  if (!Number.isFinite(weightKg) || weightKg <= 0) {
+    res.status(400).json({ error: 'invalid weightKg' });
     return;
   }
-
-  try {
-    const { completedChallengeNames } = await applyChallengeProgress(eventId, run);
-    await refreshCrewBattlesForUser(run.userId).catch((err) => console.error('refreshCrewBattlesForUser 실패:', err));
-    await sendRunCongratsMessage(eventId, run.userId, run, completedChallengeNames).catch((err) =>
-      console.error('sendRunCongratsMessage 실패:', err)
-    );
-    res.json({ success: true, completedChallengeNames });
-  } catch (err) {
-    console.error('run-completed 처리 실패:', err);
-    res.status(500).json({ error: 'processing failed' });
-  }
+  const pool = getPool();
+  await pool.query(
+    `UPDATE running_record.runs
+        SET calories_kcal = ROUND((distance_m / 1000.0) * $1 * 1.036)
+      WHERE user_id = $2 AND status IN ('COMPLETED', 'STOPPED') AND distance_m IS NOT NULL AND distance_m > 0`,
+    [weightKg, userId]
+  );
+  res.json({ success: true });
 });
 
 export default router;

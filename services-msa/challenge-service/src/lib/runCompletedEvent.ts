@@ -16,4 +16,7 @@ export type RunCompletedEventPayload = {
   bestPaceSecPerKm: number | null;
   averageHeartRate: number | null;
   maxHeartRate: number | null;
+  averageCadence?: number | null;
+  caloriesKcal?: number | null;
+  elevationGainM?: number | null;
 };

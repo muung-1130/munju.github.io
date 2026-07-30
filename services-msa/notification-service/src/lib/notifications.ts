@@ -1,4 +1,24 @@
 import { getPool } from './db.js';
+import type { ChallengeCompletedEventPayload } from './kafka.js';
+
+// challenge-service의 ChallengeCompleted 컨슈머가 호출한다. source_event_id UNIQUE(부분 인덱스,
+// db/016)로 at-least-once 재전달에도 중복 알림이 안 생긴다.
+export async function createChallengeCompletedNotification(eventId: string, payload: ChallengeCompletedEventPayload): Promise<void> {
+  const pool = getPool();
+  await pool.query(
+    `INSERT INTO notification.notifications
+       (user_id, notification_type, title, body, target_url, reference_type, reference_id, source_event_id)
+     VALUES ($1, 'CHALLENGE_COMPLETED', '챌린지 달성 성공!', $2, $3, 'CHALLENGE', $4, $5)
+     ON CONFLICT (source_event_id) WHERE source_event_id IS NOT NULL DO NOTHING`,
+    [
+      payload.userId,
+      `'${payload.challengeName}' 챌린지 달성에 성공했어요!`,
+      `/challenges/${payload.challengeId}`,
+      payload.challengeId,
+      eventId
+    ]
+  );
+}
 
 export type AppNotification = {
   notificationId: string;

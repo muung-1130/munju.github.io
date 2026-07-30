@@ -1,5 +1,6 @@
 import { getPool } from './db.js';
 import type { RunCompletedEventPayload } from './runCompletedEvent.js';
+import { writeChallengeCompletedOutboxEvent } from './outbox.js';
 
 function kstDateStr(value: string | Date): string {
   return new Date(value).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
@@ -158,42 +159,58 @@ export async function applyChallengeProgress(eventId: string, run: RunCompletedE
 
     if (progressAfter === progressBefore) continue;
 
-    const { rows: insertedRows } = await pool.query(
-      `INSERT INTO challenge.challenge_progress_events
-         (participation_id, source_event_id, run_id, increment_value, progress_before, progress_after, occurred_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (source_event_id, participation_id) DO NOTHING
-       RETURNING progress_event_id`,
-      [p.participation_id, eventId, run.runId, progressAfter - progressBefore, progressBefore, progressAfter, run.completedAt]
-    );
-    if (insertedRows.length === 0) continue; // 이미 처리된 이벤트(at-least-once 재전달 방지)
+    // 진행 이벤트 INSERT + 참가 상태 UPDATE + (완주 시) ChallengeCompleted outbox 적재를 한
+    // 트랜잭션으로 묶는다 — notification.notifications에 직접 쓰던 것을 outbox 이벤트 발행으로
+    // 바꾸면서(스키마 소유권 위반 제거), 발행 실패로 알림만 유실되는 일이 없게 한다.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    const ratio = Math.min(100, (progressAfter / targetValue) * 100);
-    const isNowComplete = progressAfter >= targetValue && p.status !== 'COMPLETED';
+      const { rows: insertedRows } = await client.query(
+        `INSERT INTO challenge.challenge_progress_events
+           (participation_id, source_event_id, run_id, increment_value, progress_before, progress_after, occurred_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (source_event_id, participation_id) DO NOTHING
+         RETURNING progress_event_id`,
+        [p.participation_id, eventId, run.runId, progressAfter - progressBefore, progressBefore, progressAfter, run.completedAt]
+      );
 
-    await pool.query(
-      `UPDATE challenge.challenge_participations
-          SET progress_value = $2, progress_ratio = $3, streak_count = $4,
-              status = CASE WHEN $5 THEN 'COMPLETED' ELSE status END,
-              completed_at = CASE WHEN $5 THEN now() ELSE completed_at END
-        WHERE participation_id = $1`,
-      [p.participation_id, progressAfter, ratio, newStreak, isNowComplete]
-    );
+      if (insertedRows.length > 0) {
+        // 이미 처리된 이벤트(at-least-once 재전달)면 insertedRows가 비어 여기로 안 들어온다.
+        const ratio = Math.min(100, (progressAfter / targetValue) * 100);
+        const isNowComplete = progressAfter >= targetValue && p.status !== 'COMPLETED';
 
-    if (isNowComplete) {
-      completedChallengeNames.push(p.name);
-      // 개인 챌린지는 완주해도 그룹 참가 현황 같은 다른 화면에서 눈에 띄지 않으니, 완주 순간
-      // 알림으로 한 번 알려준다. 진행도 이벤트(challenge_progress_events)가 이미
-      // (source_event_id, participation_id) UNIQUE로 같은 러닝 이벤트의 중복 처리를 막아주므로
-      // (line 149의 continue) 여기 도달했다는 것 자체가 "처음 완주한 순간"이라 별도 멱등키 없이도
-      // 한 번만 실행된다.
-      if (p.challenge_type === 'PERSONAL') {
-        await pool.query(
-          `INSERT INTO notification.notifications (user_id, notification_type, title, body, target_url, reference_type, reference_id)
-           VALUES ($1, 'CHALLENGE_COMPLETED', '챌린지 달성 성공!', $2, $3, 'CHALLENGE', $4)`,
-          [run.userId, `'${p.name}' 챌린지 달성에 성공했어요!`, `/challenges/${p.challenge_id}`, p.challenge_id]
+        await client.query(
+          `UPDATE challenge.challenge_participations
+              SET progress_value = $2, progress_ratio = $3, streak_count = $4,
+                  status = CASE WHEN $5 THEN 'COMPLETED' ELSE status END,
+                  completed_at = CASE WHEN $5 THEN now() ELSE completed_at END
+            WHERE participation_id = $1`,
+          [p.participation_id, progressAfter, ratio, newStreak, isNowComplete]
         );
+
+        if (isNowComplete) {
+          completedChallengeNames.push(p.name);
+          // 개인 챌린지는 완주해도 그룹 참가 현황 같은 다른 화면에서 눈에 띄지 않으니, 완주 순간
+          // 알림으로 한 번 알려준다. notification.notifications는 notification-service 소유라
+          // 여기서 직접 쓰지 않고 ChallengeCompleted 이벤트만 남긴다 — 실제 INSERT는
+          // notification-service의 컨슈머가 한다.
+          if (p.challenge_type === 'PERSONAL') {
+            await writeChallengeCompletedOutboxEvent(client, {
+              userId: run.userId,
+              challengeId: p.challenge_id,
+              challengeName: p.name
+            });
+          }
+        }
       }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error(`applyChallengeProgress participation=${p.participation_id} 실패:`, err);
+    } finally {
+      client.release();
     }
   }
 

@@ -12,6 +12,10 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-auth-service
+      CREW_SERVICE_URL: http://crew-service:4000
+      RUNNING_RECORD_SERVICE_URL: http://running-record-service:4000
+      PGUSER: ${AUTH_SVC_PGUSER}
+      PGPASSWORD: ${AUTH_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -26,6 +30,9 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-course-service
+      RUNNING_RECORD_SERVICE_URL: http://running-record-service:4000
+      PGUSER: ${COURSE_SVC_PGUSER}
+      PGPASSWORD: ${COURSE_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -40,7 +47,9 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-course-recommendation-service
-      AI_RECOMMENDATION_SERVICE_URL: http://192.168.0.201:8001
+      AI_RECOMMENDATION_SERVICE_URL: http://192.168.0.212:8001
+      PGUSER: ${COURSE_RECOMMENDATION_SVC_PGUSER}
+      PGPASSWORD: ${COURSE_RECOMMENDATION_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -56,7 +65,29 @@ services:
     environment:
       OTEL_SERVICE_NAME: dai-run-running-record-service
       COURSE_SERVICE_URL: http://course-service:4000
-      MONGO_URI: mongodb://mongo:27017
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${RUNNING_RECORD_SVC_PGUSER}
+      PGPASSWORD: ${RUNNING_RECORD_SVC_PGPASSWORD}
+    networks:
+      - dai-run-net
+
+  # RunCompleted 이벤트는 API 프로세스가 직접 Kafka에 발행하지 않는다 — running_record.runs
+  # UPDATE와 같은 트랜잭션으로 outbox_events에 적재만 하고(runTracking.ts), 이 별도 컨테이너가
+  # 그 행을 폴링해서 실제로 발행한다(Outbox 패턴). API 요청 처리와 발행 루프를 같은 프로세스에
+  # 두지 않아서 발행 지연/오류가 API 헬스체크에 영향을 주지 않게 한다.
+  running-record-service-outbox-publisher:
+    build:
+      context: ./running-record-service
+    container_name: dai-run-running-record-service-outbox-publisher
+    restart: unless-stopped
+    command: ["npx", "tsx", "src/consumer.ts"]
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-running-record-service-outbox-publisher
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${RUNNING_RECORD_SVC_PGUSER}
+      PGPASSWORD: ${RUNNING_RECORD_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -72,6 +103,28 @@ services:
     environment:
       OTEL_SERVICE_NAME: dai-run-crew-service
       MONGO_URI: mongodb://mongo:27017
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${CREW_SVC_PGUSER}
+      PGPASSWORD: ${CREW_SVC_PGPASSWORD}
+    networks:
+      - dai-run-net
+
+  # RunCompleted를 구독해 진행 중인 크루 배틀을 이 서비스 자신의(최신) 상태머신으로 갱신한다.
+  # running-record-service의 구버전 사본(2단계 상태머신, PENDING_OPPONENT/무승부 없음)을 대체한다.
+  crew-service-consumer:
+    build:
+      context: ./crew-service
+    container_name: dai-run-crew-service-consumer
+    restart: unless-stopped
+    command: ["npx", "tsx", "src/consumer.ts"]
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-crew-service-consumer
+      MONGO_URI: mongodb://mongo:27017
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${CREW_SVC_PGUSER}
+      PGPASSWORD: ${CREW_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -86,6 +139,8 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-coaching-service
+      PGUSER: ${COACHING_SVC_PGUSER}
+      PGPASSWORD: ${COACHING_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -100,7 +155,28 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-ai-assistant-service
-      AI_RAG_SERVICE_URL: http://192.168.0.201:8000
+      AI_RAG_SERVICE_URL: http://192.168.0.212:8000
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${AI_ASSISTANT_SVC_PGUSER}
+      PGPASSWORD: ${AI_ASSISTANT_SVC_PGPASSWORD}
+    networks:
+      - dai-run-net
+
+  # RunCompleted를 구독해 러닝 완료 축하 메시지를 생성한다. 이전까지는 존재만 하고 아무도 호출하지
+  # 않던 sendRunCongratsMessage를 실제로 연결한다.
+  ai-assistant-service-consumer:
+    build:
+      context: ./ai-assistant-service
+    container_name: dai-run-ai-assistant-service-consumer
+    restart: unless-stopped
+    command: ["npx", "tsx", "src/consumer.ts"]
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-ai-assistant-service-consumer
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${AI_ASSISTANT_SVC_PGUSER}
+      PGPASSWORD: ${AI_ASSISTANT_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -115,6 +191,28 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-challenge-service
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${CHALLENGE_SVC_PGUSER}
+      PGPASSWORD: ${CHALLENGE_SVC_PGPASSWORD}
+    networks:
+      - dai-run-net
+
+  # RunCompleted를 구독해 챌린지 진행도를 갱신하고, 이 서비스 자신의 ChallengeCompleted를
+  # outbox에서 폴링해 발행한다. running-record-service의 syncUserChallengeProgress(조회 시
+  # 지연 동기화)와 이중 카운팅되던 경로를 이 네이티브 컨슈머 하나로 통합한다.
+  challenge-service-consumer:
+    build:
+      context: ./challenge-service
+    container_name: dai-run-challenge-service-consumer
+    restart: unless-stopped
+    command: ["npx", "tsx", "src/consumer.ts"]
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-challenge-service-consumer
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${CHALLENGE_SVC_PGUSER}
+      PGPASSWORD: ${CHALLENGE_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -129,8 +227,10 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-shoe-service
-      SHOE_LIFE_AI_SERVICE_URL: http://192.168.0.201:8002
+      SHOE_LIFE_AI_SERVICE_URL: http://192.168.0.212:8002
       MEDIA_SERVICE_URL: http://media-service:4000
+      PGUSER: ${SHOE_SVC_PGUSER}
+      PGPASSWORD: ${SHOE_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -145,6 +245,8 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-marathon-service
+      PGUSER: ${MARATHON_SVC_PGUSER}
+      PGPASSWORD: ${MARATHON_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -159,6 +261,27 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-notification-service
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${NOTIFICATION_SVC_PGUSER}
+      PGPASSWORD: ${NOTIFICATION_SVC_PGPASSWORD}
+    networks:
+      - dai-run-net
+
+  # challenge-service가 발행하는 ChallengeCompleted를 구독해 notification.notifications에
+  # 반영한다 — challenge-service가 이 스키마에 직접 쓰던 것을 대체한다.
+  notification-service-consumer:
+    build:
+      context: ./notification-service
+    container_name: dai-run-notification-service-consumer
+    restart: unless-stopped
+    command: ["npx", "tsx", "src/consumer.ts"]
+    env_file:
+      - ../.env
+    environment:
+      OTEL_SERVICE_NAME: dai-run-notification-service-consumer
+      KAFKA_BROKERS: 192.168.0.212:29092
+      PGUSER: ${NOTIFICATION_SVC_PGUSER}
+      PGPASSWORD: ${NOTIFICATION_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 
@@ -173,6 +296,8 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-media-service
+      PGUSER: ${MEDIA_SVC_PGUSER}
+      PGPASSWORD: ${MEDIA_SVC_PGPASSWORD}
     networks:
       - dai-run-net
 

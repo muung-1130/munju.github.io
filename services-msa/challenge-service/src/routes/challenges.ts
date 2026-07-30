@@ -12,14 +12,15 @@ import {
   joinPublicChallenge,
   leavePublicChallenge
 } from '../lib/challenges.js';
-import { syncUserChallengeProgress } from '../lib/challengeProgress.js';
 import { requireAuth } from '../middleware/session.js';
 
 const router = Router();
 
 router.get('/', async (req, res) => {
   const userId = req.userId ?? null;
-  if (userId) await syncUserChallengeProgress(userId);
+  // 챌린지 진행도는 challenge-service의 RunCompleted 컨슈머(src/consumer.ts)가 유일하게 갱신한다.
+  // 예전에는 이 조회 시점에도 syncUserChallengeProgress로 지연 동기화를 했는데, 컨슈머와 서로
+  // 다른 멱등키(run_id vs eventId)를 써서 같은 러닝이 이중으로 반영될 수 있는 버그가 있었다.
 
   const [personal, publicChallenges] = await Promise.all([
     userId ? getPersonalChallenges(userId) : Promise.resolve([]),

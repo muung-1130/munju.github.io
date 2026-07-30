@@ -40,6 +40,13 @@ jobs:
           echo "IMAGE_VERSION=$IMAGE_VERSION" >> "$GITHUB_ENV"
           echo "Image version is $IMAGE_VERSION"
 
+      # services-msa 서비스가 자기 소유 스키마 밖에 새 크로스 스키마 쓰기를 만들지 못하게 막는
+      # 최소 정적 검사다(ArchUnit 상당물 — 이 레포는 Java가 아니라 별도 도구를 새로 붙였다).
+      # db/041_service_db_roles.sql의 GRANT 목록과 scripts/check-schema-boundaries.mjs의
+      # ACCESS_MAP은 항상 같이 갱신해야 한다.
+      - name: Check service DB schema boundaries
+        run: node scripts/check-schema-boundaries.mjs
+
       - name: SonarQube Scan
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: SonarSource/sonarqube-scan-action@v6

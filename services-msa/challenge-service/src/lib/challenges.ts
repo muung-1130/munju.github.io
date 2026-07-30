@@ -1,6 +1,5 @@
 import { getPool } from './db.js';
 import type { MetricType, ChallengeType } from './challengeFormat.js';
-import { syncUserChallengeProgress } from './challengeProgress.js';
 
 export type { MetricType, ChallengeType };
 
@@ -100,6 +99,12 @@ export async function deletePersonalChallenge(challengeId: string, userId: strin
 // 공개 챌린지: "다같이 참가하는 챌린지" — 매주 월요일마다 새 인스턴스가 생기므로, 같은 시리즈의
 // 지난 주차는 목록에서 감추고 시리즈별 최신(이번 주) 인스턴스만 보여준다. series_id가 없는
 // 레거시 일회성 챌린지는 자기 자신이 곧 "최신"이다.
+//
+// 종료된(COMPLETED) 인스턴스가 "최신"으로 남아있는 건 스케줄러가 다음 회차를 아직 안 만들었거나
+// series_id가 없는 일회성 챌린지뿐이다 — 종료 다음날까지만 노출하고(크루 배틀 종료 배너와 같은
+// 정책), 그 뒤로는 목록에서 빠진다. 참여 상태도 ACTIVE/WAITING만 조인하던 걸 COMPLETED/FAILED까지
+// 넓혀서, 끝난 챌린지에서 내가 완주했는지/미달성했는지가 "참여하기"로 잘못 되돌아가지 않고 그대로
+// 보이게 한다.
 export async function getPublicChallenges(userId: string | null): Promise<ChallengeSummary[]> {
   const pool = getPool();
   const { rows } = await pool.query(
@@ -111,8 +116,9 @@ export async function getPublicChallenges(userId: string | null): Promise<Challe
               cp.progress_value AS my_progress_value, cp.progress_ratio AS my_progress_ratio, cp.status AS my_status
          FROM challenge.challenges c
          LEFT JOIN challenge.challenge_participations cp
-           ON cp.challenge_id = c.challenge_id AND cp.user_id = $1 AND cp.status IN ('ACTIVE', 'WAITING')
+           ON cp.challenge_id = c.challenge_id AND cp.user_id = $1 AND cp.status IN ('ACTIVE', 'WAITING', 'COMPLETED', 'FAILED')
         WHERE c.challenge_type = 'PUBLIC' AND c.visibility = 'PUBLIC' AND c.status IN ('ACTIVE', 'COMPLETED')
+          AND (c.status = 'ACTIVE' OR c.end_at >= now() - INTERVAL '1 day')
         ORDER BY COALESCE(c.series_id, c.challenge_id), c.start_at DESC
      ) latest
      ORDER BY latest.status = 'ACTIVE' DESC, latest.start_at DESC`,
@@ -129,7 +135,8 @@ export type ChallengeDetail = ChallengeSummary & {
 };
 
 export async function getChallengeDetail(challengeId: string, userId: string | null): Promise<ChallengeDetail | null> {
-  if (userId) await syncUserChallengeProgress(userId);
+  // 진행도 갱신은 challenge-service의 RunCompleted 컨슈머 하나로 일원화했다(challengeProgress.ts의
+  // 조회 시 지연 동기화는 제거 — running-record-service의 이벤트 기반 갱신과 이중 카운팅되던 경로).
   const pool = getPool();
   const { rows } = await pool.query(
     `SELECT c.challenge_id, c.challenge_type, c.name, c.description, c.metric_type, c.target_value,
@@ -142,7 +149,7 @@ export async function getChallengeDetail(challengeId: string, userId: string | n
        LEFT JOIN auth_user.users u ON u.user_id = c.creator_user_id
        LEFT JOIN crew.crews crew ON crew.crew_id = c.crew_id
        LEFT JOIN challenge.challenge_participations cp
-         ON cp.challenge_id = c.challenge_id AND cp.user_id = $2 AND cp.status IN ('ACTIVE', 'WAITING')
+         ON cp.challenge_id = c.challenge_id AND cp.user_id = $2 AND cp.status IN ('ACTIVE', 'WAITING', 'COMPLETED', 'FAILED')
       WHERE c.challenge_id = $1`,
     [challengeId, userId]
   );
@@ -371,19 +378,38 @@ function isMondayKst(): boolean {
 // 시작된) 인스턴스에 바로 ACTIVE로 참여하고, 그 외 요일에 신청하면 이번 주는 WAITING으로 대기만
 // 하다가 challenge-weekly-scheduler가 다음 주 인스턴스를 만들 때 자동으로 그쪽 ACTIVE 참여로
 // 이관해준다(참여자 본인이 다시 신청할 필요 없음).
+// "재참여하기"는 끝난(COMPLETED) 회차의 challengeId로 그대로 들어온다 — 그 회차가 시리즈의
+// 일부라면(series_id 있음) 이미 다음 회차가 만들어져 있을 테니, 그 회차로 조용히 옮겨서 참여시킨다.
+// (주간 스케줄러가 "그만두지 않은" 기존 참여자는 자동으로 새 회차에 이관해두지만, 명시적으로
+// 나갔다가 다시 참여하려는 사용자나 이번이 첫 참여인 사용자는 이 경로를 탄다.)
+async function resolveJoinableChallengeId(challengeId: string): Promise<{ challengeId: string; status: string } | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT challenge_id, challenge_type, visibility, status, series_id FROM challenge.challenges WHERE challenge_id = $1`,
+    [challengeId]
+  );
+  const challenge = rows[0];
+  if (!challenge || challenge.challenge_type !== 'PUBLIC' || challenge.visibility !== 'PUBLIC') return null;
+  if (challenge.status === 'ACTIVE') return { challengeId: challenge.challenge_id, status: challenge.status };
+  if (!challenge.series_id) return null;
+
+  const { rows: latestRows } = await pool.query(
+    `SELECT challenge_id, status FROM challenge.challenges WHERE series_id = $1 ORDER BY start_at DESC LIMIT 1`,
+    [challenge.series_id]
+  );
+  const latest = latestRows[0];
+  if (!latest || latest.status !== 'ACTIVE') return null;
+  return { challengeId: latest.challenge_id, status: latest.status };
+}
+
 export async function joinPublicChallenge(
   challengeId: string,
   userId: string
 ): Promise<'ok' | 'ok-waiting' | 'not-found' | 'already-joined'> {
   const pool = getPool();
-  const { rows } = await pool.query(
-    `SELECT challenge_type, visibility, status FROM challenge.challenges WHERE challenge_id = $1`,
-    [challengeId]
-  );
-  const challenge = rows[0];
-  if (!challenge || challenge.challenge_type !== 'PUBLIC' || challenge.visibility !== 'PUBLIC' || challenge.status !== 'ACTIVE') {
-    return 'not-found';
-  }
+  const resolved = await resolveJoinableChallengeId(challengeId);
+  if (!resolved) return 'not-found';
+  challengeId = resolved.challengeId;
 
   const existing = await pool.query(
     `SELECT 1 FROM challenge.challenge_participations WHERE challenge_id = $1 AND user_id = $2 AND status IN ('ACTIVE', 'WAITING')`,
