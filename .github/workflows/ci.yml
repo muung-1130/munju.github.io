@@ -57,14 +57,15 @@ jobs:
       - name: Build Docker image with commit SHA tag
         run: |
           docker build \
-            -t "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}" \
+            -f Dockerfile.frontend \
+            -t "${{ secrets.HARBOR_URL }}/dai-run/frontend:${{ github.sha }}" \
             .
 
       - name: Trivy image vulnerability scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          image-ref: ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
+          image-ref: ${{ secrets.HARBOR_URL }}/dai-run/frontend:${{ github.sha }}
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
           format: table
@@ -76,7 +77,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          image-ref: ${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}
+          image-ref: ${{ secrets.HARBOR_URL }}/dai-run/frontend:${{ github.sha }}
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
           format: json
@@ -96,22 +97,19 @@ jobs:
 
           cat <<EOF | curl -sS --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/trivy/instance/dai-run"
           # TYPE trivy_vulnerabilities gauge
-          trivy_vulnerabilities{severity="CRITICAL",image="dai-run"} ${CRITICAL}
-          trivy_vulnerabilities{severity="HIGH",image="dai-run"} ${HIGH}
+          trivy_vulnerabilities{severity="CRITICAL",image="frontend"} ${CRITICAL}
+          trivy_vulnerabilities{severity="HIGH",image="frontend"} ${HIGH}
           # TYPE trivy_scan_timestamp_seconds gauge
-          trivy_scan_timestamp_seconds{image="dai-run"} $(date +%s)
+          trivy_scan_timestamp_seconds{image="frontend"} $(date +%s)
           EOF
 
-      - name: Tag version and latest image
+      - name: Tag version image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker tag \
-            "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}" \
-            "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ env.IMAGE_VERSION }}"
+            "${{ secrets.HARBOR_URL }}/dai-run/frontend:${{ github.sha }}" \
+            "${{ secrets.HARBOR_URL }}/dai-run/frontend:${{ env.IMAGE_VERSION }}"
 
-          docker tag \
-            "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}" \
-            "${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest"
 
       - name: Log in to Harbor
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -124,27 +122,5 @@ jobs:
       - name: Push Docker image to Harbor
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker push "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ github.sha }}"
-          docker push "${{ secrets.HARBOR_URL }}/dai-run/dai-run:${{ env.IMAGE_VERSION }}"
-          docker push "${{ secrets.HARBOR_URL }}/dai-run/dai-run:latest"
-
-  deploy:
-    name: Deploy with Docker Compose
-    needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, cicd]
-
-    steps:
-      - name: Log in to Harbor for deploy
-        run: |
-          echo "${{ secrets.HARBOR_PASSWORD }}" |
-            docker login "${{ secrets.HARBOR_URL }}" \
-              -u "${{ secrets.HARBOR_USERNAME }}" \
-              --password-stdin
-
-      - name: Deploy latest image with Docker Compose
-        run: |
-          cd ~/dai-run-deploy
-          docker compose pull
-          docker compose up -d
-          docker compose ps
+          docker push "${{ secrets.HARBOR_URL }}/dai-run/frontend:${{ github.sha }}"
+          docker push "${{ secrets.HARBOR_URL }}/dai-run/frontend:${{ env.IMAGE_VERSION }}"
