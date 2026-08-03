@@ -56,6 +56,36 @@ pipeline {
             }
         }
 
+        stage('Start SonarQube') {
+            agent {
+                label 'built-in'
+            }
+            steps {
+                sh '''#!/bin/sh
+set -eu
+
+sudo systemctl start sonarqube
+
+i=0
+while [ "$i" -lt 60 ]; do
+    status="$(curl -sf http://localhost:9000/api/system/status \
+        | grep -o '"status":"[^"]*"' || true)"
+    case "$status" in
+        *'"status":"UP"'*)
+            exit 0
+            ;;
+    esac
+    i=$((i + 1))
+    sleep 5
+done
+
+echo 'SonarQube failed to become ready' >&2
+sudo journalctl -u sonarqube --no-pager --lines=200
+exit 1
+'''
+            }
+        }
+
         stage('SonarQube Analysis') {
             steps {
                 script {
@@ -303,6 +333,9 @@ git -C gitops-work push origin "HEAD:$GITOPS_BRANCH"
 
     post {
         always {
+            node('built-in') {
+                sh 'sudo systemctl stop sonarqube || true'
+            }
             deleteDir()
         }
     }
