@@ -56,3 +56,5 @@ docker logs dai-run-nginx --tail=50
 curl -I http://localhost:8080
 curl -I http://localhost:8080/api/health
 ```
+
+<!-- pipeline demo 2026-08-03T21:49:00Z -->
