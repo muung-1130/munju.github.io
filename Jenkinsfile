@@ -333,10 +333,10 @@ git -C gitops-work push origin "HEAD:$GITOPS_BRANCH"
 
     post {
         always {
+            deleteDir()
             node('built-in') {
                 sh 'sudo systemctl stop sonarqube || true'
             }
-            deleteDir()
         }
     }
 }
