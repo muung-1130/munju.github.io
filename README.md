@@ -58,3 +58,5 @@ curl -I http://localhost:8080/api/health
 ```
 
 <!-- pipeline demo 2026-08-03T21:49:00Z -->
+
+<!-- pipeline demo retry 2026-08-03T22:18:19Z -->
