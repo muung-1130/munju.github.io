@@ -315,7 +315,7 @@ export default function MarathonPage() {
 
                   return (
                     <tr key={race.raceId}>
-                      <td>
+                      <td data-label="대회명">
                         <div className="marathon-race-name">
                           <strong>{race.raceName}</strong>
                           {race.isExclusiveCollab && <span className="marathon-collab-badge">DAI RUN 단독</span>}
@@ -332,18 +332,18 @@ export default function MarathonPage() {
                           )}
                         </div>
                       </td>
-                      <td>
+                      <td data-label="대회일">
                         {formatDate(race.raceDate)}
                         {dday && <span className="marathon-dday">{dday}</span>}
                       </td>
-                      <td>{race.raceDistance}</td>
-                      <td>{race.region || '전국'}</td>
-                      <td>
+                      <td data-label="거리">{race.raceDistance}</td>
+                      <td data-label="지역">{race.region || '전국'}</td>
+                      <td data-label="접수 기간">
                         {race.registrationStartDate && race.registrationEndDate
                           ? `${race.registrationStartDate} ~ ${race.registrationEndDate}`
                           : '미정'}
                       </td>
-                      <td>
+                      <td data-label="기념품">
                         {race.souvenir ? (
                           <span className="marathon-souvenir-badge" data-tooltip={race.souvenir}>
                             있음
@@ -352,10 +352,10 @@ export default function MarathonPage() {
                           <span className="marathon-souvenir-badge none">없음</span>
                         )}
                       </td>
-                      <td>
+                      <td data-label="접수 상태">
                         <span className={`marathon-status-badge ${statusInfo.className}`}>{statusInfo.label}</span>
                       </td>
-                      <td>
+                      <td data-label="신청">
                         {race.isExclusiveCollab ? (
                           <Link href={`/marathon/${race.raceId}`} className="primary-btn small">
                             {applied ? '내 신청 확인' : '상세보기 · 신청하기'}

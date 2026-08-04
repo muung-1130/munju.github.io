@@ -31,7 +31,7 @@ export function LikedCoursesSection({ courses }: { courses: LikedCourse[] }) {
   }
 
   return (
-    <Card className="mypage-liked-courses-card">
+    <Card className="mypage-liked-courses-card" id="liked-courses">
       <div className="card-head">
         <h2>찜한 러닝코스</h2>
       </div>

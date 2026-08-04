@@ -55,6 +55,10 @@ a { color: inherit; text-decoration: none; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .card-head span, .cert, .type-pill { background: #e9f1ff; color: var(--blue); border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 900; }
 .type-pill.early-finish-pill { background: #fff3d6; color: #92620a; padding: 2px 8px; font-size: 11px; }
+.type-pill.incoming { background: #fff3d6; color: #92620a; }
+.type-pill.success { background: #e6f7ee; color: #16794f; }
+.type-pill.ended { background: #eef1f6; color: #64748b; }
+.crew-battle-deadline { color: #b8590a; font-size: 12px; font-weight: 700; margin: 4px 0; }
 .primary-btn { display: inline-block; background: linear-gradient(135deg, #0d58ed, #084ad2); color: white; padding: 13px 22px; border-radius: 12px; font-weight: 900; box-shadow: 0 12px 20px rgba(15,91,234,.22); }
 .ghost-btn { display: inline-block; background: white; color: #0d4cd4; border: 1px solid #cddcf4; padding: 11px 17px; border-radius: 12px; font-weight: 850; text-align: center; }
 .ghost-btn.small { padding: 8px 12px; }
@@ -144,7 +148,7 @@ a { color: inherit; text-decoration: none; }
 .crew-battle-banner { background: #f7faff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
 .crew-battle-banner p { margin: 8px 0; font-size: 14px; font-weight: 700; color: #24456d; }
 .crew-battle-banner-head { display: flex; align-items: center; gap: 8px; position: relative; }
-.crew-battle-opponent-name { font-weight: 900; color: #155be7; cursor: pointer; text-decoration: underline dotted; }
+.crew-battle-opponent-name { font-weight: 900; color: #155be7; }
 .crew-battle-info-popup {
   position: absolute; top: 26px; left: 0; z-index: 10; background: var(--card); border: 1px solid var(--line);
   border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
@@ -158,6 +162,30 @@ a { color: inherit; text-decoration: none; }
 .crew-battle-vote-counts { display: flex; gap: 12px; margin: 8px 0; font-size: 12px; font-weight: 800; color: #64748b; }
 .crew-battle-actions { display: flex; gap: 8px; }
 .crew-battle-actions button { flex: 1; }
+
+.crew-vs-panel { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #f7faff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin: 10px 0; }
+.crew-vs-column { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.crew-vs-column strong { font-size: 15px; color: #17345b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crew-vs-column:last-child { text-align: right; }
+.crew-vs-flame { font-size: 26px; flex-shrink: 0; }
+
+.crew-battle-scoreboard { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 14px 0; }
+.crew-battle-score { font-size: 40px; font-weight: 900; line-height: 1; }
+.crew-battle-score.mine { color: #e5484d; }
+.crew-battle-score.theirs { color: #1259ee; }
+.crew-battle-score-vs { font-size: 14px; font-weight: 900; color: #9aa5b5; }
+.crew-battle-period-progress { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.crew-battle-period-progress span { text-align: center; font-size: 12px; }
+
+.crew-members-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.crew-member-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: #f7faff; border-radius: 12px; flex-wrap: wrap; }
+.crew-member-info { display: flex; align-items: center; gap: 8px; }
+.crew-member-stats { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; font-size: 13px; }
+
+.battle-history-filters { display: flex; align-items: flex-end; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
+.battle-history-filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #64748b; font-weight: 700; }
+.battle-history-list { display: flex; flex-direction: column; gap: 8px; }
+.battle-history-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #f7faff; border-radius: 12px; flex-wrap: wrap; }
 
 .my-crew-card { margin-bottom: 20px; }
 .my-crew-body { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -173,12 +201,25 @@ a { color: inherit; text-decoration: none; }
 .crew-battle-table td:first-child, .crew-battle-table th:first-child { text-align: left; font-weight: 800; color: #17345b; }
 .crew-battle-table tbody tr:not(:last-child) td { border-bottom: 1px solid var(--line); }
 .crew-battle-table td.win-cell { color: #1259ee; font-weight: 900; background: #eef3ff; border-radius: 8px; }
+.crew-battle-table td.draw-cell { color: #7c8aa0; font-weight: 900; background: #f1f3f6; border-radius: 8px; }
+.crew-battle-table th.today-col, .crew-battle-table td.today-col { background: #fff8e6; }
+.crew-battle-table td.win-cell.today-col { background: #dbe6ff; }
+.crew-battle-table td.draw-cell.today-col { background: #e6e9ee; }
 .crew-battle-table .result-row td { color: #7c8aa0; font-weight: 800; font-size: 12px; }
+
+.admin-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.admin-table-wrap { overflow-x: auto; margin-top: 8px; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th, .admin-table td { padding: 10px 12px; text-align: left; white-space: nowrap; }
+.admin-table th { color: #7c8aa0; font-weight: 800; border-bottom: 2px solid var(--line); }
+.admin-table tbody tr:not(:last-child) td { border-bottom: 1px solid var(--line); }
+.admin-table td .type-pill { margin-left: 6px; }
 .crew-battle-final-banner {
   margin: 14px 0; padding: 20px; border-radius: 14px; text-align: center; font-size: 20px; font-weight: 900;
 }
 .crew-battle-final-banner.win { background: #fff3e0; color: #b8590a; }
 .crew-battle-final-banner.lose { background: #eef3ff; color: #1259ee; }
+.crew-battle-final-banner.draw { background: #f1f3f6; color: #5a6a85; }
 
 @media (max-width: 900px) {
   .crew-battle-reco-grid { grid-template-columns: 1fr; }
@@ -188,6 +229,9 @@ a { color: inherit; text-decoration: none; }
 .home-chat-line.user { flex-direction: row-reverse; }
 .home-chat-line p { margin: 0; background: #f3f6fb; border-radius: 14px; padding: 11px 14px; max-width: 80%; line-height: 1.5; font-size: 15px; }
 .home-chat-line.user p { background: #155be7; color: white; }
+.crew-chat-message-time { flex-shrink: 0; align-self: flex-end; font-size: 11px; color: #9aa5b5; margin-bottom: 2px; }
+.crew-chat-date-divider { display: flex; justify-content: center; margin: 6px 0; }
+.crew-chat-date-divider span { background: #eef1f6; color: #7c8aa0; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
 /* 홈페이지 폭이 줄어들면(모바일 아님, 컨테이너 자체가 좁아지는 경우 포함) grid 대신 flex-wrap으로
    자연스럽게 세로로 쌓이게 한다 — 뷰포트 기준이 아니라 실제 남는 폭 기준으로 동작. */
 .home-top-row { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 22px; align-items: stretch; }
@@ -483,6 +527,9 @@ a { color: inherit; text-decoration: none; }
 .crew-rank-row.top1 span { background: #ffd76a; color: #5c4300; }
 .crew-rank-row.top2 span { background: #dbe2ea; color: #3a4658; }
 .crew-rank-row.top3 span { background: #e7bb8f; color: #5a3418; }
+.crew-rank-row.mine { background: #eef3ff; border-radius: 8px; }
+.crew-rank-row.mine b { color: #1259ee; }
+.crew-rank-divider { border-top: 1px dashed var(--line); margin: 6px 0; }
 .crew-battle-list { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
 .battle-row { border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
 .battle-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -773,7 +820,6 @@ a { color: inherit; text-decoration: none; }
 .wear-loading p { color: #45536c; font-weight: 700; font-size: 13.5px; }
 .wear-spinner { width: 40px; height: 40px; border-radius: 50%; border: 4px solid #dbe4f5; border-top-color: #1259ee; animation: wear-spin .8s linear infinite; }
 @keyframes wear-spin { to { transform: rotate(360deg); } }
-.ai-tip-strip { max-width:720px; margin:18px auto 0; background:#eaf3ff; color:#2a4770; }
 
 /* My Page */
 .month-select { border:1px solid var(--line); border-radius:12px; padding:12px 18px; font-weight:800; }
@@ -995,16 +1041,64 @@ a { color: inherit; text-decoration: none; }
   .nav-menu { width:100%; flex-wrap:wrap; justify-content:flex-start; }
   .page-wrap { border-radius:0; padding:20px; }
   .hero-content h1 { font-size:28px; }
-  .course-nearby-layout { grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
+  /* course-filter-row(거리/시티런 필터)는 원래 명시적 grid-row가 없어서 grid
+     auto-placement가 검색창 근처가 아니라 목록 뒤 implicit row로 밀어넣고 있었다.
+     검색창 바로 아래에 오도록 행을 하나 더 만들어 명시적으로 배치한다. */
+  .course-nearby-layout { grid-template-columns: 1fr; grid-template-rows: auto auto auto auto; }
   .course-nearby-toolbar { grid-column: 1; grid-row: 1; }
-  .course-nearby-map { grid-column: 1; grid-row: 2; }
-  .course-nearby-list { grid-column: 1; grid-row: 3; width: 100%; height: 320px; }
+  .course-filter-row { grid-column: 1; grid-row: 2; margin: 4px 0; }
+  .course-nearby-map { grid-column: 1; grid-row: 3; }
+  .course-nearby-list { grid-column: 1; grid-row: 4; width: 100%; height: 320px; }
+  /* grid item 기본 min-width:auto가 내용 폭만큼 칸을 늘려서 지도/검색창이 카드 밖으로
+     넘치던 문제 — 모바일에서 폭 계산을 컨테이너 기준으로 강제한다. */
+  .course-nearby-toolbar, .course-filter-row, .course-nearby-map, .course-nearby-list { min-width: 0; }
+  .course-nearby-search { min-width: 0; flex: 1 1 100%; }
+  .course-nearby-map .course-route-map { height: 320px !important; }
   .challenge-page-grid, .dashboard-grid, .marathon-info-row, .feature-grid, .similar-row, .profile-summary, .public-challenge-grid { grid-template-columns:1fr; }
   .pace-card, .heart-zone, .recent-card, .recent-course, .owned-shoes, .wide-card, .ranking-card.full { grid-column:span 1; }
   .home-chat-bubble-top { max-width: 90vw; }
+  /* 닫혀있는 챗봇 아이콘의 기본 위치(JS)가 네비게이션의 마이페이지 링크 옆이라 모바일에서
+     줄바꿈된 네비게이션과 겹쳤다 — 인라인 top/left를 무시하고 하단 우측 고정 위치로 뗀다. */
+  .home-chat-toggle { top: auto !important; left: auto !important; bottom: 24px; right: 16px; }
   .home-chat-panel { top:auto; bottom:20px; right:16px; left:16px; width:auto !important; height:70vh !important; }
   .home-chat-resize-handle { display:none; }
   .crew-chat-modal, .crew-detail-modal, .auth-modal { width: 100%; }
+
+  /* 제목 옆 액션 버튼(찜한 코스 보기, 러닝화 가이드 등)이 좁은 화면에서 제목과 겹치지 않고
+     줄바꿈되게 하고, 카드 헤더의 한글 제목이 폭이 좁아질 때 글자 단위로 세로 줄바꿈되는
+     문제(word-break 기본값)를 막는다. */
+  .page-title-row { flex-wrap: wrap; row-gap: 10px; }
+  .page-title-row h1 { word-break: keep-all; }
+  .card-head { flex-wrap: wrap; row-gap: 8px; }
+  .card-head h2, .card-head h3 { word-break: keep-all; }
+  .tab-row button, .tab-line button { word-break: keep-all; padding: 12px 6px; font-size: 13px; }
+
+  /* 마라톤 검색 폼의 날짜 범위 필드: 고정 min-width 두 개(118px×2)가 좁은 화면에서 카드 밖으로
+     넘쳤다 — 전체 폭 한 줄을 차지하게 하고 내부 두 input이 그 폭을 나눠 쓰게 한다. */
+  .marathon-field-daterange { flex-basis: 100%; }
+  .marathon-field-daterange input[type='date'] { min-width: 0; flex: 1; }
+
+  /* 마라톤 대회 표: 좌우 스크롤 대신 행을 카드처럼 세로로 쌓고, 각 셀 앞에 열 이름을 라벨로
+     붙인다(마크업에 data-label 추가, app/marathon/page.tsx). */
+  .marathon-table-wrap { overflow-x: visible; }
+  .marathon-table, .marathon-table tbody, .marathon-table tr, .marathon-table td { display: block; width: 100%; }
+  .marathon-table thead { display: none; }
+  .marathon-table tr { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; }
+  .marathon-table tr:not(:last-child) { border-bottom: 1px solid var(--line); }
+  .marathon-table td { white-space: normal; border-bottom: none !important; padding: 7px 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: right; min-width: 0; }
+  .marathon-table td::before { content: attr(data-label); font-weight: 800; color: #7c8aa0; font-size: 12px; text-align: left; flex-shrink: 0; }
+  .marathon-table td:first-child { display: block; text-align: left; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid var(--line) !important; }
+  .marathon-table td:first-child::before { content: none; }
+
+  /* AI 추천 코스 카드의 좌우 화살표: 전체 폭을 다 차지하던 큰 버튼 대신 카드 상단 모서리에
+     붙는 작은 원형 버튼으로 바꾼다. */
+  .ai-reco-inner { position: relative; }
+  .ai-reco-edge-arrow {
+    position: absolute; top: 14px; align-self: unset; order: initial;
+    width: 34px; height: 34px; padding: 0; font-size: 16px; border-radius: 50%; z-index: 2;
+  }
+  .ai-reco-edge-prev { left: 14px; }
+  .ai-reco-edge-next { right: 14px; }
 }
 
 /* 코스 상세: 소유자 배지 + hover 프로필 */

@@ -1,8 +1,24 @@
 import { getPool } from './db.js';
 import { computeScores } from './recommendationScoring.js';
 
-const AI_SERVICE_URL = process.env.AI_RECOMMENDATION_SERVICE_URL ?? 'http://192.168.0.201:8001';
+const AI_SERVICE_URL = process.env.AI_RECOMMENDATION_SERVICE_URL ?? 'http://192.168.0.212:8001';
 const DAILY_CUTOFF_HOUR = 3; // FastAPI 쪽 repository.py의 _todays_recommendation_cutoff와 동일 기준 (KST 03:00)
+const AI_SERVICE_TIMEOUT_MS = 6000; // Bedrock 호출 예산(운영 실측 평균 4~5초 기준 여유를 둔 상한)
+
+// 같은 프로세스 안에서 짧은 시간에 겹쳐 들어오는 요청(예: 페이지 SSR의 최초 조회와, 곧이어
+// 브라우저가 GPS를 얻은 뒤 보내는 재조회)이 하루 첫 계산 시점에 사용자당 Bedrock을 각자
+// 중복 호출하지 않도록 진행 중인 생성 Promise를 재사용한다. 여러 Pod/replica에 걸친 완전한
+// 락은 아니다 — 그 경우는 DB advisory lock 등이 필요하지만, 지금은 단일 프로세스 내 가장 흔한
+// 중복 호출만 막는다.
+const inFlightRecommendations = new Map<string, Promise<void>>();
+
+function runRecommendationOnce(key: string, task: () => Promise<void>): Promise<void> {
+  const existing = inFlightRecommendations.get(key);
+  if (existing) return existing;
+  const promise = task().finally(() => inFlightRecommendations.delete(key));
+  inFlightRecommendations.set(key, promise);
+  return promise;
+}
 
 // 로그인은 했지만 user_running_preferences가 없는 사용자와, 아예 로그인하지 않은 방문자는
 // 입력값이 사실상 동일(선호 없음)하므로 사람마다 따로 Bedrock을 부르지 않고 이 고정 UUID 아래
@@ -312,19 +328,28 @@ async function runRecommendation(
 
   let recommendationId: string;
   let aiPickedCourseId: string | null = null;
+  // Bedrock 호출에 상한을 두지 않으면(운영 관측상 평균 4~5초, 느릴 때는 그 이상) 이 fetch가
+  // 끝날 때까지 무한정 기다리게 된다 — "코스 탐색 페이지가 10초씩 멈춘다"는 지연 원인이었다.
+  // 예산 안에 못 끝내면 abort하고 기존 폴백(무작위 코스)으로 조용히 넘어간다.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_SERVICE_TIMEOUT_MS);
   try {
     const res = await fetch(`${AI_SERVICE_URL}/api/v1/ai-generated-courses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
-      cache: 'no-store'
+      cache: 'no-store',
+      signal: controller.signal
     });
     if (!res.ok) return; // AI 서비스 장애 시 조용히 스킵 — 화면은 기존 폴백(무작위 코스)으로 자연스럽게 대체됨
     const data = await res.json();
     recommendationId = data.recommendation_id;
     aiPickedCourseId = data.items?.[0]?.course_id ?? null;
   } catch {
+    // timeout(abort)이든 네트워크 오류든 동일하게 폴백으로 넘어간다.
     return;
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   const usedCourseIds = new Set(dismissed);
@@ -357,27 +382,35 @@ async function runRecommendation(
 }
 
 // 홈/코스탐색 페이지 진입 시(로그인 + 선호도 보유 상태) 호출한다. 오늘(KST 03:00 이후) 추천이
-// 이미 있으면 아무 것도 안 하고 조용히 반환 — Bedrock을 다시 부르지 않는다.
-export async function ensureTodaysRecommendation(userId: string): Promise<void> {
-  if (await hasTodaysRecommendation(userId)) return;
+// 이미 있으면 아무 것도 안 하고 조용히 반환 — Bedrock을 다시 부르지 않는다(하루 1회 제한).
+// location은 브라우저 GPS로 구한 실제 좌표(AiRecoPanel이 client에서 넘겨줌)를 우선 쓰고,
+// 아직 위치 권한을 못 받은 첫 SSR 조회 등에서는 서울 시청 좌표로 대체한다.
+export function ensureTodaysRecommendation(
+  userId: string,
+  location: { latitude: number; longitude: number } = { latitude: 37.5665, longitude: 126.978 }
+): Promise<void> {
+  return runRecommendationOnce(userId, async () => {
+    if (await hasTodaysRecommendation(userId)) return;
 
-  const dismissed = await getDismissedCourseIds(userId);
-  const preference = await buildPreference(userId);
-  // TODO: 실제 GPS 연동 전까지 서울 시청 기준 고정값
-  await runRecommendation(userId, preference, { latitude: 37.5665, longitude: 126.978 }, dismissed);
+    const dismissed = await getDismissedCourseIds(userId);
+    const preference = await buildPreference(userId);
+    await runRecommendation(userId, preference, location, dismissed);
+  });
 }
 
 // 로그인했지만 선호도가 없는 사용자와 비로그인 방문자가 공유하는 "공용 기본 추천" — 매일 한 번만
 // Bedrock을 호출해서 같은 결과를 재사용한다(중복 호출 방지). buildPreference처럼 개인화할 근거가
 // 없으므로 선호값은 전부 비워두고, 위치만 종로3가역으로 고정한다.
-export async function ensureGuestDefaultRecommendation(): Promise<void> {
-  if (await hasTodaysRecommendation(GUEST_DEFAULT_USER_ID)) return;
+export function ensureGuestDefaultRecommendation(): Promise<void> {
+  return runRecommendationOnce(GUEST_DEFAULT_USER_ID, async () => {
+    if (await hasTodaysRecommendation(GUEST_DEFAULT_USER_ID)) return;
 
-  const preference: RecommendationPreference = {
-    preferredDistanceKm: null,
-    difficulty: null,
-    preferredEnvironment: null,
-    recommendationType: 'popular_based'
-  };
-  await runRecommendation(GUEST_DEFAULT_USER_ID, preference, JONGNO_3GA_STATION, new Set());
+    const preference: RecommendationPreference = {
+      preferredDistanceKm: null,
+      difficulty: null,
+      preferredEnvironment: null,
+      recommendationType: 'popular_based'
+    };
+    await runRecommendation(GUEST_DEFAULT_USER_ID, preference, JONGNO_3GA_STATION, new Set());
+  });
 }

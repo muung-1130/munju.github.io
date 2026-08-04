@@ -183,11 +183,20 @@ export async function recordRecommendationFeedback(
 // 홈/코스탐색 페이지의 "오늘의 AI 추천 코스" 패널용. 로그인 상태고 실제 추천이 있으면 그걸 쓰고,
 // 아니면 (로그인 전이거나 아직 추천을 받은 적 없으면) 기존처럼 무작위 코스로 대체한다 —
 // 패널 자체가 비어 보이는 것보다 이 편이 낫다는 판단.
-export async function getAiRecoPanelCourses(userId: string | null): Promise<AiRecoCourse[]> {
+export async function getAiRecoPanelCourses(
+  userId: string | null,
+  location?: { latitude: number; longitude: number }
+): Promise<AiRecoCourse[]> {
   if (userId && (await hasRunningPreferences(userId))) {
-    // 오늘(KST 03:00 기준) 추천이 아직 없으면 여기서 만든다 — 로그인 후 첫 조회가 트리거.
-    // AI 서비스가 안 떠 있거나 실패해도 조용히 넘어가고 아래에서 기존 추천/폴백으로 처리된다.
-    await ensureTodaysRecommendation(userId).catch(() => {});
+    // 오늘(KST 03:00 기준) 추천이 아직 없으면 여기서 생성을 "시작"만 시킨다 — 예전엔 이 호출을
+    // await로 끝까지 기다렸는데, Bedrock 왕복이 평균 4~5초(느릴 때는 더 걸림)라 이 함수를 부르는
+    // /courses, / 페이지의 SSR 전체(코스 탐색처럼 AI 추천과 무관한 영역까지)가 하루 첫 방문마다
+    // 그만큼 멈춰 보이는 게 원인이었다("코스 탐색 페이지 지연" 이슈). 지금은 기다리지 않고 즉시
+    // 아래 폴백(기존 추천이 있으면 그것, 없으면 무작위 코스)으로 응답하고, 생성은 백그라운드에서
+    // 계속 진행해 완료되면 다음 조회(클라이언트의 위치 기반 재조회 등)에서 자연스럽게 반영된다.
+    // location이 있으면(AiRecoPanel이 브라우저 GPS로 넘겨준 좌표) 그 위치를 기준으로 계산하고,
+    // 이미 오늘 계산된 추천이 있으면 하루 1회 제한에 따라 location과 무관하게 그대로 재사용한다.
+    ensureTodaysRecommendation(userId, location).catch(() => {});
 
     const recommended = await getActiveRecommendationsForUser(userId);
     if (recommended.length > 0) {
@@ -199,7 +208,8 @@ export async function getAiRecoPanelCourses(userId: string | null): Promise<AiRe
 
   // 선호도가 없는 로그인 사용자와 비로그인 방문자는 매일 한 번만 계산되는 공용 기본 추천을
   // 공유한다 — 사람마다 똑같은(선호 없음) 입력으로 Bedrock을 반복 호출하지 않기 위함.
-  await ensureGuestDefaultRecommendation().catch(() => {});
+  // 위와 같은 이유로 완료를 기다리지 않고 백그라운드로만 트리거한다.
+  ensureGuestDefaultRecommendation().catch(() => {});
   const guestRecommended = await getActiveRecommendationsForUser(GUEST_DEFAULT_USER_ID);
   if (guestRecommended.length > 0) {
     return guestRecommended.map((course) => ({ ...course, isDefaultRecommendation: true }));

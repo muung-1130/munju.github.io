@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card } from '@/components/UI';
 import { CourseMapView } from '@/components/CourseMapView';
@@ -68,6 +68,55 @@ export function AiRecoPanel({ courses: initialCourses }: { courses: AiRecoCourse
   const [index, setIndex] = useState(0);
   const [likePending, setLikePending] = useState(false);
   const [dismissPending, setDismissPending] = useState(false);
+
+  // 서버 렌더링 시점엔 브라우저 GPS를 모르므로 일단 기본 위치 기준 추천을 보여주고,
+  // 마운트 후 실제 위치를 얻으면 그 좌표로 다시 조회한다 — "내 위치와 가까운 코스"를
+  // 반영하기 위함. 오늘 추천이 이미 계산돼 있으면 서버가 하루 1회 제한으로 이 좌표를
+  // 무시하고 기존 결과를 그대로 돌려주므로 Bedrock을 다시 호출하지 않는다.
+  //
+  // 서버가 더는 Bedrock 응답을 기다리지 않고 즉시 폴백(무작위 코스, recommendationId=null)으로
+  // 응답하도록 바뀌었기 때문에(코스 탐색 페이지 지연 이슈 수정), 오늘 처음 방문했을 땐 이
+  // 재조회도 아직 생성 중인 폴백을 받을 수 있다 — 그 경우 한 번만 몇 초 뒤 다시 조회해서
+  // 백그라운드 생성이 끝났으면 실제 AI 추천으로 자연스럽게 갱신한다.
+  useEffect(() => {
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function fetchPanel(coords: { latitude: number; longitude: number } | null, allowRetry: boolean) {
+      const params = coords
+        ? new URLSearchParams({ lat: String(coords.latitude), lng: String(coords.longitude) })
+        : null;
+      fetch(`/api/ai-recommendations/panel${params ? `?${params.toString()}` : ''}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (cancelled || !data?.courses?.length) return;
+          setCourses(data.courses);
+          setIndex(0);
+          const stillFallback = data.courses.every((c: AiRecoCourse) => c.recommendationId === null);
+          if (stillFallback && allowRetry) {
+            retryTimer = setTimeout(() => fetchPanel(coords, false), 6000);
+          }
+        })
+        .catch(() => {});
+    }
+
+    if (!navigator.geolocation) {
+      fetchPanel(null, true);
+      return () => {
+        cancelled = true;
+        clearTimeout(retryTimer);
+      };
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => fetchPanel({ latitude: position.coords.latitude, longitude: position.coords.longitude }, true),
+      () => fetchPanel(null, true),
+      { timeout: 8000 }
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
+  }, []);
 
   const course = courses.length > 0 ? courses[index % courses.length] : null;
 

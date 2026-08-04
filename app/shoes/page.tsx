@@ -432,10 +432,6 @@ function ShoesPageInner() {
           }}
         />
       )}
-
-      <Card className="ai-tip-strip">
-        ✨ <b>AI 러닝화 추천 팁</b> 사용자의 러닝 기록, 선호도, 체형 데이터를 종합 분석하여 최적의 러닝화를 추천해드립니다.
-      </Card>
     </div>
   );
 }
