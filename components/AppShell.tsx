@@ -209,7 +209,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
       <header className="top-nav">
         <div className="top-nav-row1">
           <Link href="/" className="brand" aria-label="DAI RUN 홈">
-            <Image src="/assets/logo-mark-navy-transparent.png" alt="" width={36} height={36} className="brand-mark" priority />
+            <Image src="/assets/logo-mark-navy-v2.png" alt="" width={36} height={36} className="brand-mark" priority />
             <span className="brand-text">DAI RUN</span>
           </Link>
 
