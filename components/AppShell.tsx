@@ -211,6 +211,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
           <Link href="/" className="brand" aria-label="DAI RUN 홈">
             <Image src="/assets/logo-mark-navy-v2.png" alt="" width={36} height={36} className="brand-mark" priority />
             <span className="brand-text">DAI RUN</span>
+            <span style={{background:'#ff3b30',color:'#fff',fontWeight:800,fontSize:'11px',padding:'3px 8px',borderRadius:'999px',marginLeft:'8px',letterSpacing:'0.02em'}}>🆕 NEW</span>
           </Link>
 
           <div className="nav-actions">
