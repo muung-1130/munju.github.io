@@ -1,3 +1,26 @@
+// Node.js MSA / Next.js / Python services that get their own Harbor image and
+// their own dai-run-gitops blue/green Deployment, in addition to `frontend`
+// (which keeps its own dedicated stages below and is not part of this list).
+// `dockerfile` and `context` are both relative to the repo root ($WORKSPACE).
+def SERVICES = [
+    [id: 'auth-web', dockerfile: 'Dockerfile.auth-web', context: '.'],
+    [id: 'auth-service', dockerfile: 'services-msa/auth-service/Dockerfile', context: 'services-msa/auth-service'],
+    [id: 'challenge-service', dockerfile: 'services-msa/challenge-service/Dockerfile', context: 'services-msa/challenge-service'],
+    [id: 'coaching-service', dockerfile: 'services-msa/coaching-service/Dockerfile', context: 'services-msa/coaching-service'],
+    [id: 'course-recommendation-service', dockerfile: 'services-msa/course-recommendation-service/Dockerfile', context: 'services-msa/course-recommendation-service'],
+    [id: 'course-service', dockerfile: 'services-msa/course-service/Dockerfile', context: 'services-msa/course-service'],
+    [id: 'crew-service', dockerfile: 'services-msa/crew-service/Dockerfile', context: 'services-msa/crew-service'],
+    [id: 'marathon-service', dockerfile: 'services-msa/marathon-service/Dockerfile', context: 'services-msa/marathon-service'],
+    [id: 'media-service', dockerfile: 'services-msa/media-service/Dockerfile', context: 'services-msa/media-service'],
+    [id: 'notification-service', dockerfile: 'services-msa/notification-service/Dockerfile', context: 'services-msa/notification-service'],
+    [id: 'running-record-service', dockerfile: 'services-msa/running-record-service/Dockerfile', context: 'services-msa/running-record-service'],
+    [id: 'shoe-service', dockerfile: 'services-msa/shoe-service/Dockerfile', context: 'services-msa/shoe-service'],
+    [id: 'ai-assistant-service', dockerfile: 'services-msa/ai-assistant-service/Dockerfile', context: 'services-msa/ai-assistant-service'],
+    [id: 'ai-rag-service', dockerfile: 'ai/ai-rag-service/Dockerfile', context: 'ai/ai-rag-service'],
+    [id: 'ai-course-recommendation', dockerfile: 'ai/ai-course-recommendation/Dockerfile', context: 'ai/ai-course-recommendation'],
+    [id: 'ai-shoe-life', dockerfile: 'ai/ai-shoe-life/Dockerfile', context: 'ai/ai-shoe-life'],
+]
+
 pipeline {
     agent {
         label 'dai-run-ci'
@@ -308,7 +331,10 @@ git clone \
 
 "$WORKSPACE/scripts/update-gitops-green-image.sh" \
     "$WORKSPACE/gitops-work" \
-    "$DIGEST_IMAGE"
+    "$DIGEST_IMAGE" \
+    "$HARBOR_REPOSITORY" \
+    "$GITOPS_GREEN_MANIFEST" \
+    environments/dev/deployment.yaml
 
 if git -C gitops-work diff --quiet -- "$GITOPS_GREEN_MANIFEST"; then
     echo "Green already references $IMAGE_DIGEST"
@@ -326,6 +352,275 @@ git -C gitops-work fetch origin "$GITOPS_BRANCH"
 git -C gitops-work rebase "origin/$GITOPS_BRANCH"
 git -C gitops-work push origin "HEAD:$GITOPS_BRANCH"
 '''
+                }
+            }
+        }
+
+        // Builds, scans, and deploys the 16 services in SERVICES the same
+        // way the four stages above handle frontend, but driven by a single
+        // loop instead of one stage set per service. Each service gets its
+        // own Harbor repository (harbor.dai-run.internal/dai-run/<id>) and
+        // its own dai-run-gitops Green manifest
+        // (environments/dev/deployment-<id>-green.yaml); frontend's own
+        // manifest and commit history above are untouched.
+        stage('Build, Scan, and Deploy Services') {
+            when {
+                expression {
+                    env.DEPLOY_FROM_MAIN == 'true'
+                }
+            }
+            steps {
+                script {
+                    withCredentials([
+                        sshUserPrivateKey(
+                            credentialsId: 'github-dai-run-gitops-write',
+                            keyFileVariable: 'GITOPS_SSH_KEY'
+                        )
+                    ]) {
+                        sh '''#!/bin/sh
+set -eu
+
+export GIT_SSH_COMMAND="ssh -i $GITOPS_SSH_KEY \
+    -o IdentitiesOnly=yes \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=/etc/dai-run/github_known_hosts"
+
+test ! -e gitops-services-work || {
+    echo 'gitops-services-work already exists; refusing to overwrite it.' >&2
+    exit 1
+}
+
+git clone \
+    --single-branch \
+    --branch "$GITOPS_BRANCH" \
+    "$GITOPS_REPOSITORY" \
+    gitops-services-work
+
+git -C gitops-services-work config user.name 'DAI-RUN Jenkins'
+git -C gitops-services-work config user.email 'jenkins@dai-run.internal'
+'''
+                    }
+
+                    for (svc in SERVICES) {
+                        def dockerfileName = svc.dockerfile.substring(
+                            svc.dockerfile.lastIndexOf('/') + 1
+                        )
+                        def repository = "dai-run/${svc.id}"
+                        def taggedImage =
+                            "${env.HARBOR_REGISTRY}/${repository}:${env.SOURCE_COMMIT}"
+                        def greenManifest =
+                            "environments/dev/deployment-${svc.id}-green.yaml"
+                        def blueManifest =
+                            "environments/dev/deployment-${svc.id}.yaml"
+
+                        echo "== ${svc.id}: build and push =="
+                        container('buildctl') {
+                            withCredentials([
+                                usernamePassword(
+                                    credentialsId: 'harbor-dai-run-robot',
+                                    usernameVariable: 'HARBOR_USERNAME',
+                                    passwordVariable: 'HARBOR_PASSWORD'
+                                )
+                            ]) {
+                                withEnv([
+                                    "SERVICE_CONTEXT=${svc.context}",
+                                    "SERVICE_DOCKERFILE=${dockerfileName}",
+                                    "SERVICE_TAGGED_IMAGE=${taggedImage}",
+                                    "SERVICE_METADATA_FILE=build-metadata-${svc.id}.json"
+                                ]) {
+                                    sh '''#!/bin/sh
+set -eu
+set +x
+umask 077
+
+auth_dir="$(mktemp -d /tmp/dai-run-docker.XXXXXX)"
+cleanup() {
+    rm -rf -- "$auth_dir"
+}
+trap cleanup EXIT HUP INT TERM
+
+export DOCKER_CONFIG="$auth_dir"
+auth="$(printf '%s:%s' "$HARBOR_USERNAME" "$HARBOR_PASSWORD" \
+    | base64 \
+    | tr -d '\n')"
+
+printf '{"auths":{"%s":{"auth":"%s"}}}\n' \
+    "$HARBOR_REGISTRY" \
+    "$auth" \
+    >"$DOCKER_CONFIG/config.json"
+
+chmod 600 "$DOCKER_CONFIG/config.json"
+rm -f "$WORKSPACE/$SERVICE_METADATA_FILE"
+
+buildctl \
+    --addr "$BUILDKIT_HOST" \
+    --tlscacert /etc/buildkit/client/ca.crt \
+    --tlscert /etc/buildkit/client/client.crt \
+    --tlskey /etc/buildkit/client/client.key \
+    build \
+    --progress=plain \
+    --frontend dockerfile.v0 \
+    --local "context=$WORKSPACE/$SERVICE_CONTEXT" \
+    --local "dockerfile=$WORKSPACE/$SERVICE_CONTEXT" \
+    --opt filename="$SERVICE_DOCKERFILE" \
+    --opt platform=linux/amd64 \
+    --output "type=image,name=$SERVICE_TAGGED_IMAGE,push=true" \
+    --metadata-file "$WORKSPACE/$SERVICE_METADATA_FILE"
+'''
+                                }
+                            }
+                        }
+
+                        echo "== ${svc.id}: verify Harbor digest =="
+                        def metadata = readJSON(
+                            file: "build-metadata-${svc.id}.json"
+                        )
+                        def digest =
+                            metadata['containerimage.digest']?.toString()
+
+                        if (!(digest ==~ /^sha256:[0-9a-f]{64}$/)) {
+                            error(
+                                "BuildKit returned an invalid image " +
+                                "digest for ${svc.id}."
+                            )
+                        }
+
+                        def digestImage =
+                            "${env.HARBOR_REGISTRY}/${repository}@${digest}"
+                        def observedDigest = ''
+
+                        container('crane') {
+                            withCredentials([
+                                usernamePassword(
+                                    credentialsId: 'harbor-dai-run-robot',
+                                    usernameVariable: 'HARBOR_USERNAME',
+                                    passwordVariable: 'HARBOR_PASSWORD'
+                                )
+                            ]) {
+                                withEnv([
+                                    "SERVICE_TAGGED_IMAGE=${taggedImage}"
+                                ]) {
+                                    observedDigest = sh(
+                                        returnStdout: true,
+                                        script: '''#!/busybox/sh
+set -eu
+set +x
+umask 077
+
+auth_dir="$(mktemp -d /tmp/dai-run-crane.XXXXXX)"
+cleanup() {
+    rm -rf -- "$auth_dir"
+}
+trap cleanup EXIT HUP INT TERM
+
+export DOCKER_CONFIG="$auth_dir"
+
+printf '%s' "$HARBOR_PASSWORD" \
+    | crane auth login "$HARBOR_REGISTRY" \
+        -u "$HARBOR_USERNAME" \
+        --password-stdin \
+        >/dev/null
+
+crane digest "$SERVICE_TAGGED_IMAGE"
+'''
+                                    ).trim()
+                                }
+                            }
+                        }
+
+                        if (observedDigest != digest) {
+                            error(
+                                "Harbor digest mismatch for ${svc.id}: " +
+                                "BuildKit=${digest}, Harbor=${observedDigest}"
+                            )
+                        }
+
+                        echo "== ${svc.id}: Harbor Trivy gate =="
+                        container('python') {
+                            withCredentials([
+                                usernamePassword(
+                                    credentialsId: 'harbor-dai-run-robot',
+                                    usernameVariable: 'HARBOR_USERNAME',
+                                    passwordVariable: 'HARBOR_PASSWORD'
+                                )
+                            ]) {
+                                withEnv([
+                                    "SERVICE_REPOSITORY=${svc.id}",
+                                    "SERVICE_DIGEST=${digest}"
+                                ]) {
+                                    sh '''#!/bin/sh
+set -eu
+set +x
+
+python3 scripts/wait-for-harbor-scan.py \
+    --base-url "https://$HARBOR_REGISTRY" \
+    --project "$HARBOR_PROJECT" \
+    --repository "$SERVICE_REPOSITORY" \
+    --reference "$SOURCE_COMMIT" \
+    --expected-digest "$SERVICE_DIGEST" \
+    --ca-file /internal-ca/ca.crt \
+    --timeout-seconds 600 \
+    --poll-seconds 10 \
+    --max-critical 0
+'''
+                                }
+                            }
+                        }
+
+                        echo "== ${svc.id}: update GitOps Green =="
+                        withEnv([
+                            "SERVICE_ID=${svc.id}",
+                            "SERVICE_DIGEST_IMAGE=${digestImage}",
+                            "SERVICE_GREEN_MANIFEST=${greenManifest}",
+                            "SERVICE_BLUE_MANIFEST=${blueManifest}"
+                        ]) {
+                            sh '''#!/bin/sh
+set -eu
+
+"$WORKSPACE/scripts/update-gitops-green-image.sh" \
+    "$WORKSPACE/gitops-services-work" \
+    "$SERVICE_DIGEST_IMAGE" \
+    "$SERVICE_ID" \
+    "$SERVICE_GREEN_MANIFEST" \
+    "$SERVICE_BLUE_MANIFEST"
+
+if git -C gitops-services-work diff --quiet -- "$SERVICE_GREEN_MANIFEST"; then
+    echo "Green already references $SERVICE_DIGEST_IMAGE for $SERVICE_ID"
+    exit 0
+fi
+
+git -C gitops-services-work add -- "$SERVICE_GREEN_MANIFEST"
+git -C gitops-services-work diff --cached --check
+git -C gitops-services-work commit \
+    -m "deploy(dev): update green $SERVICE_ID to $SOURCE_COMMIT_SHORT"
+'''
+                        }
+                    }
+
+                    withCredentials([
+                        sshUserPrivateKey(
+                            credentialsId: 'github-dai-run-gitops-write',
+                            keyFileVariable: 'GITOPS_SSH_KEY'
+                        )
+                    ]) {
+                        sh '''#!/bin/sh
+set -eu
+
+export GIT_SSH_COMMAND="ssh -i $GITOPS_SSH_KEY \
+    -o IdentitiesOnly=yes \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=/etc/dai-run/github_known_hosts"
+
+if [ -z "$(git -C gitops-services-work log --oneline "origin/$GITOPS_BRANCH..HEAD" 2>/dev/null)" ]; then
+    echo 'No service Green manifests changed; nothing to push.'
+    exit 0
+fi
+
+git -C gitops-services-work fetch origin "$GITOPS_BRANCH"
+git -C gitops-services-work rebase "origin/$GITOPS_BRANCH"
+git -C gitops-services-work push origin "HEAD:$GITOPS_BRANCH"
+'''
+                    }
                 }
             }
         }
