@@ -16,9 +16,9 @@ def SERVICES = [
     [id: 'running-record-service', dockerfile: 'services-msa/running-record-service/Dockerfile', context: 'services-msa/running-record-service'],
     [id: 'shoe-service', dockerfile: 'services-msa/shoe-service/Dockerfile', context: 'services-msa/shoe-service'],
     [id: 'ai-assistant-service', dockerfile: 'services-msa/ai-assistant-service/Dockerfile', context: 'services-msa/ai-assistant-service'],
-    [id: 'ai-rag-service', dockerfile: 'ai/ai-rag-service/Dockerfile', context: 'ai/ai-rag-service'],
-    [id: 'ai-course-recommendation', dockerfile: 'ai/ai-course-recommendation/Dockerfile', context: 'ai/ai-course-recommendation'],
-    [id: 'ai-shoe-life', dockerfile: 'ai/ai-shoe-life/Dockerfile', context: 'ai/ai-shoe-life'],
+    // ai-rag-service / ai-course-recommendation / ai-shoe-life are temporarily
+    // excluded: dai-run-gitops has no Deployment manifests for them yet
+    // (deferred for cluster CPU headroom; add back once capacity allows).
 ]
 
 pipeline {
