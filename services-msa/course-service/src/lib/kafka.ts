@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Kafka, Partitioners } from 'kafkajs';
 
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.201:29092').split(',');
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.212:29092').split(',');
 export const COURSE_LIKE_EVENTS_TOPIC = 'course.like-events';
 
 let producer: ReturnType<Kafka['producer']> | undefined;

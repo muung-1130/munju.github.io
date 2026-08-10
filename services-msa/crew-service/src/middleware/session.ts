@@ -16,6 +16,7 @@ declare global {
       userId?: string;
       userName?: string;
       dong?: string | null;
+      isAdmin?: boolean;
     }
   }
 }
@@ -38,6 +39,7 @@ export async function attachSession(req: Request, _res: Response, next: NextFunc
       req.userId = token.userId;
       req.userName = typeof token.userName === 'string' ? token.userName : undefined;
       req.dong = typeof token.dong === 'string' ? token.dong : null;
+      req.isAdmin = token.isAdmin === true;
     }
   } catch {
     // 토큰이 없거나 손상됐으면 비로그인으로 취급한다.
@@ -48,6 +50,18 @@ export async function attachSession(req: Request, _res: Response, next: NextFunc
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.userId) {
     res.status(401).json({ error: '로그인이 필요해요.' });
+    return;
+  }
+  next();
+}
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.userId) {
+    res.status(401).json({ error: '로그인이 필요해요.' });
+    return;
+  }
+  if (!req.isAdmin) {
+    res.status(403).json({ error: '관리자만 접근할 수 있어요.' });
     return;
   }
   next();

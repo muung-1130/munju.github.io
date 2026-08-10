@@ -1,7 +1,7 @@
 import { getPool } from '@/lib/db';
 import { computeScores } from '@/lib/recommendationScoring';
 
-const AI_SERVICE_URL = process.env.AI_RECOMMENDATION_SERVICE_URL ?? 'http://192.168.0.201:8001';
+const AI_SERVICE_URL = process.env.AI_RECOMMENDATION_SERVICE_URL ?? 'http://192.168.0.212:8001';
 const DAILY_CUTOFF_HOUR = 3; // FastAPI 쪽 repository.py의 _todays_recommendation_cutoff와 동일 기준 (KST 03:00)
 
 // 로그인은 했지만 user_running_preferences가 없는 사용자와, 아예 로그인하지 않은 방문자는

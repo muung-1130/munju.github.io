@@ -142,10 +142,17 @@ export default function ChallengesPage() {
           publicChallenges.map((challenge) => {
             const joined = challenge.myStatus === 'ACTIVE';
             const waiting = challenge.myStatus === 'WAITING';
+            // 이 회차 자체가 끝났으면(스케줄러가 다음 회차를 아직 안 만들었거나 series 없는 일회성
+            // 챌린지) 종료 다음날까지만 이 카드가 보인다(조회 쿼리에서 이미 그렇게 걸러져 있다) —
+            // "참여하기"가 아니라 "재참여하기"로 바꾸고, 완주/미달성 여부를 보여준다.
+            const ended = challenge.status !== 'ACTIVE';
+            const endedCompleted = ended && challenge.myStatus === 'COMPLETED';
+            const endedFailed = ended && challenge.myStatus === 'FAILED';
             return (
               <Card key={challenge.challengeId} className="public-challenge-card">
                 <div className="card-head">
                   <span className="type-pill">공개</span>
+                  {ended && <span className={`type-pill ${endedCompleted ? 'success' : 'ended'}`}>{endedCompleted ? '완료됨' : endedFailed ? '미달성' : '종료'}</span>}
                 </div>
                 <div className="challenge-icon small">{CHALLENGE_ICONS[challenge.metricType] ?? '🏅'}</div>
                 <h3>{challenge.name}</h3>
@@ -153,17 +160,20 @@ export default function ChallengesPage() {
                 <div className="public-challenge-meta">
                   <span>🎯 목표 {formatMetricValue(challenge.metricType, challenge.targetValue)}</span>
                   <span>👥 {challenge.participantCount.toLocaleString()}명 참가</span>
-                  <span>⏳ {challenge.status === 'COMPLETED' ? '종료' : `D+${daysSinceStart(challenge.startAt)}`}</span>
+                  <span>⏳ {ended ? '종료' : `D+${daysSinceStart(challenge.startAt)}`}</span>
                 </div>
-                {joined && challenge.myProgressRatio !== null && (
-                  <div className="progress">
-                    <i style={{ width: `${Math.min(100, challenge.myProgressRatio)}%` }} />
-                  </div>
+                {(joined || ended) && challenge.myProgressRatio !== null && (
+                  <>
+                    <div className="progress">
+                      <i style={{ width: `${Math.min(100, challenge.myProgressRatio)}%` }} />
+                    </div>
+                    {ended && <span className="muted">{challenge.myProgressRatio.toFixed(0)}% 달성하고 종료됐어요</span>}
+                  </>
                 )}
                 <Link href={`/challenges/${challenge.challengeId}`} className="ghost-btn full-width" style={{ marginBottom: 8 }}>
                   상세 보기
                 </Link>
-                {joined || waiting ? (
+                {!ended && (joined || waiting) ? (
                   <div className="challenge-joined-actions">
                     <button className={`ghost-btn full-width ${joined ? 'joined' : 'waiting'}`} disabled>
                       {joined ? '참여 완료 ✓' : '대기 중 (다음 주부터)'}
@@ -182,7 +192,7 @@ export default function ChallengesPage() {
                     onClick={() => joinChallenge(challenge.challengeId)}
                     disabled={joiningId === challenge.challengeId}
                   >
-                    {joiningId === challenge.challengeId ? '참여 중...' : '참여하기'}
+                    {joiningId === challenge.challengeId ? '참여 중...' : ended ? '재참여하기' : '참여하기'}
                   </button>
                 )}
                 {joinError?.id === challenge.challengeId && <p className="field-error">{joinError.message}</p>}

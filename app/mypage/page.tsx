@@ -10,6 +10,8 @@ import { RecentRunsTable } from '@/components/RecentRunsTable';
 import { ShoesSection } from '@/components/ShoesSection';
 import { LikedShoesSection } from '@/components/LikedShoesSection';
 import { LikedCoursesSection } from '@/components/LikedCoursesSection';
+import { MyMarathonReservationsSection } from '@/components/MyMarathonReservationsSection';
+import { MyCourseReviewsSection } from '@/components/MyCourseReviewsSection';
 import {
   getRunningSummary,
   getCurrentRunStreak,
@@ -20,7 +22,8 @@ import {
 import { getMyActiveCrews } from '@/lib/crew';
 import { getMyActiveChallengesWeeklyProgress, getCompletedChallenges } from '@/lib/challenges';
 import { getUserShoesDetailed, getUserLikedShoes } from '@/lib/shoes';
-import { getUserLikedCourses } from '@/lib/courseSocial';
+import { getUserLikedCourses, getUserCourseReviews } from '@/lib/courseSocial';
+import { getMyMarathonReservations } from '@/lib/marathon';
 import { getUserWeightKgForDisplay } from '@/lib/calorie';
 import { WeightEditableCalorieStat } from '@/components/WeightEditableCalorieStat';
 import { getRunningPreferences } from '@/lib/runningPreferences';
@@ -53,7 +56,9 @@ export default async function MyPage() {
     likedShoes,
     likedCourses,
     weightKg,
-    runningPreferences
+    runningPreferences,
+    myMarathonReservations,
+    myCourseReviews
   ] = await Promise.all([
     userId ? getRunningSummary(userId) : Promise.resolve(null),
     userId ? getCurrentRunStreak(userId) : Promise.resolve(0),
@@ -65,7 +70,9 @@ export default async function MyPage() {
     userId ? getUserLikedShoes(userId) : Promise.resolve([]),
     userId ? getUserLikedCourses(userId) : Promise.resolve([]),
     userId ? getUserWeightKgForDisplay(userId) : Promise.resolve(66),
-    userId ? getRunningPreferences(userId) : Promise.resolve(null)
+    userId ? getRunningPreferences(userId) : Promise.resolve(null),
+    userId ? getMyMarathonReservations(userId) : Promise.resolve([]),
+    userId ? getUserCourseReviews(userId) : Promise.resolve([])
   ]);
 
   const avgDistanceM = summary && summary.runCount > 0 ? summary.totalDistanceM / summary.runCount : null;
@@ -113,6 +120,10 @@ export default async function MyPage() {
       <PreferencesSummarySection preferences={runningPreferences} />
 
       <LikedCoursesSection courses={likedCourses} />
+
+      <MyMarathonReservationsSection reservations={myMarathonReservations} />
+
+      <MyCourseReviewsSection reviews={myCourseReviews} />
 
       <MyCrewsSection crews={myCrews} />
 

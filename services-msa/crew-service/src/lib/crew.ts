@@ -156,6 +156,45 @@ export async function getCrewWeeklyStats(crewId: string): Promise<CrewWeeklyStat
   };
 }
 
+export type CrewMemberStats = {
+  userId: string;
+  nickname: string;
+  role: string;
+  joinedAt: string;
+  last7DaysDistanceM: number;
+  last7DaysRunCount: number;
+  lastRunAt: string | null;
+};
+
+// "내 크루" 탭의 크루원 목록 — 각자 최근 7일 러닝 스펙(거리/횟수/마지막 러닝)을 함께 보여준다.
+// crew.crew_members와 running_record.runs를 조인하는 건 이 서비스 안에서 이미 크루 배틀 평균
+// 계산(lib/crewBattle.ts)에 쓰이던 것과 같은 패턴이다 — 새로 도입하는 경계 위반이 아니다.
+export async function getCrewMembersWithStats(crewId: string): Promise<CrewMemberStats[]> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT m.user_id, u.nickname, m.role, m.joined_at,
+            COALESCE(SUM(r.distance_m) FILTER (WHERE r.started_at >= now() - INTERVAL '7 days'), 0) AS last7_distance_m,
+            COUNT(r.run_id) FILTER (WHERE r.started_at >= now() - INTERVAL '7 days') AS last7_run_count,
+            MAX(r.started_at) AS last_run_at
+       FROM crew.crew_members m
+       JOIN auth_user.users u ON u.user_id = m.user_id
+       LEFT JOIN running_record.runs r ON r.user_id = m.user_id AND r.status = 'COMPLETED'
+      WHERE m.crew_id = $1 AND m.status = 'ACTIVE'
+      GROUP BY m.user_id, u.nickname, m.role, m.joined_at
+      ORDER BY m.role = 'LEADER' DESC, last7_distance_m DESC`,
+    [crewId]
+  );
+  return rows.map((row) => ({
+    userId: row.user_id,
+    nickname: row.nickname,
+    role: row.role,
+    joinedAt: row.joined_at,
+    last7DaysDistanceM: Number(row.last7_distance_m),
+    last7DaysRunCount: Number(row.last7_run_count),
+    lastRunAt: row.last_run_at
+  }));
+}
+
 // 채팅방 입장 = crew_chat.chat_rooms에 이 크루의 방을 보장(크루당 하나)하고,
 // crew_chat.chat_participant_states에 참가자로 기록한다. 메시지 "내용"은 지금처럼
 // MongoDB에 room_id = crew_id로 저장한다(lib/crewChat.ts) — chat_rooms/participant_states는

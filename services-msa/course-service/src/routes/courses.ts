@@ -10,9 +10,16 @@ import {
   updateCourseReview
 } from '../lib/courseSocial.js';
 import { getCourseRouteForRun } from '../lib/courseRun.js';
+import { createCourseFromRun } from '../lib/courseFromRun.js';
 import { requireAuth } from '../middleware/session.js';
 
 const router = Router();
+
+// Running Record 서비스 소유 데이터(러닝 경로)를 여기서 직접 조회하지 않고, 그 서비스의
+// 본인 인증된 조회 API를 호출한다 — course-service가 running_record 스키마를 직접 들여다보지
+// 않도록 하는 경계(runs.ts가 course-service의 track-info를 호출하는 것과 대칭되는 패턴).
+const RUNNING_RECORD_SERVICE_URL = process.env.RUNNING_RECORD_SERVICE_URL ?? 'http://running-record-service:4000';
+const COURSE_NAME_MAX_LENGTH = 300;
 
 const DISTANCE_BUCKET_RANGES: Record<string, [number, number | null]> = {
   KM5: [0, 5000],
@@ -203,6 +210,44 @@ router.get('/:courseId/track-info', async (req, res) => {
     return;
   }
   res.json({ course });
+});
+
+// 내 자율 달리기 기록을 코스 탐색에 노출되는 코스로 등록한다. 작성자는 요청한 로그인 사용자
+// 본인이며(owner_user_id), 이후 코스 상세에서는 다른 코스와 동일하게 찜/리뷰 대상이 된다.
+router.post('/from-run', requireAuth, async (req, res) => {
+  const runId = typeof req.body?.runId === 'string' ? req.body.runId : null;
+  const courseName = typeof req.body?.courseName === 'string' ? req.body.courseName.trim() : '';
+  if (!runId) {
+    res.status(400).json({ error: '러닝 기록을 확인해주세요.' });
+    return;
+  }
+  if (!courseName || courseName.length > COURSE_NAME_MAX_LENGTH) {
+    res.status(400).json({ error: `코스 이름을 1~${COURSE_NAME_MAX_LENGTH}자로 입력해주세요.` });
+    return;
+  }
+
+  let route: { distanceM: number; positions: [number, number][] } | null = null;
+  try {
+    const runRes = await fetch(`${RUNNING_RECORD_SERVICE_URL}/api/runs/${runId}/route-info`, {
+      headers: req.headers.cookie ? { Cookie: req.headers.cookie } : undefined
+    });
+    if (runRes.ok) route = await runRes.json();
+  } catch (err) {
+    console.error('running-record-service 조회 실패:', err);
+  }
+
+  if (!route || route.positions.length < 2) {
+    res.status(404).json({ error: '코스로 추천할 수 있는 러닝 기록이 아니에요.' });
+    return;
+  }
+
+  const courseId = await createCourseFromRun({
+    ownerUserId: req.userId!,
+    courseName,
+    distanceM: route.distanceM,
+    positions: route.positions
+  });
+  res.json({ courseId });
 });
 
 export default router;

@@ -12,6 +12,7 @@ import { useChat } from '@/components/ChatContext';
 const RADIUS_PRESETS_KM = [1, 3, 5, 10];
 // 위치 정보를 못 가져오고 로그인도 안 돼있을 때의 최종 폴백: 종로3가역(5번출구 인근).
 const JONGNO_3GA_EXIT5 = { lat: 37.5725, lng: 126.9903 };
+const LOCATION_NOTICE_SHOWN_KEY = 'locationDeniedNoticeShown';
 // center가 주어졌을 때 최초 1회만 적용하는 기본 축척 — 대략 1:100,000에 해당.
 const DEFAULT_ZOOM = 14;
 // 난이도가 대부분 같은 값(보통)이라 색으로 구분이 안 되므로, 코스마다 팔레트를 순환시켜 서로
@@ -102,7 +103,16 @@ export function CourseNearbyExplorer() {
             : error.code === 3
               ? '위치를 가져오는 데 시간이 오래 걸려서 대신 동네 기준으로 보여드릴게요.'
               : '현재 위치를 확인할 수 없어서 대신 동네 기준으로 보여드릴게요.';
-        addMessage({ from: 'ai', text: reason });
+        // 위치 권한 거부처럼 브라우저 설정이 안 바뀌는 한 매번 같은 사유가 반복되므로, 이 안내는
+        // 세션당 한 번만 챗봇 대화에 남긴다(페이지를 오갈 때마다 쌓이는 것을 방지).
+        try {
+          if (!sessionStorage.getItem(LOCATION_NOTICE_SHOWN_KEY)) {
+            addMessage({ from: 'ai', text: reason });
+            sessionStorage.setItem(LOCATION_NOTICE_SHOWN_KEY, '1');
+          }
+        } catch {
+          addMessage({ from: 'ai', text: reason });
+        }
         resolveFallbackLocation();
       },
       { timeout: 8000 }

@@ -45,7 +45,7 @@ export function ShoesSection({ shoes }: { shoes: UserShoeDetail[] }) {
   const [retiringId, setRetiringId] = useState<string | null>(null);
 
   async function retireShoe(userShoeId: string) {
-    if (!confirm('이 러닝화를 버릴까요? 목록에서는 사용 종료로 표시되고, 지금까지의 분석 기록은 그대로 보존돼요.')) return;
+    if (!confirm('이 러닝화를 버릴까요? 신발 정보와 마모 분석 사진·기록이 모두 영구 삭제되며 되돌릴 수 없어요.')) return;
     setRetiringId(userShoeId);
     try {
       const res = await fetch(`/api/user-shoes/${userShoeId}/retire`, { method: 'POST' });

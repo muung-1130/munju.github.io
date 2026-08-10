@@ -4,9 +4,9 @@
 // 이 프로세스가 그걸 받아 알림 서비스 소유 테이블(notification.notifications)에만 반영한다.
 import './otel.mjs';
 import { Kafka } from 'kafkajs';
-import { Client } from 'pg';
+import { Pool } from 'pg';
 
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.201:29092').split(',');
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.212:29092').split(',');
 const TOPIC = 'crew.join-request-events';
 
 const kafka = new Kafka({ clientId: 'crew-notification-consumer', brokers: KAFKA_BROKERS, logLevel: 1 });
@@ -50,16 +50,38 @@ async function handleJoinRequestApproved(client, event) {
   });
 }
 
+async function handleBattleDeclined(client, event) {
+  const { battleId, leaderUserId, opponentCrewName, metricLabel } = event.payload;
+  await insertNotification(client, {
+    userId: leaderUserId,
+    notificationType: 'CREW_BATTLE_DECLINED',
+    title: `${opponentCrewName} 크루가 배틀을 거절했어요`,
+    body: `신청하신 ${metricLabel} 배틀에 24시간 안에 응답이 없었거나 거절됐어요.`,
+    referenceType: 'CREW_BATTLE',
+    referenceId: battleId,
+    eventId: event.eventId
+  });
+}
+
 async function main() {
-  const pg = new Client({
+  // 단일 Client를 프로세스 수명 내내 붙들고 있으면, 그 커넥션이 네트워크 계층에서 리셋될 때
+  // (ECONNRESET) unhandled 'error' event로 프로세스 전체가 죽는다 — 실제로 이 크래시가
+  // 반복 관측됐다. Pool로 바꾸면 죽은 커넥션은 자동으로 새로 만들어 쓰므로 자체 복구된다.
+  const pg = new Pool({
     host: process.env.PGHOST,
     port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    database: process.env.PGDATABASE
+    database: process.env.PGDATABASE,
+    max: 2,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+    keepAlive: true
   });
-  await pg.connect();
-  console.log('[crew-notification-consumer] postgres connected');
+  pg.on('error', (err) => {
+    console.error('[crew-notification-consumer] idle client error', err);
+  });
+  console.log('[crew-notification-consumer] postgres pool ready');
 
   // course.like-events와 달리 이 토픽은 producer가 아직 한 번도 메시지를 보낸 적이 없어
   // 브로커에 자동 생성돼있지 않을 수 있다. subscribe가 UNKNOWN_TOPIC_OR_PARTITION으로 죽지
@@ -97,6 +119,9 @@ async function main() {
         } else if (event.eventType === 'JoinRequestApproved') {
           await handleJoinRequestApproved(pg, event);
           console.log(`[crew-notification-consumer] JoinRequestApproved crew=${event.payload.crewId}`);
+        } else if (event.eventType === 'BattleDeclined') {
+          await handleBattleDeclined(pg, event);
+          console.log(`[crew-notification-consumer] BattleDeclined battle=${event.payload.battleId}`);
         }
       } catch (err) {
         console.error('[crew-notification-consumer] 알림 적재 실패:', err.message);

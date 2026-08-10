@@ -6,7 +6,9 @@ type CompletedChallenge = {
   challengeId: string;
   name: string;
   challengeType: string;
+  status: 'COMPLETED' | 'FAILED';
   completedAt: string;
+  progressRatio: number;
 };
 
 function formatCompletedDate(iso: string): string {
@@ -33,7 +35,12 @@ export function CompletedChallengesSection({ challenges }: { challenges: Complet
               <Link href={`/challenges/${challenge.challengeId}`} className="mypage-challenge-name-link">
                 {challenge.name}
               </Link>
-              <span className="muted">{formatCompletedDate(challenge.completedAt)} 완료</span>
+              <span className={`type-pill ${challenge.status === 'COMPLETED' ? 'success' : 'ended'}`}>
+                {challenge.progressRatio.toFixed(0)}% 달성
+              </span>
+              <span className="muted">
+                {formatCompletedDate(challenge.completedAt)} {challenge.status === 'COMPLETED' ? '완료' : '종료'}
+              </span>
             </div>
           ))}
         </div>

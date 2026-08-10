@@ -64,7 +64,7 @@ export function CourseReviewSection({ courseId, initialReviews }: { courseId: st
       setSceneryRating(0);
       setSlopeRating(0);
       setContent('');
-      addMessage({ from: 'ai', text: '평점 감사합니다! 앞으로 러너님의 코스 추천에 참고할게요! 🐶' });
+      addMessage({ from: 'ai', text: '평점 감사합니다! 앞으로 러너님의 코스 추천에 참고할게요! 🐢' });
     } finally {
       setSubmitting(false);
     }

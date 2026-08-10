@@ -67,7 +67,7 @@ export async function sendRunCongratsMessage(
   await pool.query(`UPDATE ai_assistant.chat_sessions SET last_message_at = now() WHERE session_id = $1`, [sessionId]);
 }
 
-const AI_RAG_SERVICE_URL = process.env.AI_RAG_SERVICE_URL ?? 'http://192.168.0.201:8000';
+const AI_RAG_SERVICE_URL = process.env.AI_RAG_SERVICE_URL ?? 'http://192.168.0.212:8000';
 
 type AskAssistantResult = { answer: string; sessionId: string | null; blocked: boolean };
 

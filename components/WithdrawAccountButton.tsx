@@ -13,7 +13,7 @@ export function WithdrawAccountButton() {
       const res = await fetch('/api/auth/withdraw', { method: 'POST' });
       if (res.ok) {
         // signOut({ callbackUrl })은 서버(NEXTAUTH_URL) 기준으로 리다이렉트 주소를 계산해서
-        // 붙여준다 — 지금 접속한 주소(예: 192.168.0.201:8080)와 NEXTAUTH_URL(localhost:8080,
+        // 붙여준다 — 지금 접속한 주소(예: 192.168.0.212:8080)와 NEXTAUTH_URL(localhost:8080,
         // 구글 로그인 때문에 이렇게 맞춰둠)이 다르면 로그아웃 후 엉뚱한 주소로 튕겨나가면서
         // 쿠키도 없는 새 origin이라 Unauthorized가 뜬다. redirect:false로 자동 이동을 막고
         // 지금 보고 있는 주소 기준으로 직접 이동시킨다.

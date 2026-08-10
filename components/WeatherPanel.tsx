@@ -183,18 +183,18 @@ function HourlyChart({ weather }: { weather: WeatherPoint[] }) {
         <svg className="hourly-weather-chart" width={width} height={150} viewBox={`0 0 ${width} 150`} role="img" aria-label="시간대별 날씨 그래프">
           <defs>
             <linearGradient id="hourlyFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" stopColor="#2f6bff" stopOpacity="0.18" />
-              <stop offset="1" stopColor="#2f6bff" stopOpacity="0" />
+              <stop offset="0" stopColor="#74BDEB" stopOpacity="0.22" />
+              <stop offset="1" stopColor="#74BDEB" stopOpacity="0" />
             </linearGradient>
           </defs>
           <path d={areaPath} fill="url(#hourlyFill)" />
-          <polyline points={linePoints} fill="none" stroke="#1259ee" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points={linePoints} fill="none" stroke="#74BDEB" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           {points.map(([x, y], i) => (
             <g key={`${page.items[i].forecast_date}${page.items[i].forecast_time}`}>
-              <circle cx={x} cy={y} r="4" fill="#fff" stroke="#1259ee" strokeWidth="2.5" />
+              <circle cx={x} cy={y} r="4" fill="#fff" stroke="#74BDEB" strokeWidth="2.5" />
               <text x={x} y="18" textAnchor="middle" fontSize="18">{weatherIcon(page.items[i])}</text>
-              <text x={x} y={y - 10} textAnchor="middle" fontSize="13" fontWeight="800" fill="#0e2a54">{Math.round(temps[i])}°</text>
-              <text x={x} y="140" textAnchor="middle" fontSize="11" fontWeight="700" fill="#64748b">{Number(page.items[i].forecast_time.slice(0, 2))}시</text>
+              <text x={x} y={y - 10} textAnchor="middle" fontSize="13" fontWeight="800" fill="#3C6E71">{Math.round(temps[i])}°</text>
+              <text x={x} y="140" textAnchor="middle" fontSize="11" fontWeight="700" fill="rgba(0,0,0,.55)">{Number(page.items[i].forecast_time.slice(0, 2))}시</text>
             </g>
           ))}
         </svg>

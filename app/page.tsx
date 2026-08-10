@@ -1,73 +1,63 @@
 import Link from 'next/link';
-import { getServerSession } from 'next-auth';
-import { Card, StatCard } from '@/components/UI';
 import { FeatureBanner } from '@/components/FeatureBanner';
 import { AiRecoPanel } from '@/components/AiRecoPanel';
 import { LocationPermissionButton } from '@/components/LocationPermissionButton';
 import { HomeGreeting } from '@/components/HomeGreeting';
 import { WeatherPanel } from '@/components/WeatherPanel';
-import { WeeklyDistanceChart } from '@/components/WeeklyDistanceChart';
-import { authOptions } from '@/lib/auth';
-import { getRunningSummary, getThisWeekDailyDistances, formatDuration, formatPace } from '@/lib/runningRecord';
+import { RunSummaryCard } from '@/components/RunSummaryCard';
 import { fetchAiRecoPanelCourses } from '@/lib/aiRecoPanelClient';
 
 export const dynamic = 'force-dynamic';
 
+// 세션 확인과 개인별 DB 조회(러닝 요약)는 렌더링 경로에서 걷어내서 이 페이지가 로그인 여부와
+// 무관한 공개 shell로 남도록 한다 — RunSummaryCard는 마운트된 뒤 자체적으로 클라이언트에서
+// 불러온다(운영서버 성능 리포트 2026-08-06 권장안). 다만 AiRecoPanel은 SSR에서 courses={[]}로
+// 비워두면 클라이언트 GPS 조회(§AiRecoPanel useEffect)가 끝나기 전까지 패널 전체가 안 보여서,
+// 위치 권한이 늦게 뜨거나(데스크톱) 거부되는 화면에서 "지도만 보이고 패널이 안 보인다"는
+// 문제가 있었다 — 코스탐색 페이지처럼 SSR에서 미리 채워서 첫 렌더부터 보이게 한다.
 export default async function HomePage() {
-  const session = await getServerSession(authOptions);
-  const [summary, dailyDistances, recoCourses] = await Promise.all([
-    session?.user?.id ? getRunningSummary(session.user.id) : Promise.resolve(null),
-    session?.user?.id ? getThisWeekDailyDistances(session.user.id) : Promise.resolve([]),
-    fetchAiRecoPanelCourses()
-  ]);
+  const recoCourses = await fetchAiRecoPanelCourses();
 
   return (
     <div className="home-page">
       <FeatureBanner />
 
-      <section className="home-hero">
+      <section className="home-hero home-hero-split">
         <div className="hero-bg" />
         <div className="hero-content">
           <p className="eyebrow">DAI RUN</p>
           <HomeGreeting />
-          <LocationPermissionButton />
+        </div>
+        <div className="hero-ai-reco">
+          <AiRecoPanel courses={recoCourses} locationSlot={<LocationPermissionButton />} />
         </div>
       </section>
 
-      <AiRecoPanel courses={recoCourses} />
+      <section className="home-feature-grid">
+        <Link href="/courses" className="home-feature-tile accent">
+          <span className="home-feature-icon">🧭</span>
+          <strong>AI 러닝코스 추천</strong>
+          <p>날씨와 최근 기록을 분석해 오늘 딱 맞는 코스를 추천해드려요.</p>
+        </Link>
+        <Link href="/crew" className="home-feature-tile">
+          <span className="home-feature-icon">🏃</span>
+          <strong>러닝크루</strong>
+          <p>함께 달리는 크루를 찾고 주간 크루 대결에 참여해보세요.</p>
+        </Link>
+        <Link href="/challenges" className="home-feature-tile">
+          <span className="home-feature-icon">🏆</span>
+          <strong>챌린지</strong>
+          <p>목표를 세우고 완주하며 나만의 러닝 기록을 쌓아가요.</p>
+        </Link>
+        <Link href="/shoes" className="home-feature-tile">
+          <span className="home-feature-icon">👟</span>
+          <strong>AI 러닝화 수명예측</strong>
+          <p>사진 한 장으로 러닝화 마모도와 교체 시기를 확인하세요.</p>
+        </Link>
+      </section>
 
       <section className="home-top-row">
-        <Card className="run-summary-card">
-          <div className="card-head"><h3>나의 러닝 요약</h3><span className="muted">최근 4주</span></div>
-          {summary ? (
-            <>
-              <div className="summary-stats summary-stats-lg">
-                <StatCard icon="↔" label="거리" value={(summary.totalDistanceM / 1000).toFixed(1)} suffix="km" />
-                <StatCard icon="⏱" label="시간" value={formatDuration(summary.totalDurationSec)} />
-                <StatCard
-                  icon="⚡"
-                  label="평균 페이스"
-                  value={summary.averagePaceSecPerKm ? formatPace(summary.averagePaceSecPerKm) : '-'}
-                  suffix="/km"
-                />
-                <StatCard
-                  icon="🚀"
-                  label="최고 페이스"
-                  value={summary.bestPaceSecPerKm ? formatPace(summary.bestPaceSecPerKm) : '-'}
-                  suffix="/km"
-                />
-                <StatCard icon="❤" label="평균 심박수" value={summary.averageHeartRate ? String(summary.averageHeartRate) : '-'} suffix="bpm" />
-                <StatCard icon="💥" label="최고 심박수" value={summary.maxHeartRate ? String(summary.maxHeartRate) : '-'} suffix="bpm" />
-                <StatCard icon="🔥" label="칼로리" value={summary.totalCalories.toLocaleString()} suffix="kcal" />
-              </div>
-              <WeeklyDistanceChart data={dailyDistances} />
-              <p className="muted">최근 {summary.runCount}회 러닝 기록 기준</p>
-            </>
-          ) : (
-            <p className="muted">최근 4주 동안의 러닝 기록이 아직 없어요.</p>
-          )}
-          <Link href="/mypage#running-records" className="ghost-btn">상세 기록 보기</Link>
-        </Card>
+        <RunSummaryCard />
 
         <div className="home-weather-col">
           <WeatherPanel />

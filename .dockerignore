@@ -1,6 +1,9 @@
 # 로컬 설치·빌드 결과
 node_modules
 .next
+.venv
+__pycache__
+*.pyc
 
 # Git 정보
 .git

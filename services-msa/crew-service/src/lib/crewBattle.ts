@@ -1,11 +1,28 @@
 import { getPool } from './db.js';
 import { addCrewChatMessage } from './crewChat.js';
+import { publishBattleDeclinedEvent } from './kafka.js';
 
 export type BattleMetricType = 'DISTANCE' | 'PACE';
 
 // 이 모듈의 모든 "오늘/날짜" 계산은 Asia/Seoul 기준으로 통일한다(서버 타임존과 무관하게).
 function todayKstDateString(): string {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }); // sv-SE 로케일은 YYYY-MM-DD 포맷
+}
+
+// 배틀 응답 마감 시각도 채팅 시간과 마찬가지로 서버가 KST로 미리 계산해서 내려준다 —
+// 프론트에서 타임존 변환을 다시 하지 않는다.
+const KST_DEADLINE_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Seoul',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23'
+});
+
+function toKstDeadlineLabel(date: Date): string {
+  const parts = Object.fromEntries(KST_DEADLINE_FMT.formatToParts(date).map((p) => [p.type, p.value])) as Record<string, string>;
+  return `${parts.month}.${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
 // dateStr은 이미 KST 기준으로 뽑아낸 순수 캘린더 날짜 문자열이므로, 여기서는 타임존 변환 없이
@@ -93,12 +110,12 @@ export async function getBattleCandidates(crewId: string, metricType: BattleMetr
   const my = myRows[0];
   if (!my) return [];
 
-  let myTarget: number;
+  // 내 크루의 이번 주 평균이 아직 없으면(막 만든 크루 등) 추천 자체를 통째로 비워버리지 않고
+  // 0을 기준으로 삼는다 — 그래야 다른 크루가 하나라도 있으면 최소 한 팀은 추천에 뜬다.
+  let myTarget = 0;
   if (metricType === 'DISTANCE') {
-    if (my.avg_weekly_distance_m === null) return [];
-    myTarget = Math.floor(Number(my.avg_weekly_distance_m) / 1000);
-  } else {
-    if (my.avg_weekly_pace_sec_per_km === null) return [];
+    if (my.avg_weekly_distance_m !== null) myTarget = Math.floor(Number(my.avg_weekly_distance_m) / 1000);
+  } else if (my.avg_weekly_pace_sec_per_km !== null) {
     myTarget = truncate1(Number(my.avg_weekly_pace_sec_per_km) / 60);
   }
 
@@ -147,11 +164,13 @@ export async function getBattleCandidates(crewId: string, metricType: BattleMetr
 export async function getActiveOrPendingBattleForCrew(crewId: string) {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT * FROM crew.crew_battles WHERE (crew_a_id = $1 OR crew_b_id = $1) AND status IN ('PROPOSED', 'ACTIVE') ORDER BY created_at DESC LIMIT 1`,
+    `SELECT * FROM crew.crew_battles WHERE (crew_a_id = $1 OR crew_b_id = $1) AND status IN ('PROPOSED', 'PENDING_OPPONENT', 'ACTIVE') ORDER BY created_at DESC LIMIT 1`,
     [crewId]
   );
   return rows[0] ?? null;
 }
+
+const OPPONENT_RESPONSE_WINDOW_HOURS = 24;
 
 export async function proposeBattle(
   crewId: string,
@@ -170,6 +189,15 @@ export async function proposeBattle(
   );
   const battleId = rows[0].battle_id as string;
   await pool.query(`INSERT INTO crew.crew_battle_votes (battle_id, user_id, vote) VALUES ($1, $2, 'AGREE')`, [battleId, proposerUserId]);
+
+  // 크루장이 직접 신청한 거라면 우리 크루 내부 승인 단계(자기 자신에게 다시 투표를 받는 것)를
+  // 건너뛰고 곧바로 상대 크루의 응답 대기 단계로 넘어간다. (예전엔 크루장이 신청해도 항상
+  // PROPOSED로 남아서, 신청한 크루장이 곧바로 다시 "승인"을 눌러야 하는 불필요한 절차가 있었다.)
+  const { rows: ownerRows } = await pool.query(`SELECT owner_user_id FROM crew.crews WHERE crew_id = $1`, [crewId]);
+  if (ownerRows[0]?.owner_user_id === proposerUserId) {
+    await resolveBattle(battleId, true);
+  }
+
   return { battleId };
 }
 
@@ -185,53 +213,104 @@ async function announceOnce(crewId: string, battleId: string, eventKey: string, 
 
 const METRIC_LABEL: Record<BattleMetricType, string> = { DISTANCE: '거리', PACE: '페이스' };
 
-// 크루장 승인/과반수 찬성 → 배틀 시작 / 크루장 거절·과반수 반대 → 무산.
-// 이 전체 워크플로는 제안한 크루(crew_a)의 채팅방 안에서만 진행된다(요청에 상대 크루 쪽 화면 언급이 없음).
+// 배틀은 두 단계를 거친다.
+//   1) PROPOSED: 제안한 크루(crew_a) 내부 승인 단계 — 크루장이 직접 신청했으면 즉시 통과.
+//   2) PENDING_OPPONENT: 상대 크루(crew_b) 응답 대기 단계 — 24시간 안에 크루장 승인 또는
+//      과반수 찬성이 있어야 실제로 시작된다. 이 시간 안에 응답이 없거나 거절되면 DECLINED로
+//      끝나고, 제안한 크루의 크루장에게 알림(notification-service)과 채팅 공지가 간다.
+// resolveBattle은 배틀의 "현재 상태"를 보고 어느 단계인지 스스로 판단해서 다음 단계로 넘긴다.
 export async function resolveBattle(battleId: string, approve: boolean): Promise<boolean> {
   const pool = getPool();
-  const { rows } = await pool.query(`SELECT * FROM crew.crew_battles WHERE battle_id = $1 AND status = 'PROPOSED'`, [battleId]);
+  const { rows } = await pool.query(
+    `SELECT * FROM crew.crew_battles WHERE battle_id = $1 AND status IN ('PROPOSED', 'PENDING_OPPONENT')`,
+    [battleId]
+  );
   const battle = rows[0];
   if (!battle) return false;
-
-  if (approve) {
-    await pool.query(
-      `UPDATE crew.crew_battles SET status = 'ACTIVE', start_date = CURRENT_DATE, end_date = CURRENT_DATE + 6, resolved_at = now() WHERE battle_id = $1`,
-      [battleId]
-    );
-  } else {
-    await pool.query(`UPDATE crew.crew_battles SET status = 'DECLINED', resolved_at = now() WHERE battle_id = $1`, [battleId]);
-  }
 
   const { rows: nameRows } = await pool.query(`SELECT crew_id, crew_name FROM crew.crews WHERE crew_id IN ($1, $2)`, [
     battle.crew_a_id,
     battle.crew_b_id
   ]);
-  const opponentName = nameRows.find((r) => r.crew_id === battle.crew_b_id)?.crew_name ?? '상대 크루';
+  const crewAName = nameRows.find((r) => r.crew_id === battle.crew_a_id)?.crew_name ?? '우리 크루';
+  const crewBName = nameRows.find((r) => r.crew_id === battle.crew_b_id)?.crew_name ?? '상대 크루';
   const metricLabel = METRIC_LABEL[battle.metric_type as BattleMetricType];
 
-  if (approve) {
-    await announceOnce(battle.crew_a_id, battleId, 'STARTED', `🔥 ${opponentName} 크루와 ${metricLabel} 배틀이 시작됐어요! 1주일간 힘내봐요 💪`);
+  if (battle.status === 'PROPOSED') {
+    if (approve) {
+      const expiresAt = new Date(Date.now() + OPPONENT_RESPONSE_WINDOW_HOURS * 60 * 60 * 1000);
+      await pool.query(`UPDATE crew.crew_battles SET status = 'PENDING_OPPONENT', expires_at = $2 WHERE battle_id = $1`, [
+        battleId,
+        expiresAt
+      ]);
+      await announceOnce(battle.crew_a_id, battleId, 'SENT_TO_OPPONENT', `${crewBName} 크루에 ${metricLabel} 배틀을 신청했어요. 24시간 안에 응답을 기다려요!`);
+      await announceOnce(battle.crew_b_id, battleId, 'RECEIVED_PROPOSAL', `🔥 ${crewAName} 크루가 ${metricLabel} 배틀을 신청했어요! 24시간 안에 크루장 승인 또는 크루원 과반수 찬성이 필요해요.`);
+    } else {
+      await pool.query(`UPDATE crew.crew_battles SET status = 'CANCELLED', resolved_at = now() WHERE battle_id = $1`, [battleId]);
+      await announceOnce(battle.crew_a_id, battleId, 'CANCELLED_BEFORE_SEND', `이번 ${crewBName} 크루와의 배틀 제안은 다음 기회에 도전해봐요 🙏`);
+    }
   } else {
-    await announceOnce(battle.crew_a_id, battleId, 'DECLINED', `이번 ${opponentName} 크루와의 배틀 제안은 다음 기회에 도전해봐요 🙏`);
+    // PENDING_OPPONENT
+    if (approve) {
+      await pool.query(
+        `UPDATE crew.crew_battles SET status = 'ACTIVE', start_date = CURRENT_DATE, end_date = CURRENT_DATE + 6, resolved_at = now(), expires_at = NULL WHERE battle_id = $1`,
+        [battleId]
+      );
+      await announceOnce(battle.crew_a_id, battleId, 'STARTED', `🔥 ${crewBName} 크루와 ${metricLabel} 배틀이 시작됐어요! 1주일간 힘내봐요 💪`);
+      await announceOnce(battle.crew_b_id, battleId, 'STARTED', `🔥 ${crewAName} 크루와 ${metricLabel} 배틀이 시작됐어요! 1주일간 힘내봐요 💪`);
+    } else {
+      await pool.query(`UPDATE crew.crew_battles SET status = 'DECLINED', resolved_at = now(), expires_at = NULL WHERE battle_id = $1`, [
+        battleId
+      ]);
+      await announceOnce(battle.crew_b_id, battleId, 'DECLINED_BY_US', `${crewAName} 크루의 배틀 제안을 거절했어요.`);
+      await announceOnce(battle.crew_a_id, battleId, 'DECLINED_BY_OPPONENT', `😔 ${crewBName} 크루가 이번 배틀 제안을 거절했어요. 다른 크루에게 다시 도전해봐요!`);
+      await notifyBattleDeclined(battle, crewBName);
+    }
   }
 
-  // 투표가 끝났으니(승인/거절 어느 쪽이든) 이 배틀에 걸려있던 투표 기록은 더 이상 필요 없다.
+  // 이 단계의 투표는 끝났으니(승인/거절 어느 쪽이든) 다음 단계에서 새로 투표를 받는다.
   await pool.query(`DELETE FROM crew.crew_battle_votes WHERE battle_id = $1`, [battleId]);
 
   return true;
 }
 
+// 상대 크루가 거절했거나(명시적 거절) 24시간 안에 응답이 없어 자동 거절된 경우, 배틀을 제안한
+// 크루의 크루장에게 알림을 보낸다. crew-service가 notification.notifications를 직접 쓰지 않고
+// (서비스 경계) crew.join-request-events 토픽으로 이미 흘려보내는 것과 같은 방식으로,
+// crew-notification-consumer가 구독해서 알림 테이블에 반영한다.
+async function notifyBattleDeclined(battle: { battle_id: string; crew_a_id: string; metric_type: string }, opponentCrewName: string) {
+  const pool = getPool();
+  const { rows: ownerRows } = await pool.query(`SELECT owner_user_id FROM crew.crews WHERE crew_id = $1`, [battle.crew_a_id]);
+  const leaderUserId = ownerRows[0]?.owner_user_id;
+  if (!leaderUserId) return;
+  const metricLabel = METRIC_LABEL[battle.metric_type as BattleMetricType];
+  await publishBattleDeclinedEvent({
+    battleId: battle.battle_id,
+    leaderUserId,
+    opponentCrewName,
+    metricLabel
+  });
+}
+
 export type VoteTally = { agree: number; disagree: number; total: number };
 
 // 크루원이 찬성/반대 투표를 한다. 과반수(전체 ACTIVE 멤버 기준)에 도달하면 자동으로 승인/거절 처리한다.
+// 배틀이 어느 단계인지(PROPOSED=우리 크루 내부 승인 / PENDING_OPPONENT=상대 크루 응답)에 따라
+// 투표 자격을 확인할 크루가 달라진다.
 export async function castVote(battleId: string, userId: string, vote: 'AGREE' | 'DISAGREE'): Promise<VoteTally | null> {
   const pool = getPool();
-  const { rows } = await pool.query(`SELECT * FROM crew.crew_battles WHERE battle_id = $1 AND status = 'PROPOSED'`, [battleId]);
+  const { rows } = await pool.query(
+    `SELECT * FROM crew.crew_battles WHERE battle_id = $1 AND status IN ('PROPOSED', 'PENDING_OPPONENT')`,
+    [battleId]
+  );
   const battle = rows[0];
   if (!battle) return null;
+  await autoDeclineIfExpired(battle);
+  if (battle.status === 'DECLINED') return null;
 
+  const actingCrewId = battle.status === 'PROPOSED' ? battle.crew_a_id : battle.crew_b_id;
   const isMember = await pool.query(`SELECT 1 FROM crew.crew_members WHERE crew_id = $1 AND user_id = $2 AND status = 'ACTIVE'`, [
-    battle.crew_a_id,
+    actingCrewId,
     userId
   ]);
   if (isMember.rows.length === 0) return null;
@@ -242,7 +321,7 @@ export async function castVote(battleId: string, userId: string, vote: 'AGREE' |
     [battleId, userId, vote]
   );
 
-  const total = await getActiveMemberCount(battle.crew_a_id);
+  const total = await getActiveMemberCount(actingCrewId);
   const { rows: tallyRows } = await pool.query(`SELECT vote, COUNT(*) AS c FROM crew.crew_battle_votes WHERE battle_id = $1 GROUP BY vote`, [
     battleId
   ]);
@@ -255,15 +334,53 @@ export async function castVote(battleId: string, userId: string, vote: 'AGREE' |
   return { agree, disagree, total };
 }
 
-// 크루장이 크루원 동의 없이도 바로 결정할 수 있다.
+// 크루장이 크루원 동의 없이도 바로 결정할 수 있다(우리 크루 내부 승인 단계든, 상대 크루 응답
+// 단계든 그 시점에 해당하는 크루의 크루장만 결정할 수 있다).
 export async function leaderDecide(battleId: string, leaderUserId: string, approve: boolean): Promise<boolean> {
   const pool = getPool();
-  const { rows } = await pool.query(`SELECT crew_a_id FROM crew.crew_battles WHERE battle_id = $1 AND status = 'PROPOSED'`, [battleId]);
+  const { rows } = await pool.query(
+    `SELECT * FROM crew.crew_battles WHERE battle_id = $1 AND status IN ('PROPOSED', 'PENDING_OPPONENT')`,
+    [battleId]
+  );
   const battle = rows[0];
   if (!battle) return false;
-  const { rows: ownerRows } = await pool.query(`SELECT owner_user_id FROM crew.crews WHERE crew_id = $1`, [battle.crew_a_id]);
+  await autoDeclineIfExpired(battle);
+  if (battle.status === 'DECLINED') return false;
+
+  const actingCrewId = battle.status === 'PROPOSED' ? battle.crew_a_id : battle.crew_b_id;
+  const { rows: ownerRows } = await pool.query(`SELECT owner_user_id FROM crew.crews WHERE crew_id = $1`, [actingCrewId]);
   if (ownerRows[0]?.owner_user_id !== leaderUserId) return false;
   return resolveBattle(battleId, approve);
+}
+
+// 상대 크루의 24시간 응답 기한이 지났으면 자동으로 거절 처리한다(응답 지연도 거절로 취급).
+// getPendingBattleView/castVote/leaderDecide가 배틀을 조회할 때마다 게으르게 확인한다 —
+// getBattleView가 배틀 종료(COMPLETED) 전환을 게으르게 처리하는 것과 같은 방식이다.
+async function autoDeclineIfExpired(battle: { battle_id: string; status: string; expires_at: string | Date | null }): Promise<void> {
+  if (battle.status !== 'PENDING_OPPONENT' || !battle.expires_at) return;
+  const expiresAt = typeof battle.expires_at === 'string' ? new Date(battle.expires_at) : battle.expires_at;
+  if (new Date() <= expiresAt) return;
+  await resolveBattle(battle.battle_id, false);
+  battle.status = 'DECLINED';
+}
+
+// autoDeclineIfExpired는 누군가 그 배틀을 조회할 때만 게으르게 동작하므로, 아무도 크루
+// 페이지를 열지 않으면 24시간이 지나도 거절 처리(크루 채팅 공지 + notification 발행)가
+// 한참 뒤로 미뤄질 수 있다. index.ts에서 주기적으로 이 함수를 호출해 응답 기한이 지난
+// PENDING_OPPONENT 배틀을 능동적으로 정리한다 — resolveBattle을 그대로 재사용하므로
+// 크루 채팅 공지·notification 발행 로직은 완전히 동일하게 탄다.
+export async function sweepExpiredBattles(): Promise<void> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT battle_id FROM crew.crew_battles WHERE status = 'PENDING_OPPONENT' AND expires_at IS NOT NULL AND expires_at < now()`
+  );
+  for (const { battle_id: battleId } of rows) {
+    try {
+      await resolveBattle(battleId, false);
+    } catch (err) {
+      console.error(`[crew-service] sweepExpiredBattles battle=${battleId} 실패:`, err);
+    }
+  }
 }
 
 export type PendingBattleView = {
@@ -275,21 +392,30 @@ export type PendingBattleView = {
   tally: VoteTally;
   myVote: 'AGREE' | 'DISAGREE' | null;
   isLeader: boolean;
+  awaitingOpponentResponse: boolean;
+  expiresAt: string | null;
+  expiresAtLabel: string | null;
 };
 
+// 지금 이 크루가 응답할 차례인 배틀 제안을 조회한다 — 우리 크루가 제안한 쪽(crew_a, PROPOSED
+// 단계)이거나, 우리 크루가 제안받은 쪽(crew_b, PENDING_OPPONENT 단계)이거나 둘 다 해당될 수 있다.
 export async function getPendingBattleView(crewId: string, userId: string): Promise<PendingBattleView | null> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT b.*, c.crew_name AS opponent_name, owner.owner_user_id
-       FROM crew.crew_battles b
-       JOIN crew.crews c ON c.crew_id = b.crew_b_id
-       JOIN crew.crews owner ON owner.crew_id = b.crew_a_id
-      WHERE b.crew_a_id = $1 AND b.status = 'PROPOSED'
-      ORDER BY b.created_at DESC LIMIT 1`,
+    `SELECT * FROM crew.crew_battles
+      WHERE (crew_a_id = $1 AND status = 'PROPOSED') OR (crew_b_id = $1 AND status = 'PENDING_OPPONENT')
+      ORDER BY created_at DESC LIMIT 1`,
     [crewId]
   );
   const battle = rows[0];
   if (!battle) return null;
+  await autoDeclineIfExpired(battle);
+  if (battle.status === 'DECLINED') return null;
+
+  const isCrewA = battle.crew_a_id === crewId;
+  const opponentCrewId = isCrewA ? battle.crew_b_id : battle.crew_a_id;
+  const { rows: nameRows } = await pool.query(`SELECT crew_id, crew_name FROM crew.crews WHERE crew_id IN ($1, $2)`, [crewId, opponentCrewId]);
+  const opponentName = nameRows.find((r) => r.crew_id === opponentCrewId)?.crew_name ?? '상대 크루';
 
   const total = await getActiveMemberCount(crewId);
   const { rows: tallyRows } = await pool.query(`SELECT vote, COUNT(*) AS c FROM crew.crew_battle_votes WHERE battle_id = $1 GROUP BY vote`, [
@@ -303,16 +429,24 @@ export async function getPendingBattleView(crewId: string, userId: string): Prom
     userId
   ]);
 
+  const { rows: ownerRows } = await pool.query(`SELECT owner_user_id FROM crew.crews WHERE crew_id = $1`, [crewId]);
+
   const metricLabel = METRIC_LABEL[battle.metric_type as BattleMetricType];
+  const awaitingOpponentResponse = !isCrewA; // 우리가 crew_b라면 지금 우리 크루가 응답할 차례.
   return {
     battleId: battle.battle_id,
     metricType: battle.metric_type,
-    opponentCrewId: battle.crew_b_id,
-    opponentCrewName: battle.opponent_name,
-    description: `${battle.opponent_name} 크루와 1주일간 ${metricLabel} 배틀에 참여하시겠습니까?`,
+    opponentCrewId,
+    opponentCrewName: opponentName,
+    description: awaitingOpponentResponse
+      ? `${opponentName} 크루가 1주일간 ${metricLabel} 배틀을 신청했어요. 응답해주세요!`
+      : `${opponentName} 크루와 1주일간 ${metricLabel} 배틀에 참여하시겠습니까?`,
+    awaitingOpponentResponse,
+    expiresAt: battle.expires_at ? new Date(battle.expires_at).toISOString() : null,
+    expiresAtLabel: battle.expires_at ? toKstDeadlineLabel(new Date(battle.expires_at)) : null,
     tally: { agree, disagree, total },
     myVote: (myVoteRows[0]?.vote as 'AGREE' | 'DISAGREE') ?? null,
-    isLeader: battle.owner_user_id === userId
+    isLeader: ownerRows[0]?.owner_user_id === userId
   };
 }
 
@@ -366,7 +500,9 @@ export async function getCrewBattleInfo(crewId: string, metricType: BattleMetric
   };
 }
 
-export type BattleDay = { date: string; crewAValue: number | null; crewBValue: number | null; crewAWon: boolean | null; isToday: boolean };
+export type DayResult = 'WIN' | 'LOSE' | 'DRAW' | null;
+
+export type BattleDay = { date: string; crewAValue: number | null; crewBValue: number | null; crewAResult: DayResult; isToday: boolean; isFuture: boolean };
 
 export type ActiveBattleView = {
   battleId: string;
@@ -378,10 +514,18 @@ export type ActiveBattleView = {
   days: BattleDay[];
   myWins: number;
   opponentWins: number;
+  draws: number;
   showFinalBanner: boolean;
-  finalResult: 'WIN' | 'LOSE' | null;
+  finalResult: 'WIN' | 'LOSE' | 'DRAW' | null;
   isLeader: boolean;
 };
+
+// 크루 A 관점의 승/무/패로 뒤집는다 — "내(myCrewId) 관점" 결과를 그대로 crewAResult에 쓰면
+// 내가 crew_b일 때 뜻이 반대가 된다(내가 이겼으면 crew_a는 진 것).
+function flipForCrewA(myResult: DayResult, isA: boolean): DayResult {
+  if (isA || myResult === null || myResult === 'DRAW') return myResult;
+  return myResult === 'WIN' ? 'LOSE' : 'WIN';
+}
 
 async function metricValueForDay(crewId: string, metricType: BattleMetricType, dateStr: string): Promise<number | null> {
   if (metricType === 'DISTANCE') {
@@ -422,41 +566,67 @@ export async function getBattleView(crewId: string, userId: string): Promise<Act
   const days: BattleDay[] = [];
   let myWins = 0;
   let opponentWins = 0;
-  const lastDayToShow = today < battle.end_date ? today : battle.end_date;
-  for (let dateStr = battle.start_date; dateStr <= lastDayToShow; dateStr = addDays(dateStr, 1)) {
-    const myValue = await metricValueForDay(myCrewId, battle.metric_type, dateStr);
-    const oppValue = await metricValueForDay(opponentCrewId, battle.metric_type, dateStr);
+  let draws = 0;
+  // 7일 전체를 항상 보여준다 — 예전엔 오늘까지만 자르고 이후 날짜는 아예 안 보여줬다.
+  // 아직 안 온 미래 날짜는 조회 없이 "isFuture"로만 표시한다(빈 값 조회로 DB만 낭비하지 않게).
+  for (let dateStr = battle.start_date; dateStr <= battle.end_date; dateStr = addDays(dateStr, 1)) {
     const isToday = dateStr === today;
-    let myWon: boolean | null = null;
-    if (!isToday) {
+    const isFuture = dateStr > today;
+
+    let myValue: number | null = null;
+    let oppValue: number | null = null;
+    let myResult: DayResult = null;
+
+    if (!isFuture) {
+      myValue = await metricValueForDay(myCrewId, battle.metric_type, dateStr);
+      oppValue = await metricValueForDay(opponentCrewId, battle.metric_type, dateStr);
+    }
+
+    if (!isToday && !isFuture) {
       const myComparable = myValue ?? (battle.metric_type === 'DISTANCE' ? 0 : Infinity);
       const oppComparable = oppValue ?? (battle.metric_type === 'DISTANCE' ? 0 : Infinity);
-      myWon = battle.metric_type === 'DISTANCE' ? myComparable >= oppComparable : myComparable <= oppComparable;
-      if (myWon) myWins++;
-      else opponentWins++;
+      // 같은 값(0km vs 0km 포함)이면 무승부 — 예전엔 >=/<=(이상/이하)로 비교해서 동률이 항상
+      // "내가 이겼다"로 잡혔고, 상대 쪽에서 똑같은 로직을 돌리면 상대도 "이겼다"로 나와
+      // 양쪽 다 성공으로 보이는 버그가 있었다.
+      if (myComparable === oppComparable) {
+        myResult = 'DRAW';
+        draws++;
+      } else {
+        const iWon = battle.metric_type === 'DISTANCE' ? myComparable > oppComparable : myComparable < oppComparable;
+        myResult = iWon ? 'WIN' : 'LOSE';
+        if (iWon) myWins++;
+        else opponentWins++;
+      }
 
-      await announceOnce(
-        myCrewId,
-        battle.battle_id,
-        `DAY_RESULT_${dateStr}`,
-        myWon
-          ? `📅 ${dateStr} 결과: ${opponentCrewName} 크루와의 배틀에서 승리했어요! 🎉`
-          : `📅 ${dateStr} 결과: ${opponentCrewName} 크루와의 배틀에서 아쉽게 졌어요. 내일은 이겨봐요!`
-      );
+      const message =
+        myResult === 'DRAW'
+          ? `📅 ${dateStr} 결과: ${opponentCrewName} 크루와 무승부예요!`
+          : myResult === 'WIN'
+            ? `📅 ${dateStr} 결과: ${opponentCrewName} 크루와의 배틀에서 승리했어요! 🎉`
+            : `📅 ${dateStr} 결과: ${opponentCrewName} 크루와의 배틀에서 아쉽게 졌어요. 내일은 이겨봐요!`;
+      await announceOnce(myCrewId, battle.battle_id, `DAY_RESULT_${dateStr}`, message);
     }
-    days.push({ date: dateStr, crewAValue: isA ? myValue : oppValue, crewBValue: isA ? oppValue : myValue, crewAWon: isA ? myWon : myWon === null ? null : !myWon, isToday });
+
+    days.push({
+      date: dateStr,
+      crewAValue: isA ? myValue : oppValue,
+      crewBValue: isA ? oppValue : myValue,
+      crewAResult: flipForCrewA(myResult, isA),
+      isToday,
+      isFuture
+    });
   }
 
   let showFinalBanner = false;
-  let finalResult: 'WIN' | 'LOSE' | null = null;
+  let finalResult: 'WIN' | 'LOSE' | 'DRAW' | null = null;
 
   if (today > battle.end_date && battle.status === 'ACTIVE') {
-    const winnerCrewId = myWins > opponentWins ? myCrewId : opponentWins > myWins ? opponentCrewId : myCrewId;
+    const winnerCrewId = myWins > opponentWins ? myCrewId : opponentWins > myWins ? opponentCrewId : null;
     await pool.query(`UPDATE crew.crew_battles SET status = 'COMPLETED', winner_crew_id = $1, resolved_at = now() WHERE battle_id = $2`, [
       winnerCrewId,
       battle.battle_id
     ]);
-    finalResult = winnerCrewId === myCrewId ? 'WIN' : 'LOSE';
+    finalResult = winnerCrewId === null ? 'DRAW' : winnerCrewId === myCrewId ? 'WIN' : 'LOSE';
     showFinalBanner = true;
     await announceOnce(
       myCrewId,
@@ -464,11 +634,13 @@ export async function getBattleView(crewId: string, userId: string): Promise<Act
       'FINISHED',
       finalResult === 'WIN'
         ? `🏆 ${opponentCrewName} 크루와의 배틀에서 승리했습니다!!!`
-        : `${opponentCrewName} 크루와의 배틀, 더 성장해서 다음 기회에 이겨봅시다!`
+        : finalResult === 'DRAW'
+          ? `${opponentCrewName} 크루와 무승부로 마무리됐어요! 다음엔 승부를 가려봐요.`
+          : `${opponentCrewName} 크루와의 배틀, 더 성장해서 다음 기회에 이겨봅시다!`
     );
   } else if (today > battle.end_date && battle.status === 'COMPLETED') {
     showFinalBanner = true;
-    finalResult = battle.winner_crew_id === myCrewId ? 'WIN' : 'LOSE';
+    finalResult = battle.winner_crew_id === null ? 'DRAW' : battle.winner_crew_id === myCrewId ? 'WIN' : 'LOSE';
   }
 
   return {
@@ -481,6 +653,7 @@ export async function getBattleView(crewId: string, userId: string): Promise<Act
     days,
     myWins,
     opponentWins,
+    draws,
     isLeader,
     showFinalBanner,
     finalResult
@@ -505,6 +678,66 @@ export async function refreshCrewBattlesForUser(userId: string): Promise<void> {
       console.error(`refreshCrewBattlesForUser crew=${crewId} 실패:`, err);
     }
   }
+}
+
+export type BattleHistoryEntry = {
+  battleId: string;
+  metricType: BattleMetricType;
+  opponentCrewName: string;
+  status: 'COMPLETED' | 'DECLINED' | 'CANCELLED';
+  result: 'WIN' | 'LOSE' | 'DRAW' | null;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+};
+
+// "크루 배틀" 탭에서 지금 배틀 중이 아닐 때 기간을 정해 지난 배틀 이력을 검색한다.
+// 시작만 됐다가 끝난(COMPLETED) 것뿐 아니라, 상대가 거절했거나(DECLINED) 크루장이 취소한
+// (CANCELLED) 제안도 함께 보여준다 — "이전 배틀 기록"을 좁게 완주 이력으로만 보면 실제로 있었던
+// 시도들이 누락된다.
+export async function getBattleHistory(crewId: string, fromDate: string | null, toDate: string | null): Promise<BattleHistoryEntry[]> {
+  const pool = getPool();
+  const conditions = [`(crew_a_id = $1 OR crew_b_id = $1)`, `status IN ('COMPLETED', 'DECLINED', 'CANCELLED')`];
+  const params: unknown[] = [crewId];
+  if (fromDate) {
+    params.push(fromDate);
+    conditions.push(`created_at >= $${params.length}::date`);
+  }
+  if (toDate) {
+    params.push(toDate);
+    conditions.push(`created_at < ($${params.length}::date + 1)`);
+  }
+
+  const { rows } = await pool.query(
+    `SELECT * FROM crew.crew_battles WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC LIMIT 100`,
+    params
+  );
+
+  const crewIds = Array.from(new Set(rows.flatMap((r) => [r.crew_a_id, r.crew_b_id])));
+  const nameMap = new Map<string, string>();
+  if (crewIds.length > 0) {
+    const { rows: nameRows } = await pool.query(`SELECT crew_id, crew_name FROM crew.crews WHERE crew_id = ANY($1::uuid[])`, [crewIds]);
+    for (const row of nameRows) nameMap.set(row.crew_id, row.crew_name);
+  }
+
+  return rows.map((row) => {
+    const isA = row.crew_a_id === crewId;
+    const opponentCrewId = isA ? row.crew_b_id : row.crew_a_id;
+    let result: 'WIN' | 'LOSE' | 'DRAW' | null = null;
+    if (row.status === 'COMPLETED') {
+      result = row.winner_crew_id === null ? 'DRAW' : row.winner_crew_id === crewId ? 'WIN' : 'LOSE';
+    }
+    return {
+      battleId: row.battle_id,
+      metricType: row.metric_type,
+      opponentCrewName: nameMap.get(opponentCrewId) ?? '상대 크루',
+      status: row.status,
+      result,
+      startDate: row.start_date ? toDateStr(row.start_date) : null,
+      endDate: row.end_date ? toDateStr(row.end_date) : null,
+      createdAt: row.created_at
+    };
+  });
 }
 
 // 크루 단위로 진행 중인 배틀에서 빠져나온다(크루장만 가능).

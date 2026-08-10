@@ -22,7 +22,24 @@ export async function middleware(request: NextRequest) {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
 
     if (!token) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      // 로그인 후 항상 홈으로 보내지 않고, 원래 가려던 곳(/mypage)으로 되돌아가게 callbackUrl을 남긴다.
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname + request.nextUrl.search);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  if (pathname.startsWith('/admin')) {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+    if (!token) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname + request.nextUrl.search);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (!token.isAdmin) {
+      return NextResponse.redirect(new URL('/', request.url));
     }
   }
 

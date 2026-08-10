@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCrewChat } from './CrewChatContext';
+import { CrewVsPanel } from './CrewVsPanel';
 
 const ICON_SIZE = 56;
 const BATTLE_POLL_MS = 7000;
@@ -20,15 +21,10 @@ type PendingBattle = {
   tally: { agree: number; disagree: number; total: number };
   myVote: 'AGREE' | 'DISAGREE' | null;
   isLeader: boolean;
-};
-
-type CrewBattleInfo = {
-  crewName: string;
-  memberCount: number;
-  rank: number | null;
-  rankTotal: number;
-  statValue: number | null;
-  winCount: number;
+  // awaitingOpponentResponse=true면 "우리 크루"가 상대의 제안에 응답할 차례다(24시간 제한).
+  // expiresAtLabel은 서버가 KST로 미리 포맷해서 내려주는 값 그대로 표시한다.
+  awaitingOpponentResponse: boolean;
+  expiresAtLabel: string | null;
 };
 
 function defaultIconPosition() {
@@ -92,8 +88,6 @@ export function CrewChatWidget() {
   }
   const [pendingBattle, setPendingBattle] = useState<PendingBattle | null>(null);
   const [battleActionBusy, setBattleActionBusy] = useState(false);
-  const [opponentInfo, setOpponentInfo] = useState<CrewBattleInfo | null>(null);
-  const [opponentInfoOpen, setOpponentInfoOpen] = useState(false);
   const [myWeeklyStats, setMyWeeklyStats] = useState<{ avgWeeklyDistanceM: number | null; avgWeeklyPaceSecPerKm: number | null } | null>(
     null
   );
@@ -188,20 +182,6 @@ export function CrewChatWidget() {
     }
   }
 
-  async function loadOpponentInfo() {
-    if (!pendingBattle) return;
-    setOpponentInfoOpen(true);
-    if (opponentInfo) return;
-    try {
-      const res = await fetch(`/api/crew/${pendingBattle.opponentCrewId}/battle/info?metric=${pendingBattle.metricType}`);
-      if (res.ok) {
-        const data = await res.json();
-        setOpponentInfo(data.info);
-      }
-    } catch {
-      // 팝업 정보는 부가 정보라 실패해도 조용히 무시
-    }
-  }
 
   async function loadMyWeeklyStats() {
     if (!crewId) return;
@@ -345,7 +325,7 @@ export function CrewChatWidget() {
           onClick={handleIconClick}
           aria-label={`${crewName} 채팅방 열기 (드래그해서 위치를 옮길 수 있어요)`}
         >
-          👥
+          <img src="/assets/crew-chat-shield.svg" alt="" />
         </button>
       )}
 
@@ -441,24 +421,22 @@ export function CrewChatWidget() {
           <div className="crew-battle-banner">
             <div className="crew-battle-banner-head">
               <span className="type-pill">{pendingBattle.metricType === 'DISTANCE' ? 'km 배틀' : '페이스 배틀'}</span>
-              <span
-                className="crew-battle-opponent-name"
-                onMouseEnter={loadOpponentInfo}
-                onMouseLeave={() => setOpponentInfoOpen(false)}
-                onClick={loadOpponentInfo}
-              >
-                {pendingBattle.opponentCrewName}
-              </span>
-              {opponentInfoOpen && opponentInfo && (
-                <div className="crew-battle-info-popup">
-                  <strong>{opponentInfo.crewName}</strong>
-                  <span>랭킹 {opponentInfo.rank ? `${opponentInfo.rank}/${opponentInfo.rankTotal}위` : '집계 전'}</span>
-                  <span>인원 {opponentInfo.memberCount}명</span>
-                  <span>배틀 우승 {opponentInfo.winCount}회</span>
-                </div>
-              )}
+              {pendingBattle.awaitingOpponentResponse && <span className="type-pill incoming">받은 제안</span>}
+              <span className="crew-battle-opponent-name">{pendingBattle.opponentCrewName}</span>
             </div>
             <p>{pendingBattle.description}</p>
+            {pendingBattle.awaitingOpponentResponse && pendingBattle.expiresAtLabel && (
+              <p className="crew-battle-deadline">⏰ {pendingBattle.expiresAtLabel}까지 응답이 없으면 자동으로 거절돼요.</p>
+            )}
+            {crewId && (
+              <CrewVsPanel
+                myCrewId={crewId}
+                myCrewName={crewName ?? '우리 크루'}
+                opponentCrewId={pendingBattle.opponentCrewId}
+                opponentCrewName={pendingBattle.opponentCrewName}
+                metricType={pendingBattle.metricType}
+              />
+            )}
             <div className="crew-battle-vote-bar">
               <i className="agree" style={{ width: `${(pendingBattle.tally.agree / pendingBattle.tally.total) * 100}%` }} />
               <i className="disagree" style={{ width: `${(pendingBattle.tally.disagree / pendingBattle.tally.total) * 100}%` }} />
@@ -484,12 +462,25 @@ export function CrewChatWidget() {
           </div>
         )}
         <div className="home-chat-list">
-          {messages.map((message, index) => (
-            <div key={index} className={`home-chat-line ${message.senderUserId === session?.user?.id ? 'user' : ''}`}>
-              {message.senderUserId !== session?.user?.id && <span className="avatar-dot">{message.senderName[0]}</span>}
-              <p>{message.message}</p>
-            </div>
-          ))}
+          {messages.map((message, index) => {
+            // dateLabel은 서버가 이미 KST로 계산해서 내려준 값이라 여기서는 문자열 비교만 한다
+            // (직접 타임존 변환을 하지 않는다) — 날짜가 바뀌는 지점에만 구분선을 넣는다.
+            const showDateDivider = index === 0 || messages[index - 1].dateLabel !== message.dateLabel;
+            return (
+              <div key={index}>
+                {showDateDivider && (
+                  <div className="crew-chat-date-divider">
+                    <span>{message.dateLabel}</span>
+                  </div>
+                )}
+                <div className={`home-chat-line ${message.senderUserId === session?.user?.id ? 'user' : ''}`}>
+                  {message.senderUserId !== session?.user?.id && <span className="avatar-dot">{message.senderName[0]}</span>}
+                  <p>{message.message}</p>
+                  <span className="crew-chat-message-time">{message.timeLabel}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
         <form
           className="chat-input"

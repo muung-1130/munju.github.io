@@ -19,7 +19,7 @@ class Settings:
         self.model_arn = os.getenv("BEDROCK_MODEL_ARN", "")
         raw_origins = os.getenv(
             "ALLOWED_ORIGINS",
-            "http://localhost:3000,http://localhost:3001,http://192.168.0.201:3000",
+            "http://localhost:3000,http://localhost:3001,http://192.168.0.212:3000",
         )
         self.allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
         self.database_url = os.getenv("DATABASE_URL", "")

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from typing import Any
 
 import boto3
@@ -7,6 +8,8 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from app.config import settings
 from app.schemas import AiGeneratedCourseRequest, AiGeneratedCourseResult
+
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = """
@@ -83,39 +86,52 @@ class BedrockCourseRecommendationService:
         }
 
         try:
-            response = self.client.converse(
-                modelId=settings.bedrock_model_id,
-                system=[
-                    {
-                        "text": SYSTEM_PROMPT,
-                    }
-                ],
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "text": json.dumps(
-                                    user_payload,
-                                    ensure_ascii=False,
-                                )
-                            }
-                        ],
-                    }
-                ],
-                inferenceConfig={
-                    "temperature": 0.2,
-                    "maxTokens": 1000,
-                },
-            )
-
-            text = response["output"]["message"]["content"][0]["text"]
-            data = self._parse_json(text)
+            text = self._invoke(user_payload)
+            try:
+                data = self._parse_json(text)
+            except RuntimeError:
+                # candidate_routes가 많을수록 모델이 긴 selection_reason을 생성하다 maxTokens에
+                # 걸려 JSON이 잘리거나, 지시를 못 지키고 부가 텍스트를 섞는 경우가 비결정적으로
+                # 발생한다(간헐적 500의 원인) — 같은 요청으로 한 번만 재시도한다.
+                logger.warning("Bedrock 응답 파싱 실패, 동일 요청으로 1회 재시도합니다.")
+                text = self._invoke(user_payload)
+                data = self._parse_json(text)
 
             return AiGeneratedCourseResult(**data)
 
         except (BotoCoreError, ClientError) as exc:
+            logger.error("Bedrock 호출 중 오류가 발생했습니다: %s", exc)
             raise RuntimeError(f"Bedrock 호출 중 오류가 발생했습니다: {exc}") from exc
+
+    def _invoke(self, user_payload: dict[str, Any]) -> str:
+        response = self.client.converse(
+            modelId=settings.bedrock_model_id,
+            system=[
+                {
+                    "text": SYSTEM_PROMPT,
+                }
+            ],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "text": json.dumps(
+                                user_payload,
+                                ensure_ascii=False,
+                            )
+                        }
+                    ],
+                }
+            ],
+            inferenceConfig={
+                # 후보(candidate_routes)가 많을 때 모델이 생성하는 selection_reason이 길어지면
+                # 1000 토큰으로는 JSON이 중간에 잘려 파싱에 실패했다 — 여유를 두 배로 늘린다.
+                "temperature": 0.2,
+                "maxTokens": 2000,
+            },
+        )
+        return response["output"]["message"]["content"][0]["text"]
 
     def _parse_json(self, text: str) -> dict[str, Any]:
         cleaned = text.strip()
@@ -125,5 +141,32 @@ class BedrockCourseRecommendationService:
 
         try:
             return json.loads(cleaned)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Bedrock 응답을 JSON으로 파싱할 수 없습니다: {text}") from exc
+        except json.JSONDecodeError:
+            pass
+
+        # 마크다운 코드블록 처리 후에도 순수 JSON이 아니면, 모델이 지시를 못 지키고 앞뒤에
+        # 부가 설명을 붙였을 가능성이 있다 — 텍스트 안에서 짝이 맞는 첫 JSON 객체 구간만 추출한다.
+        extracted = self._extract_json_object(cleaned)
+        if extracted is not None:
+            try:
+                return json.loads(extracted)
+            except json.JSONDecodeError:
+                pass
+
+        logger.error("Bedrock 응답을 JSON으로 파싱하지 못했습니다. 원본 응답: %s", text)
+        raise RuntimeError(f"Bedrock 응답을 JSON으로 파싱할 수 없습니다: {text}")
+
+    @staticmethod
+    def _extract_json_object(text: str) -> str | None:
+        start = text.find("{")
+        if start == -1:
+            return None
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start : i + 1]
+        return None

@@ -3,7 +3,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
 
-export type CrewChatMessage = { senderUserId: string; senderName: string; message: string; createdAt: string };
+// dateLabel/timeLabel은 서버가 KST로 변환해서 내려주는 값이다 — 프론트는 그대로 표시만 한다.
+export type CrewChatMessage = { senderUserId: string; senderName: string; message: string; createdAt: string; dateLabel: string; timeLabel: string };
 
 const MESSAGE_POLL_MS = 5000;
 

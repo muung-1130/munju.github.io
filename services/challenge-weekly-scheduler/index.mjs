@@ -10,7 +10,7 @@
 //   - 매일: 다음 날이 월요일이면(=오늘이 일요일) 현재 WAITING 상태로 대기 중인 참여자에게
 //     "내일부터 시작" 알림을 보낸다.
 import './otel.mjs';
-import { Client } from 'pg';
+import { Pool } from 'pg';
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -204,21 +204,51 @@ async function runWaitingReminders(pg) {
   console.log(`[challenge-weekly-scheduler] sent ${rows.length} starting-soon reminder(s) at ${new Date().toISOString()}`);
 }
 
+// 개인 챌린지는 "들어간 날부터 7일" 식으로 각자 다른 end_at을 갖고, 공개 챌린지처럼 매주
+// 롤오버해주는 배치가 없다 — 러닝 기록이 들어올 때만(syncUserChallengeProgress) 기간 종료
+// 여부를 확인하므로, 사용자가 마감일 이후로 더 뛰지 않으면 참가가 영원히 ACTIVE로 남아
+// "완료한 챌린지"에도 안 뜨고 목록에서도 계속 진행 중처럼 보이는 문제가 있었다. 매일 자정에
+// 기간이 지난 ACTIVE 참가를 전부 훑어서 진행률 기준으로 COMPLETED/FAILED로 확정한다.
+async function finalizeExpiredChallenges(pg) {
+  const { rowCount } = await pg.query(
+    `UPDATE challenge.challenge_participations p
+        SET status = CASE WHEN p.progress_ratio >= 100 THEN 'COMPLETED' ELSE 'FAILED' END,
+            completed_at = CASE WHEN p.progress_ratio >= 100 THEN now() ELSE p.completed_at END
+       FROM challenge.challenges c
+      WHERE c.challenge_id = p.challenge_id AND p.status = 'ACTIVE' AND c.end_at < now()`
+  );
+  if (rowCount > 0) {
+    console.log(`[challenge-weekly-scheduler] finalized ${rowCount} expired participation(s)`);
+  }
+}
+
 async function runDailyTick(pg) {
+  await finalizeExpiredChallenges(pg);
   if (isMondayKst()) await runMondayRollover(pg);
   if (isSundayKst()) await runWaitingReminders(pg);
 }
 
 async function main() {
-  const pg = new Client({
+  // 단일 Client를 다음 KST 자정까지(최대 24시간) 붙들고 있으면, 그 사이 네트워크 계층이
+  // idle 커넥션을 리셋할 때(ECONNRESET) unhandled 'error' event로 프로세스 전체가 죽는다
+  // (crew-notification-consumer/crew-stats-scheduler에서 실제로 반복 관측된 크래시와 동일
+  // 패턴). Pool로 바꾸면 죽은 커넥션은 다음 쿼리 시점에 자동으로 새로 만들어 쓰므로 자체
+  // 복구된다.
+  const pg = new Pool({
     host: process.env.PGHOST,
     port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    database: process.env.PGDATABASE
+    database: process.env.PGDATABASE,
+    max: 2,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+    keepAlive: true
   });
-  await pg.connect();
-  console.log('[challenge-weekly-scheduler] postgres connected');
+  pg.on('error', (err) => {
+    console.error('[challenge-weekly-scheduler] idle client error', err);
+  });
+  console.log('[challenge-weekly-scheduler] postgres pool ready');
 
   // 컨테이너가 재시작돼도 오늘 처리해야 할 일(월요일 롤오버, 일요일 알림)이 누락되지 않도록 시작 시
   // 1회 즉시 실행하고, 이후로는 KST 자정마다 반복한다.

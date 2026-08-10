@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { AssistantChatWidget } from './AssistantChatWidget';
 import { CompleteProfileModal } from './CompleteProfileModal';
@@ -174,6 +174,7 @@ function NotificationBell({ session }: { session: ReturnType<typeof useSession>[
 
 function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session, update } = useSession();
   const { open: chatOpen } = useChat();
   const { openAuthModal } = useAuthModal();
@@ -244,7 +245,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="nav-menu" aria-label="주요 메뉴">
-          {navItems.map((item) => {
+          {(session?.user?.isAdmin ? [...navItems, { href: '/admin', label: '관리자' }] : navItems).map((item) => {
             const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
             // /mypage는 middleware에서 로그인 여부로 분기하므로, 로그아웃 상태에서 미리
             // prefetch된 리다이렉트 결과가 로그인 후에도 캐시되어 재사용되지 않도록 prefetch를 끈다.
@@ -274,9 +275,10 @@ function AppShellInner({ children }: { children: ReactNode }) {
       {editProfileOpen && (
         <EditProfileModal
           onClose={() => setEditProfileOpen(false)}
-          onSaved={() => {
-            update();
+          onSaved={async () => {
+            await update();
             setEditProfileOpen(false);
+            router.refresh();
           }}
         />
       )}

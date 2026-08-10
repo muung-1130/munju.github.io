@@ -11,6 +11,7 @@ declare module 'next-auth' {
       createdAt: string;
       profileComplete: boolean;
       dong: string | null;
+      isAdmin: boolean;
     };
     sessionId?: string;
   }
@@ -20,6 +21,7 @@ declare module 'next-auth' {
     createdAt?: string;
     profileComplete?: boolean;
     dong?: string | null;
+    isAdmin?: boolean;
     sessionId?: string;
   }
 }
@@ -31,6 +33,7 @@ declare module 'next-auth/jwt' {
     createdAt?: string;
     profileComplete?: boolean;
     dong?: string | null;
+    isAdmin?: boolean;
     sessionId?: string;
   }
 }

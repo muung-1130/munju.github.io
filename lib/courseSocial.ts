@@ -171,6 +171,36 @@ export async function getCourseReviews(courseId: string): Promise<CourseReview[]
   }));
 }
 
+export type UserCourseReview = {
+  reviewId: string;
+  courseId: string;
+  courseName: string;
+  overallRating: number;
+  content: string | null;
+  createdAt: string;
+};
+
+// 마이페이지 "내가 남긴 리뷰" 섹션용 — 내가 작성한 리뷰를 최근 작성순으로.
+export async function getUserCourseReviews(userId: string): Promise<UserCourseReview[]> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT r.review_id, r.course_id, c.course_name, r.overall_rating, r.content, r.created_at
+       FROM course.course_reviews r
+       JOIN course.courses c ON c.course_id = r.course_id
+      WHERE r.user_id = $1
+      ORDER BY r.created_at DESC`,
+    [userId]
+  );
+  return rows.map((row) => ({
+    reviewId: row.review_id,
+    courseId: row.course_id,
+    courseName: row.course_name,
+    overallRating: Number(row.overall_rating),
+    content: row.content,
+    createdAt: row.created_at
+  }));
+}
+
 export type CreateCourseReviewInput = {
   courseId: string;
   userId: string;

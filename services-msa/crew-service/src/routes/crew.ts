@@ -5,6 +5,7 @@ import {
   decideJoinRequest,
   ensureCrewMember,
   getCrewJoinType,
+  getCrewMembersWithStats,
   getCrews,
   getCrewWeeklyStats,
   getMostRecentCrewChat,
@@ -104,6 +105,15 @@ router.get('/:crewId/weekly-stats', async (req, res) => {
     return;
   }
   res.json({ stats });
+});
+
+router.get('/:crewId/members', requireAuth, async (req, res) => {
+  if (!(await isActiveCrewMember(req.params.crewId, req.userId!))) {
+    res.status(403).json({ error: '이 크루의 멤버만 볼 수 있어요.' });
+    return;
+  }
+  const members = await getCrewMembersWithStats(req.params.crewId);
+  res.json({ members });
 });
 
 router.post('/:crewId/join-request', requireAuth, async (req, res) => {

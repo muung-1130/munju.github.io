@@ -5,7 +5,7 @@ import { getPool } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-const SHOE_LIFE_AI_URL = process.env.SHOE_LIFE_AI_SERVICE_URL ?? 'http://192.168.0.201:8002';
+const SHOE_LIFE_AI_URL = process.env.SHOE_LIFE_AI_SERVICE_URL ?? 'http://192.168.0.212:8002';
 const MEDIA_PROXY_SECRET = process.env.SHOE_LIFE_MEDIA_PROXY_SECRET ?? '';
 const ALLOWED_ROLES = new Set(['left_outsole', 'right_outsole', 'heels', 'left_side', 'right_side']);
 

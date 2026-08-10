@@ -11,6 +11,9 @@ function greetingMessage(name: string): ChatMessage {
 
 const BUBBLE_VISIBLE_MS = 5000;
 const STORAGE_KEY = 'aiAssistantMessages';
+// 이 탭에서 현재 대화가 "누구 것"인지 표시해둔다. 로그인 사용자가 바뀌면(로그아웃 포함) 이전
+// 대화가 남아있지 않도록 초기화하는 기준이 된다 — 새로고침(같은 사용자 유지)과는 구분해야 한다.
+const SESSION_USER_KEY = 'aiAssistantSessionUserId';
 const MAX_STORED_MESSAGES = 50;
 
 type ChatContextValue = {
@@ -20,6 +23,7 @@ type ChatContextValue = {
   messages: ChatMessage[];
   addMessage: (message: ChatMessage) => void;
   bubbleMessage: string | null;
+  showEphemeralBubble: (text: string) => void;
 };
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -27,24 +31,43 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 const FALLBACK_GREETING = greetingMessage('러너');
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [open, setOpen] = useState(false);
   // 서버/클라이언트 첫 렌더가 항상 같은 값이어야 hydration mismatch가 안 나므로, sessionStorage나
   // session을 들여다보지 않는 고정 인사말로 시작한다(닉네임은 아래 effect에서 알게 되는 대로 바꿔치기).
   const [messages, setMessages] = useState<ChatMessage[]>([FALLBACK_GREETING]);
   const [bubbleMessage, setBubbleMessage] = useState<string | null>(null);
   const seenMessageCountRef = useRef(1);
-
-  // messages가 컴포넌트 메모리(useState 초기값)에만 있어서 새로고침/재진입마다 그동안
-  // 실제로 나눈 대화(사용자 질문 + 실제 AI 답변)가 전부 사라지고 고정된 데모 스크립트 3줄로
-  // 되돌아갔다 — "챗봇이 같은 말을 계속 반복한다"는 증상의 진짜 원인. sessionStorage에서
-  // 복원하되, 서버 렌더링 시점엔 sessionStorage에 접근할 수 없으므로 hydration 이후
-  // (useEffect)에만 복원한다. 마운트 시 딱 1번만 시도한다 — AssistantChatWidget(자식)의 페이지
-  // 진입 코칭 메시지 effect가 이 effect(부모)보다 먼저 실행돼 sessionStorage에 먼저 값을 쓸 수
-  // 있어서, "저장된 값이 있으면 복원"을 매번 반복하면 그 코칭 메시지까지 그대로 복원해버려도
-  // 괜찮다(중복 추가가 아니라 정확히 같은 내용이라 안전) — 대신 절대 두 번 이상 돌지 않게 한다.
   const restoredRef = useRef(false);
+
+  // 로그인 사용자가 바뀔 때(로그인/로그아웃/다른 계정으로 재로그인)만 대화를 인사말 한 줄로
+  // 초기화한다. 같은 사용자로 남아있는 새로고침/재진입은 sessionStorage에서 대화를 그대로 복원한다
+  // (그렇지 않으면 실제로 나눈 대화가 매 새로고침마다 사라지는 문제가 재발한다).
+  //
+  // 예전에는 "마운트 시 한 번만 복원"만 했는데, 그 복원 로직이 로그인 여부와 무관하게 항상
+  // sessionStorage에 남아있던 이전 대화(완주 축하 메시지, 예전 질문/답변 등)를 그대로 되살려서
+  // "로그인할 때마다 예전 답변이 다시 뜬다"는 증상이 있었다 — 로그인 사용자 변경을 감지해서
+  // 그 경우에만 확실히 초기화하도록 분리했다.
   useEffect(() => {
+    if (sessionStatus === 'loading') return;
+    const currentUserId = session?.user?.id ?? null;
+    const storedUserId = sessionStorage.getItem(SESSION_USER_KEY);
+
+    if (currentUserId !== storedUserId) {
+      const greeting = currentUserId && session?.user?.name ? greetingMessage(session.user.name) : FALLBACK_GREETING;
+      setMessages([greeting]);
+      seenMessageCountRef.current = 1;
+      restoredRef.current = true; // 같은 렌더 사이클에서 아래 복원 effect가 다시 덮어쓰지 않게.
+      try {
+        if (currentUserId) sessionStorage.setItem(SESSION_USER_KEY, currentUserId);
+        else sessionStorage.removeItem(SESSION_USER_KEY);
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify([greeting]));
+      } catch {
+        // 저장 실패는 무시 — 화면 표시에는 영향 없다.
+      }
+      return;
+    }
+
     if (restoredRef.current) return;
     restoredRef.current = true;
     try {
@@ -59,25 +82,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } catch {
       // 저장된 값이 깨져있으면 조용히 기본 인사말로 시작한다.
     }
-  }, []);
-
-  // 로그인 세션이 확인되면 아직 대체 이름("러너")인 인사말만 실제 닉네임으로 바꿔치기한다 —
-  // 정확히 그 문구일 때만 교체하므로 그 사이 다른 메시지(코칭 문구, 실제 대화)가 끼어들었어도
-  // 손대지 않는다.
-  useEffect(() => {
-    const name = session?.user?.name;
-    if (!name) return;
-    setMessages((prev) => {
-      if (prev.length === 0 || prev[0].from !== 'ai' || prev[0].text !== FALLBACK_GREETING.text) return prev;
-      const next = [greetingMessage(name), ...prev.slice(1)];
-      try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // 저장 실패는 무시 — 화면 표시에는 영향 없다.
-      }
-      return next;
-    });
-  }, [session?.user?.name]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, sessionStatus]);
 
   function addMessage(message: ChatMessage) {
     setMessages((prev) => {
@@ -89,6 +95,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
+  }
+
+  // 특정 페이지 진입 시 건네는 말처럼 "그 순간에만 잠깐 보여주면 되는" 안내는 대화 목록에
+  // 남기지 않는다 — 대화창을 열어보면 실제로 주고받은 적 없는 말이 기록처럼 남아있는 게 어색하다.
+  function showEphemeralBubble(text: string) {
+    if (!open) setBubbleMessage(text);
   }
 
   function openChat() {
@@ -115,7 +127,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [bubbleMessage]);
 
   return (
-    <ChatContext.Provider value={{ open, setOpen, openChat, messages, addMessage, bubbleMessage }}>
+    <ChatContext.Provider value={{ open, setOpen, openChat, messages, addMessage, bubbleMessage, showEphemeralBubble }}>
       {children}
     </ChatContext.Provider>
   );

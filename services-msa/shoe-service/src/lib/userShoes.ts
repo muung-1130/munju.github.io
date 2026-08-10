@@ -1,4 +1,5 @@
 import { getPool } from './db.js';
+import { deleteShoeLifeImages } from './shoeLifeStorage.js';
 
 export class UserShoeOwnershipError extends Error {}
 export class UserShoeValidationError extends Error {}
@@ -77,14 +78,48 @@ export async function setCustomThumbnailKey(userShoeId: string, key: string): Pr
   );
 }
 
-// "버리기" — 물리 삭제가 아니라 은퇴 처리(status=RETIRED). 마모 분석/수명 기록은 그대로 남는다.
+// "버리기" — 마이페이지/러닝화 목록에서 완전히 사라지도록 물리 삭제한다. 마모 분석 사진
+// 원본(runspot-shoe-life-images)도 함께 지운다. DB 삭제가 먼저 성공해야 사용자에게
+// "삭제됨"으로 보이므로, DB 트랜잭션을 커밋한 뒤 MinIO 삭제를 best-effort로 수행한다
+// (MinIO 삭제가 실패해도 고아 객체만 남을 뿐 사용자에게 깨진 참조가 보이지 않는다).
 export async function retireUserShoe(userId: string, userShoeId: string): Promise<void> {
   await assertOwnsUserShoe(userShoeId, userId);
   const pool = getPool();
-  await pool.query(
-    `UPDATE shoe.user_shoes SET status = 'RETIRED', retired_at = now() WHERE user_shoe_id = $1 AND user_id = $2 AND status <> 'RETIRED'`,
-    [userShoeId, userId]
-  );
+  const client = await pool.connect();
+  let imageKeys: string[] = [];
+  try {
+    await client.query('BEGIN');
+
+    const { rows: analysisRows } = await client.query<{ result_json: any }>(
+      `SELECT result_json FROM shoe.shoe_wear_analyses WHERE user_shoe_id = $1`,
+      [userShoeId]
+    );
+    imageKeys = analysisRows.flatMap((row) => {
+      const keys = row.result_json?.storage?.image_keys;
+      return keys && typeof keys === 'object' ? (Object.values(keys) as string[]) : [];
+    });
+
+    const { rows: shoeRows } = await client.query<{ custom_thumbnail_key: string | null }>(
+      `SELECT custom_thumbnail_key FROM shoe.user_shoes WHERE user_shoe_id = $1`,
+      [userShoeId]
+    );
+    if (shoeRows[0]?.custom_thumbnail_key) imageKeys.push(shoeRows[0].custom_thumbnail_key);
+
+    await client.query(`DELETE FROM shoe.shoe_life_snapshots WHERE user_shoe_id = $1`, [userShoeId]);
+    await client.query(`DELETE FROM shoe.shoe_wear_analyses WHERE user_shoe_id = $1`, [userShoeId]);
+    await client.query(`DELETE FROM shoe.user_shoes WHERE user_shoe_id = $1 AND user_id = $2`, [userShoeId, userId]);
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  await deleteShoeLifeImages(imageKeys).catch((error) => {
+    console.error('[shoe-service] retireUserShoe: MinIO 이미지 삭제 실패', error);
+  });
 }
 
 export type EditableUserShoe = {

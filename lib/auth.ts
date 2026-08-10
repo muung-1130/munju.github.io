@@ -44,7 +44,7 @@ export const authOptions: AuthOptions = {
 
         const pool = getPool();
         const { rows } = await pool.query(
-          `SELECT user_id, user_name, nickname, user_email, user_password, created_at, gender, birth_year, dong
+          `SELECT user_id, user_name, nickname, user_email, user_password, created_at, gender, birth_year, dong, is_admin
            FROM auth_user.users WHERE user_name = $1 AND deleted_at IS NULL`,
           [credentials.username]
         );
@@ -65,6 +65,7 @@ export const authOptions: AuthOptions = {
           createdAt: row.created_at,
           profileComplete: isProfileComplete(row),
           dong: row.dong,
+          isAdmin: row.is_admin,
           sessionId
         };
       }
@@ -150,7 +151,7 @@ export const authOptions: AuthOptions = {
 
       if (account?.provider === 'google' && account.providerAccountId) {
         const { rows } = await pool.query(
-          `SELECT u.user_id, u.user_name, u.nickname, u.created_at, u.gender, u.birth_year, u.dong
+          `SELECT u.user_id, u.user_name, u.nickname, u.created_at, u.gender, u.birth_year, u.dong, u.is_admin
              FROM auth_user.user_identities i
              JOIN auth_user.users u ON u.user_id = i.user_id
             WHERE i.provider = 'GOOGLE' AND i.provider_user_id = $1`,
@@ -164,6 +165,7 @@ export const authOptions: AuthOptions = {
           token.createdAt = row.created_at;
           token.profileComplete = isProfileComplete(row);
           token.dong = row.dong;
+          token.isAdmin = row.is_admin;
           token.sessionId = await recordAuthSession(row.user_id);
         }
       } else if (user) {
@@ -172,16 +174,21 @@ export const authOptions: AuthOptions = {
         token.createdAt = (user as { createdAt?: string }).createdAt;
         token.profileComplete = (user as { profileComplete?: boolean }).profileComplete ?? true;
         token.dong = (user as { dong?: string | null }).dong ?? null;
+        token.isAdmin = (user as { isAdmin?: boolean }).isAdmin ?? false;
         token.sessionId = (user as { sessionId?: string }).sessionId;
       }
 
       if (trigger === 'update' && token.userId) {
-        const { rows } = await pool.query('SELECT gender, birth_year, dong FROM auth_user.users WHERE user_id = $1', [
-          token.userId
-        ]);
+        const { rows } = await pool.query(
+          'SELECT user_name, nickname, gender, birth_year, dong, is_admin FROM auth_user.users WHERE user_id = $1',
+          [token.userId]
+        );
         if (rows[0]) {
+          token.userName = rows[0].user_name;
+          token.name = rows[0].nickname;
           token.profileComplete = isProfileComplete(rows[0]);
           token.dong = rows[0].dong;
+          token.isAdmin = rows[0].is_admin;
         }
       }
 
@@ -195,6 +202,7 @@ export const authOptions: AuthOptions = {
         session.user.createdAt = token.createdAt as string;
         session.user.profileComplete = token.profileComplete ?? true;
         session.user.dong = token.dong ?? null;
+        session.user.isAdmin = token.isAdmin ?? false;
       }
       session.sessionId = token.sessionId;
       return session;

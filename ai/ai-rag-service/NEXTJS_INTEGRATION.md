@@ -5,7 +5,7 @@
 FastAPI AI Server:
 
 ```text
-http://192.168.0.201:8000
+http://192.168.0.212:8000
 ```
 
 Chat endpoint:
@@ -56,7 +56,7 @@ If a request is blocked by the application guardrail:
 ## Server-Side Next.js Example
 
 ```ts
-const AI_SERVER_URL = process.env.AI_SERVER_URL ?? "http://192.168.0.201:8000";
+const AI_SERVER_URL = process.env.AI_SERVER_URL ?? "http://192.168.0.212:8000";
 
 export async function askRunningAssistant(question: string, sessionId?: string) {
   const response = await fetch(`${AI_SERVER_URL}/api/v1/ai/chat`, {
@@ -94,7 +94,7 @@ export async function askRunningAssistant(question: string, sessionId?: string) 
 ## Environment
 
 ```env
-AI_SERVER_URL=http://192.168.0.201:8000
+AI_SERVER_URL=http://192.168.0.212:8000
 ```
 
 ## Today Coaching

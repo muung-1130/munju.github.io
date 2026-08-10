@@ -75,7 +75,7 @@ For local development, use AWS CLI credentials or environment variables.
 Default CORS origins:
 
 ```text
-http://localhost:3000,http://localhost:3001,http://192.168.0.201:3000
+http://localhost:3000,http://localhost:3001,http://192.168.0.212:3000
 ```
 
 ## Run
@@ -129,7 +129,7 @@ docker run --rm -p 8000:8000 `
   -e AWS_REGION=ap-northeast-2 `
   -e BEDROCK_KNOWLEDGE_BASE_ID=your-knowledge-base-id `
   -e BEDROCK_MODEL_ARN=your-bedrock-model-arn `
-  -e ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://192.168.0.201:3000 `
+  -e ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://192.168.0.212:3000 `
   -v "$env:USERPROFILE\.aws:/root/.aws:ro" `
   dairun-ai-rag-service
 ```

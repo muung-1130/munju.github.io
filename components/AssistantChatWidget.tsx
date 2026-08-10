@@ -16,6 +16,11 @@ const pageEntryMessages: Record<string, string> = {
 const PAGE_ENTRY_SEEN_KEY = 'aiAssistantPageEntrySeen';
 const LAST_SEEN_MESSAGE_KEY_PREFIX = 'aiAssistantLastSeenMessageAt:';
 const SEEN_MESSAGE_IDS_KEY_PREFIX = 'aiAssistantSeenMessageIds:';
+// 이 탭에서 폴링을 시작한 사용자 id를 기억해둔다(세션스토리지라 탭을 닫으면 사라진다). 지금
+// 로그인한 사용자가 이 값과 다르면(로그아웃 후 재로그인 포함) 새로 로그인한 시점으로 보고
+// lastSeenKey를 "지금"으로 리셋한다 — 안 그러면 그 이전에 쌓여있던 오래된 메시지(러닝 완료
+// 축하 등)가 로그인할 때마다 다시 쏟아진다.
+const POLL_SESSION_USER_KEY = 'aiAssistantPollSessionUserId';
 const MAX_SEEN_MESSAGE_IDS = 200;
 
 const ICON_SIZE = 56;
@@ -45,7 +50,7 @@ function clampPosition(pos: { top: number; left: number }) {
 export function AssistantChatWidget() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { open, setOpen, openChat, messages, addMessage, bubbleMessage } = useChat();
+  const { open, setOpen, openChat, messages, addMessage, bubbleMessage, showEphemeralBubble } = useChat();
   const [input, setInput] = useState('');
   const coachedPathsRef = useRef(new Set<string>());
   const lastSeenAssistantMessageAtRef = useRef<string | null>(null);
@@ -125,7 +130,7 @@ export function AssistantChatWidget() {
     coachedPathsRef.current.add(pathname);
     if (seenPaths.includes(pathname)) return;
     sessionStorage.setItem(PAGE_ENTRY_SEEN_KEY, JSON.stringify([...seenPaths, pathname]));
-    addMessage({ from: 'ai', text: entryMessage });
+    showEphemeralBubble(entryMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -146,6 +151,15 @@ export function AssistantChatWidget() {
     if (!session?.user) return;
     const lastSeenKey = `${LAST_SEEN_MESSAGE_KEY_PREFIX}${session.user.id}`;
     const seenIdsKey = `${SEEN_MESSAGE_IDS_KEY_PREFIX}${session.user.id}`;
+
+    // 이 탭에서 방금 새로 로그인한 시점이면(이전에 폴링을 시작한 사용자와 다르면) 커서를 지금
+    // 시각으로 리셋한다 — 그러지 않으면 localStorage에 남아있던 오래된 커서 때문에 예전에 쌓인
+    // 메시지 전부가 "since 이후 메시지"로 잡혀 로그인 직후 한꺼번에 다시 나타난다.
+    if (sessionStorage.getItem(POLL_SESSION_USER_KEY) !== session.user.id) {
+      sessionStorage.setItem(POLL_SESSION_USER_KEY, session.user.id);
+      localStorage.setItem(lastSeenKey, new Date().toISOString());
+    }
+
     lastSeenAssistantMessageAtRef.current = localStorage.getItem(lastSeenKey);
     try {
       const storedIds = JSON.parse(localStorage.getItem(seenIdsKey) ?? '[]');
@@ -283,7 +297,7 @@ export function AssistantChatWidget() {
           onClick={handleIconClick}
           aria-label="AI 러닝 비서 채팅 열기 (드래그해서 위치를 옮길 수 있어요)"
         >
-          <img src="/assets/dog-assistant.png" alt="" />
+          <img src="/assets/ai-bot-turtle.svg" alt="" />
         </button>
       )}
 
@@ -295,7 +309,7 @@ export function AssistantChatWidget() {
       >
         <div className="home-chat-resize-handle" onMouseDown={handleResizeMouseDown} aria-hidden="true" />
         <div className="home-chat-header">
-          <span className="ai-avatar-small"><img src="/assets/dog-assistant.png" alt="" /></span>
+          <span className="ai-avatar-small"><img src="/assets/ai-bot-turtle.svg" alt="" /></span>
           <div>
             <strong>AI 러닝 비서</strong>
             <small>언제든 편하게 물어보세요</small>
@@ -305,7 +319,7 @@ export function AssistantChatWidget() {
         <div className="home-chat-list">
           {messages.map((message, index) => (
             <div key={index} className={`home-chat-line ${message.from}`}>
-              {message.from === 'ai' && <span className="avatar-dot">🐶</span>}
+              {message.from === 'ai' && <span className="avatar-dot">🐢</span>}
               <p>{message.text}</p>
             </div>
           ))}

@@ -6,6 +6,7 @@ CLAUDE.local.md
 .env
 .env.*
 !.env.example
+ENV_INVENTORY.md
 
 # TLS 인증서/개인키 (자체서명 포함, 커밋 금지)
 nginx/certs/

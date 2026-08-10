@@ -3,6 +3,7 @@ import { isActiveCrewMember } from '../lib/crew.js';
 import {
   castVote,
   getBattleCandidates,
+  getBattleHistory,
   getBattleView,
   getCrewBattleInfo,
   getPendingBattleView,
@@ -69,6 +70,17 @@ router.get('/:crewId/battle/view', requireAuth, async (req, res) => {
     getBattleCandidates(req.params.crewId, 'PACE')
   ]);
   res.json({ pending: null, active: null, recommendations: { distance, pace } });
+});
+
+router.get('/:crewId/battle/history', requireAuth, async (req, res) => {
+  if (!(await isActiveCrewMember(req.params.crewId, req.userId!))) {
+    res.status(403).json({ error: '이 크루의 멤버만 볼 수 있어요.' });
+    return;
+  }
+  const from = typeof req.query.from === 'string' ? req.query.from : null;
+  const to = typeof req.query.to === 'string' ? req.query.to : null;
+  const history = await getBattleHistory(req.params.crewId, from, to);
+  res.json({ history });
 });
 
 router.post('/:crewId/battle/leave', requireAuth, async (req, res) => {

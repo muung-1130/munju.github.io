@@ -3,7 +3,7 @@ import { Kafka, Partitioners } from 'kafkajs';
 
 // team4 공용 Kafka 브로커. 이 Next.js 컨테이너는 브로커와 다른 도커 네트워크에 있어 컨테이너
 // 호스트네임(kafka-broker:9092)으로는 못 붙고, 호스트에 노출된 EXTERNAL 리스너로 접속한다.
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.201:29092').split(',');
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.212:29092').split(',');
 export const COURSE_LIKE_EVENTS_TOPIC = 'course.like-events';
 export const CREW_JOIN_REQUEST_EVENTS_TOPIC = 'crew.join-request-events';
 export const RUN_COMPLETED_EVENTS_TOPIC = 'running.run-completed-events';

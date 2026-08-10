@@ -61,19 +61,25 @@ export type CompletedChallengeEntry = {
   challengeId: string;
   name: string;
   challengeType: string;
+  status: 'COMPLETED' | 'FAILED';
   completedAt: string;
+  progressRatio: number;
 };
 
-// 마이페이지 "완료한 챌린지" — 개인/공개 상관없이 완주(completed_at이 찍힌) 참가 이력을 전부 보여준다.
-// 공개 챌린지는 매주 인스턴스가 새로 생기므로, 완주할 때마다 한 줄씩 쌓여 주차별 완주 이력이 된다.
+// 마이페이지 "완료한 챌린지" — 개인/공개 상관없이 기간이 끝난(완주 COMPLETED 또는 미달성 FAILED)
+// 참가 이력을 전부 보여준다. 공개 챌린지는 매주 인스턴스가 새로 생기므로, 회차가 끝날 때마다
+// 한 줄씩 쌓여 주차별 이력이 된다.
 export async function getCompletedChallenges(userId: string): Promise<CompletedChallengeEntry[]> {
   const pool = getPool();
+  // 완주(COMPLETED)뿐 아니라 기간이 끝나서 미달성으로 확정된(FAILED) 참가도 함께 보여준다 —
+  // FAILED는 completed_at이 안 찍히므로 종료 시각은 챌린지 자체의 end_at으로 대신한다.
   const { rows } = await pool.query(
-    `SELECT p.participation_id, c.challenge_id, c.name, c.challenge_type, p.completed_at
+    `SELECT p.participation_id, c.challenge_id, c.name, c.challenge_type, p.status,
+            COALESCE(p.completed_at, c.end_at) AS ended_at, p.progress_ratio
        FROM challenge.challenge_participations p
        JOIN challenge.challenges c ON c.challenge_id = p.challenge_id
-      WHERE p.user_id = $1 AND p.completed_at IS NOT NULL
-      ORDER BY p.completed_at DESC`,
+      WHERE p.user_id = $1 AND p.status IN ('COMPLETED', 'FAILED')
+      ORDER BY COALESCE(p.completed_at, c.end_at) DESC`,
     [userId]
   );
   return rows.map((row) => ({
@@ -81,7 +87,9 @@ export async function getCompletedChallenges(userId: string): Promise<CompletedC
     challengeId: row.challenge_id,
     name: row.name,
     challengeType: row.challenge_type,
-    completedAt: row.completed_at
+    status: row.status,
+    completedAt: row.ended_at,
+    progressRatio: Number(row.progress_ratio)
   }));
 }
 

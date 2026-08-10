@@ -289,6 +289,31 @@ export async function getRecentRunsDetailed(userId: string, limit = 20): Promise
   }));
 }
 
+export type RunRouteForRecommendation = {
+  distanceM: number;
+  positions: [number, number][];
+};
+
+// "이 러닝을 코스로 추천하기" 기능용. Course 서비스가 이 서비스 소유 데이터(러닝 경로)를 직접
+// 조회하지 않고 이 엔드포인트를 통해서만 받아가게 한다(course.courses를 여기서 직접 만들지 않는다 —
+// 코스 생성 자체는 Course 서비스 책임). 본인 소유의 완료된(COMPLETED/STOPPED) 기록만, 실제 경로
+// 포인트가 2개 이상 있어야(직선이라도 유효한 LineString) 코스로 추천할 수 있다.
+export async function getRunRouteForRecommendation(runId: string, userId: string): Promise<RunRouteForRecommendation | null> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT distance_m, ST_AsGeoJSON(route_geom) AS route_geojson
+       FROM running_record.runs
+      WHERE run_id = $1 AND user_id = $2 AND status IN ('COMPLETED', 'STOPPED') AND distance_m > 0`,
+    [runId, userId]
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  const geojson = row.route_geojson ? JSON.parse(row.route_geojson) : null;
+  const positions: [number, number][] = (geojson?.coordinates ?? []).map(([lng, lat]: [number, number]) => [lat, lng]);
+  if (positions.length < 2) return null;
+  return { distanceM: row.distance_m, positions };
+}
+
 export function formatDuration(totalSec: number) {
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);

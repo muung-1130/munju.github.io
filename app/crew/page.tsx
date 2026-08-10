@@ -7,6 +7,8 @@ import { useAuthModal } from '@/components/AuthModalContext';
 import { useCrewChat } from '@/components/CrewChatContext';
 import { CreateCrewModal } from '@/components/CreateCrewModal';
 import { CrewBattleSection } from '@/components/CrewBattleSection';
+import { CrewMembersSection } from '@/components/CrewMembersSection';
+import { BattleHistorySection } from '@/components/BattleHistorySection';
 
 type Crew = {
   crewId: string;
@@ -71,11 +73,11 @@ function paceRangeLabel(minSec: number | null, maxSec: number | null) {
   return '제한 없음';
 }
 
-
 export default function CrewPage() {
   const { data: session } = useSession();
   const { openAuthModal } = useAuthModal();
   const { openCrewChat } = useCrewChat();
+  const [activeTab, setActiveTab] = useState<'my' | 'find' | 'battle'>('find');
   const [crews, setCrews] = useState<Crew[] | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [detailCrewId, setDetailCrewId] = useState<string | null>(null);
@@ -100,8 +102,7 @@ export default function CrewPage() {
     loadCrews();
   }, []);
 
-  // 이미 어떤 크루엔가 가입돼 있으면(=크루 배틀에 참여할 수 있으면) 크루 모집 영역보다
-  // 위에 배틀 추천/현황 패널을 먼저 보여준다.
+  // "내 크루"/"크루 배틀" 탭은 내가 어느 크루 소속인지 알아야 하므로 미리 조회해둔다.
   useEffect(() => {
     if (!session?.user) {
       setMyCrew(null);
@@ -117,10 +118,13 @@ export default function CrewPage() {
   const myCrewData = crews?.find((crew) => crew.crewId === myCrew?.crewId) ?? null;
   // 이미 /api/crew 목록 조회에서 모든 크루의 avg_weekly_distance_m을 함께 받아오므로
   // 별도 쿼리 없이 메모리에서 정렬만 하면 된다 (성능 저하 없음).
-  const overallRanking = (crews ?? [])
+  const rankedCrews = (crews ?? [])
     .filter((crew) => crew.avgWeeklyDistanceM !== null)
-    .sort((a, b) => (b.avgWeeklyDistanceM as number) - (a.avgWeeklyDistanceM as number))
-    .slice(0, 10);
+    .sort((a, b) => (b.avgWeeklyDistanceM as number) - (a.avgWeeklyDistanceM as number));
+  const overallRanking = rankedCrews.slice(0, 10);
+  const myRankIndex = myCrewData ? rankedCrews.findIndex((crew) => crew.crewId === myCrewData.crewId) : -1;
+  const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
+  const myCrewOutsideTop10 = myCrewData && myRank !== null && myRank > 10;
 
   async function enterMyCrewChat() {
     if (!myCrewData) return;
@@ -197,99 +201,138 @@ export default function CrewPage() {
           </button>
         }
       />
-      {myCrewData && (
-        <Card className="my-crew-card">
-          <div className="card-head"><h2>내 크루</h2></div>
-          <div className="my-crew-body">
-            <div className="my-crew-info">
-              <strong>{myCrewData.crewName}</strong>
+
+      <div className="tab-line">
+        <button className={activeTab === 'my' ? 'active' : ''} onClick={() => setActiveTab('my')}>
+          내 크루
+        </button>
+        <button className={activeTab === 'find' ? 'active' : ''} onClick={() => setActiveTab('find')}>
+          크루찾기
+        </button>
+        <button className={activeTab === 'battle' ? 'active' : ''} onClick={() => setActiveTab('battle')}>
+          크루 배틀
+        </button>
+      </div>
+
+      {activeTab === 'my' &&
+        (myCrewData ? (
+          <>
+            <Card className="my-crew-card">
+              <div className="card-head">
+                <h2>{myCrewData.crewName}</h2>
+                <button className="primary-btn" onClick={enterMyCrewChat} disabled={participateLoading}>
+                  {participateLoading ? '입장 중...' : '채팅방 들어가기 →'}
+                </button>
+              </div>
+              {myCrewData.description && <p className="crew-detail-intro">“{myCrewData.description}”</p>}
               <div className="crew-info-row">
                 <span>📍 {myCrewData.regionCode ?? '지역 무관'}</span>
+                <span>🎯 {distanceRangeLabel(myCrewData.targetDistanceMinM, myCrewData.targetDistanceMaxM)}</span>
+                <span>⚡ {paceRangeLabel(myCrewData.paceMinSecPerKm, myCrewData.paceMaxSecPerKm)}</span>
+                <span>🗓 주 {myCrewData.minimumWeeklyFrequency ?? '-'}회↑</span>
                 <span>👥 {myCrewData.memberCount}/{myCrewData.maxMembers}명</span>
               </div>
               <WeeklyStatsBadge crew={myCrewData} />
+            </Card>
+            <CrewBattleSection crewId={myCrewData.crewId} hideRecommendations />
+            <CrewMembersSection crewId={myCrewData.crewId} />
+          </>
+        ) : (
+          <Card>아직 가입한 크루가 없어요. &apos;크루찾기&apos; 탭에서 나에게 맞는 크루를 찾아보세요.</Card>
+        ))}
+
+      {activeTab === 'find' && (
+        <div className="crew-page-grid">
+          <section className="crew-list-col">
+            <div className="crew-list-head">
+              <div>
+                <h2>크루 모집 <span className="muted">{visibleCrews.length}개</span></h2>
+                <p className="muted">기본적으로 내 조건에 맞는 크루만 보여드려요.</p>
+              </div>
+              <label className="crew-filter-toggle">
+                <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
+                <span>전체보기</span>
+              </label>
             </div>
-            <button className="primary-btn" onClick={enterMyCrewChat} disabled={participateLoading}>
-              {participateLoading ? '입장 중...' : '채팅방 들어가기 →'}
-            </button>
-          </div>
-        </Card>
-      )}
-      {myCrew && (
-        <div className="crew-battle-top">
-          <CrewBattleSection crewId={myCrew.crewId} />
+
+            {crews === null ? (
+              <Card className="crew-empty">크루 목록을 불러오는 중...</Card>
+            ) : (
+              visibleCrews.map((crew) => {
+                const outOfMyCondition = showAll && !crew.fitsMyConditions;
+                return (
+                  <Card key={crew.crewId} className="crew-entry">
+                    <div className="crew-entry-top">
+                      <button
+                        className="crew-entry-title"
+                        onClick={() => {
+                          setDetailCrewId(crew.crewId);
+                          setParticipateError(null);
+                        }}
+                      >
+                        {crew.crewName}
+                      </button>
+                      {outOfMyCondition && <span className="type-pill">조건 외</span>}
+                    </div>
+                    <div className="crew-info-row">
+                      <span>📍 {crew.regionCode ?? '지역 무관'}</span>
+                      <span>🎯 {distanceRangeLabel(crew.targetDistanceMinM, crew.targetDistanceMaxM)}</span>
+                      <span>⚡ {paceRangeLabel(crew.paceMinSecPerKm, crew.paceMaxSecPerKm)}</span>
+                      <span>🗓 주 {crew.minimumWeeklyFrequency ?? '-'}회↑</span>
+                      <span>👥 {crew.memberCount}/{crew.maxMembers}명</span>
+                    </div>
+                    <WeeklyStatsBadge crew={crew} />
+                  </Card>
+                );
+              })
+            )}
+
+            {crews !== null && visibleCrews.length === 0 && (
+              <Card className="crew-empty">조건에 맞는 크루가 없어요. 우측 상단 전체보기를 켜보세요.</Card>
+            )}
+          </section>
+
+          <aside className="crew-side-col">
+            <Card className="crew-ranking-card">
+              <div className="card-head"><h2>전체 크루 랭킹</h2><span className="muted">TOP 10</span></div>
+              <div className="crew-ranking-list">
+                {overallRanking.length === 0 && <p className="muted">아직 집계된 크루 기록이 없어요.</p>}
+                {overallRanking.map((crew, index) => {
+                  const rank = index + 1;
+                  const isMine = crew.crewId === myCrewData?.crewId;
+                  return (
+                    <div key={crew.crewId} className={`crew-rank-row ${rank <= 3 ? `top top${rank}` : ''} ${isMine ? 'mine' : ''}`}>
+                      <span>{rank}</span>
+                      <b>{crew.crewName}</b>
+                      <em>{((crew.avgWeeklyDistanceM as number) / 1000).toFixed(1)} km</em>
+                    </div>
+                  );
+                })}
+                {myCrewOutsideTop10 && myCrewData && (
+                  <>
+                    <div className="crew-rank-divider" />
+                    <div className="crew-rank-row mine">
+                      <span>{myRank}</span>
+                      <b>{myCrewData.crewName}</b>
+                      <em>{((myCrewData.avgWeeklyDistanceM as number) / 1000).toFixed(1)} km</em>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Card>
+          </aside>
         </div>
       )}
-      <div className="crew-page-grid">
-        <section className="crew-list-col">
-          <div className="crew-list-head">
-            <div>
-              <h2>크루 모집 <span className="muted">{visibleCrews.length}개</span></h2>
-              <p className="muted">기본적으로 내 조건에 맞는 크루만 보여드려요.</p>
-            </div>
-            <label className="crew-filter-toggle">
-              <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
-              <span>전체보기</span>
-            </label>
-          </div>
 
-          {crews === null ? (
-            <Card className="crew-empty">크루 목록을 불러오는 중...</Card>
-          ) : (
-            visibleCrews.map((crew) => {
-              const outOfMyCondition = showAll && !crew.fitsMyConditions;
-              return (
-                <Card key={crew.crewId} className="crew-entry">
-                  <div className="crew-entry-top">
-                    <button
-                      className="crew-entry-title"
-                      onClick={() => {
-                        setDetailCrewId(crew.crewId);
-                        setParticipateError(null);
-                      }}
-                    >
-                      {crew.crewName}
-                    </button>
-                    {outOfMyCondition && <span className="type-pill">조건 외</span>}
-                  </div>
-                  <div className="crew-info-row">
-                    <span>📍 {crew.regionCode ?? '지역 무관'}</span>
-                    <span>🎯 {distanceRangeLabel(crew.targetDistanceMinM, crew.targetDistanceMaxM)}</span>
-                    <span>⚡ {paceRangeLabel(crew.paceMinSecPerKm, crew.paceMaxSecPerKm)}</span>
-                    <span>🗓 주 {crew.minimumWeeklyFrequency ?? '-'}회↑</span>
-                    <span>👥 {crew.memberCount}/{crew.maxMembers}명</span>
-                  </div>
-                  <WeeklyStatsBadge crew={crew} />
-                </Card>
-              );
-            })
-          )}
-
-          {crews !== null && visibleCrews.length === 0 && (
-            <Card className="crew-empty">조건에 맞는 크루가 없어요. 우측 상단 전체보기를 켜보세요.</Card>
-          )}
-        </section>
-
-        <aside className="crew-side-col">
-          <Card className="crew-ranking-card">
-            <div className="card-head"><h2>전체 크루 랭킹</h2><span className="muted">TOP 10</span></div>
-            <div className="crew-ranking-list">
-              {overallRanking.length === 0 && <p className="muted">아직 집계된 크루 기록이 없어요.</p>}
-              {overallRanking.map((crew, index) => {
-                const rank = index + 1;
-                return (
-                  <div key={crew.crewId} className={`crew-rank-row ${rank <= 3 ? `top top${rank}` : ''}`}>
-                    <span>{rank}</span>
-                    <b>{crew.crewName}</b>
-                    <em>{((crew.avgWeeklyDistanceM as number) / 1000).toFixed(1)} km</em>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
-        </aside>
-      </div>
+      {activeTab === 'battle' &&
+        (myCrewData ? (
+          <>
+            <CrewBattleSection crewId={myCrewData.crewId} />
+            <BattleHistorySection crewId={myCrewData.crewId} />
+          </>
+        ) : (
+          <Card>크루에 가입하면 배틀에 참여할 수 있어요. &apos;크루찾기&apos; 탭에서 크루를 찾아보세요.</Card>
+        ))}
 
       {detailCrew && (
         <div className="crew-chat-overlay" onClick={() => setDetailCrewId(null)}>

@@ -4,7 +4,7 @@
 // "그날그날 즉시 반영"이 필요한 값이 아니라 하루 단위 스냅샷이면 충분해서(크루/멤버 수가 늘어날수록
 // 매 페이지 로드마다 전체를 다시 계산하면 무거워짐), 단순 스케줄러가 더 적합하다고 판단했다.
 import './otel.mjs';
-import { Client } from 'pg';
+import { Pool } from 'pg';
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -56,15 +56,25 @@ async function refreshAllCrewWeeklyStats(pg) {
 }
 
 async function main() {
-  const pg = new Client({
+  // 단일 Client를 다음 KST 자정까지(최대 24시간) 붙들고 있으면, 그 사이 네트워크 계층이
+  // idle 커넥션을 리셋할 때(ECONNRESET) unhandled 'error' event로 프로세스 전체가 죽는다 —
+  // 실제로 이 크래시가 반복 관측됐다. Pool로 바꾸면 죽은 커넥션은 다음 쿼리 시점에 자동으로
+  // 새로 만들어 쓰므로 자체 복구된다.
+  const pg = new Pool({
     host: process.env.PGHOST,
     port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    database: process.env.PGDATABASE
+    database: process.env.PGDATABASE,
+    max: 2,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+    keepAlive: true
   });
-  await pg.connect();
-  console.log('[crew-stats-scheduler] postgres connected');
+  pg.on('error', (err) => {
+    console.error('[crew-stats-scheduler] idle client error', err);
+  });
+  console.log('[crew-stats-scheduler] postgres pool ready');
 
   // 컨테이너가 재시작될 때마다 값이 오래 비어있지 않도록 시작 시 1회 즉시 계산하고, 이후로는
   // KST 자정마다 반복한다.

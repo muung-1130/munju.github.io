@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { cancelRun, finishRun, saveRunSamples, startRun, type RunSampleInput } from '../lib/runTracking.js';
+import { getRunRouteForRecommendation } from '../lib/runningRecord.js';
 import { requireAuth } from '../middleware/session.js';
 
 const router = Router();
@@ -11,8 +12,11 @@ const COURSE_SERVICE_URL = process.env.COURSE_SERVICE_URL ?? 'http://course-serv
 router.post('/start', requireAuth, async (req, res) => {
   const body = req.body;
   const courseId = typeof body.courseId === 'string' ? body.courseId : null;
+
+  // courseId가 없으면 특정 코스를 따라가지 않는 자율 달리기다 — 이 경우 코스 조회 없이 바로 시작한다.
   if (!courseId) {
-    res.status(400).json({ error: '코스를 확인해주세요.' });
+    const runId = await startRun(req.userId!, null);
+    res.json({ runId, course: null });
     return;
   }
 
@@ -34,6 +38,17 @@ router.post('/start', requireAuth, async (req, res) => {
 
   const runId = await startRun(req.userId!, courseId);
   res.json({ runId, course });
+});
+
+// Course 서비스가 "이 러닝을 코스로 추천하기" 요청을 받으면, 원 요청의 세션 쿠키를 그대로 들고
+// 이 엔드포인트를 호출해서 본인 소유 러닝의 경로만 받아간다(서비스 간 직접 DB 조회 금지 원칙).
+router.get('/:runId/route-info', requireAuth, async (req, res) => {
+  const route = await getRunRouteForRecommendation(req.params.runId, req.userId!);
+  if (!route) {
+    res.status(404).json({ error: '코스로 추천할 수 있는 러닝 기록이 아니에요.' });
+    return;
+  }
+  res.json(route);
 });
 
 router.post('/:runId/finish', requireAuth, async (req, res) => {

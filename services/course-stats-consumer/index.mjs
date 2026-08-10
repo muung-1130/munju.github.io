@@ -4,9 +4,9 @@
 // 이미 동기로 반영됨 — 여기서는 오직 집계용 카운터만 다룬다).
 import './otel.mjs';
 import { Kafka } from 'kafkajs';
-import { Client } from 'pg';
+import { Pool } from 'pg';
 
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.201:29092').split(',');
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? '192.168.0.212:29092').split(',');
 const TOPIC = 'course.like-events';
 
 const kafka = new Kafka({ clientId: 'course-stats-consumer', brokers: KAFKA_BROKERS, logLevel: 1 });
@@ -23,15 +23,25 @@ async function applyLikeDelta(client, courseId, delta) {
 }
 
 async function main() {
-  const pg = new Client({
+  // 단일 Client를 프로세스 수명 내내 붙들고 있으면, 그 커넥션이 네트워크 계층에서 리셋될 때
+  // (ECONNRESET) unhandled 'error' event로 프로세스 전체가 죽는다(crew-notification-consumer/
+  // crew-stats-scheduler에서 실제로 반복 관측된 크래시와 동일 패턴). Pool로 바꾸면 죽은
+  // 커넥션은 자동으로 새로 만들어 쓰므로 자체 복구된다.
+  const pg = new Pool({
     host: process.env.PGHOST,
     port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    database: process.env.PGDATABASE
+    database: process.env.PGDATABASE,
+    max: 2,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+    keepAlive: true
   });
-  await pg.connect();
-  console.log('[course-stats-consumer] postgres connected');
+  pg.on('error', (err) => {
+    console.error('[course-stats-consumer] idle client error', err);
+  });
+  console.log('[course-stats-consumer] postgres pool ready');
 
   await consumer.connect();
   await consumer.subscribe({ topic: TOPIC, fromBeginning: false });

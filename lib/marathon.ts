@@ -200,6 +200,36 @@ export async function getMyReservationsForRaces(userId: string, raceIds: number[
   return map;
 }
 
+export type MyReservationDetailed = {
+  reservationId: string;
+  raceId: number;
+  raceName: string;
+  raceDate: string | null;
+  status: 'PENDING' | 'WAITING' | 'CONFIRMED' | 'REJECTED';
+  submittedAt: string;
+};
+
+// 마이페이지 "신청한 마라톤" 섹션용 — 취소하지 않은 내 신청 목록을 최근 신청순으로.
+export async function getMyMarathonReservations(userId: string): Promise<MyReservationDetailed[]> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT r.reservation_id, r.race_id, r.status, r.submitted_at, m.race_name, m.race_date
+       FROM marathon.marathon_reservations r
+       JOIN marathon.marathon_race m ON m.race_id = r.race_id
+      WHERE r.user_id = $1 AND r.status <> 'CANCELLED'
+      ORDER BY r.submitted_at DESC`,
+    [userId]
+  );
+  return rows.map((row) => ({
+    reservationId: row.reservation_id,
+    raceId: Number(row.race_id),
+    raceName: row.race_name,
+    raceDate: toDateStrOrNull(row.race_date),
+    status: row.status,
+    submittedAt: row.submitted_at
+  }));
+}
+
 export type ApplyResult = 'ok' | 'already-applied' | 'not-open' | 'race-not-found';
 
 // 실제 결제·정원 관리가 없는 MVP라서 신청 = DB row 생성이 전부다. race_id+user_id 유니크 제약을

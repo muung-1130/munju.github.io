@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { getPool } from './db.js';
 import { createPendingMediaObject, discardMediaObject, markMediaObjectReady } from './media.js';
 
-const SHOE_LIFE_AI_URL = process.env.SHOE_LIFE_AI_SERVICE_URL ?? 'http://192.168.0.201:8002';
+const SHOE_LIFE_AI_URL = process.env.SHOE_LIFE_AI_SERVICE_URL ?? 'http://192.168.0.212:8002';
 const SHOE_LIFE_MINIO_BUCKET = process.env.SHOE_LIFE_MINIO_BUCKET ?? 'runspot-shoe-life-images';
 
 export const WEAR_IMAGE_ROLES = ['left_outsole', 'right_outsole', 'heels', 'left_side', 'right_side'] as const;

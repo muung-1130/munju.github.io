@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/UI';
+import { CrewVsPanel } from '@/components/CrewVsPanel';
 
 const VIEW_POLL_MS = 10000;
 
@@ -16,9 +17,11 @@ type BattleCandidate = {
 type PendingBattle = {
   opponentCrewName: string;
   metricType: 'DISTANCE' | 'PACE';
+  awaitingOpponentResponse: boolean;
 };
 
-type BattleDay = { date: string; crewAValue: number | null; crewBValue: number | null; crewAWon: boolean | null; isToday: boolean };
+type DayResult = 'WIN' | 'LOSE' | 'DRAW' | null;
+type BattleDay = { date: string; crewAValue: number | null; crewBValue: number | null; crewAResult: DayResult; isToday: boolean; isFuture: boolean };
 
 type ActiveBattle = {
   battleId: string;
@@ -29,18 +32,10 @@ type ActiveBattle = {
   days: BattleDay[];
   myWins: number;
   opponentWins: number;
+  draws: number;
   showFinalBanner: boolean;
-  finalResult: 'WIN' | 'LOSE' | null;
+  finalResult: 'WIN' | 'LOSE' | 'DRAW' | null;
   isLeader: boolean;
-};
-
-type CrewBattleInfo = {
-  crewName: string;
-  memberCount: number;
-  rank: number | null;
-  rankTotal: number;
-  statValue: number | null;
-  winCount: number;
 };
 
 type ViewResponse = {
@@ -52,32 +47,6 @@ type ViewResponse = {
 function formatStat(metricType: 'DISTANCE' | 'PACE', value: number | null): string {
   if (value === null) return '기록 없음';
   return metricType === 'DISTANCE' ? `${value.toFixed(2)}km` : `${value.toFixed(2)}분/km`;
-}
-
-function CrewNamePopup({ crewId, crewName, metricType }: { crewId: string; crewName: string; metricType: 'DISTANCE' | 'PACE' }) {
-  const [open, setOpen] = useState(false);
-  const [info, setInfo] = useState<CrewBattleInfo | null>(null);
-
-  async function load() {
-    setOpen(true);
-    if (info) return;
-    const res = await fetch(`/api/crew/${crewId}/battle/info?metric=${metricType}`);
-    if (res.ok) setInfo((await res.json()).info);
-  }
-
-  return (
-    <span className="crew-battle-opponent-name" style={{ position: 'relative' }} onMouseEnter={load} onMouseLeave={() => setOpen(false)} onClick={load}>
-      {crewName}
-      {open && info && (
-        <span className="crew-battle-info-popup" style={{ display: 'flex' }}>
-          <strong>{info.crewName}</strong>
-          <span>랭킹 {info.rank ? `${info.rank}/${info.rankTotal}위` : '집계 전'}</span>
-          <span>인원 {info.memberCount}명</span>
-          <span>배틀 우승 {info.winCount}회</span>
-        </span>
-      )}
-    </span>
-  );
 }
 
 function RecommendationCard({
@@ -136,7 +105,12 @@ function RecommendationCard({
           </p>
           {error && <p className="field-error">{error}</p>}
           <div className="crew-battle-actions">
-            <button className="ghost-btn" onClick={() => setIndex((i) => (i + 1) % candidates.length)}>
+            <button
+              className="ghost-btn"
+              disabled={candidates.length <= 1}
+              title={candidates.length <= 1 ? '추천할 수 있는 다른 상대가 없어요' : undefined}
+              onClick={() => setIndex((i) => (i + 1) % candidates.length)}
+            >
               새로운 상대 보기
             </button>
             <button className="primary-btn" disabled={proposing} onClick={propose}>
@@ -170,10 +144,32 @@ function ActiveBattleTable({ battle, crewId, onLeft }: { battle: ActiveBattle; c
       </div>
 
       {battle.showFinalBanner && (
-        <div className={`crew-battle-final-banner ${battle.finalResult === 'WIN' ? 'win' : 'lose'}`}>
-          {battle.finalResult === 'WIN' ? '승리했습니다!!!' : '더 성장해서 다음 기회에 이겨봅시다!'}
+        <div className={`crew-battle-final-banner ${battle.finalResult === 'WIN' ? 'win' : battle.finalResult === 'DRAW' ? 'draw' : 'lose'}`}>
+          {battle.finalResult === 'WIN' ? '승리했습니다!!!' : battle.finalResult === 'DRAW' ? '무승부로 마무리됐어요!' : '더 성장해서 다음 기회에 이겨봅시다!'}
         </div>
       )}
+
+      <CrewVsPanel
+        myCrewId={crewId}
+        myCrewName={battle.myCrewName}
+        opponentCrewId={battle.opponentCrewId}
+        opponentCrewName={battle.opponentCrewName}
+        metricType={battle.metricType}
+      />
+
+      <div className="crew-battle-scoreboard">
+        <span className="crew-battle-score mine">{battle.myWins}</span>
+        <span className="crew-battle-score-vs">VS</span>
+        <span className="crew-battle-score theirs">{battle.opponentWins}</span>
+      </div>
+      <div className="crew-battle-period-progress">
+        <div className="progress">
+          <i style={{ width: `${(battle.days.filter((d) => !d.isFuture).length / battle.days.length) * 100}%` }} />
+        </div>
+        <span className="muted">
+          {battle.days.filter((d) => !d.isFuture).length}/{battle.days.length}일차 진행 중
+        </span>
+      </div>
 
       <div className="crew-battle-table-wrap">
         <table className="crew-battle-table">
@@ -181,7 +177,9 @@ function ActiveBattleTable({ battle, crewId, onLeft }: { battle: ActiveBattle; c
             <tr>
               <th />
               {battle.days.map((day) => (
-                <th key={day.date}>{day.date.slice(5).replace('-', '/')}</th>
+                <th key={day.date} className={day.isToday ? 'today-col' : ''}>
+                  {day.date.slice(5).replace('-', '/')}
+                </th>
               ))}
             </tr>
           </thead>
@@ -189,17 +187,21 @@ function ActiveBattleTable({ battle, crewId, onLeft }: { battle: ActiveBattle; c
             <tr>
               <td>{battle.myCrewName} (우리 크루)</td>
               {battle.days.map((day) => (
-                <td key={day.date} className={day.crewAWon === true ? 'win-cell' : ''}>
+                <td
+                  key={day.date}
+                  className={`${day.isToday ? 'today-col' : ''} ${day.crewAResult === 'WIN' ? 'win-cell' : day.crewAResult === 'DRAW' ? 'draw-cell' : ''}`}
+                >
                   {day.crewAValue === null ? '-' : battle.metricType === 'DISTANCE' ? `${day.crewAValue.toFixed(2)}km` : `${day.crewAValue.toFixed(2)}'`}
                 </td>
               ))}
             </tr>
             <tr>
-              <td>
-                <CrewNamePopup crewId={battle.opponentCrewId} crewName={battle.opponentCrewName} metricType={battle.metricType} />
-              </td>
+              <td>{battle.opponentCrewName}</td>
               {battle.days.map((day) => (
-                <td key={day.date} className={day.crewAWon === false ? 'win-cell' : ''}>
+                <td
+                  key={day.date}
+                  className={`${day.isToday ? 'today-col' : ''} ${day.crewAResult === 'LOSE' ? 'win-cell' : day.crewAResult === 'DRAW' ? 'draw-cell' : ''}`}
+                >
                   {day.crewBValue === null ? '-' : battle.metricType === 'DISTANCE' ? `${day.crewBValue.toFixed(2)}km` : `${day.crewBValue.toFixed(2)}'`}
                 </td>
               ))}
@@ -207,14 +209,16 @@ function ActiveBattleTable({ battle, crewId, onLeft }: { battle: ActiveBattle; c
             <tr className="result-row">
               <td>결과</td>
               {battle.days.map((day) => (
-                <td key={day.date}>{day.isToday ? '진행중' : day.crewAWon ? '성공' : '실패'}</td>
+                <td key={day.date} className={day.isToday ? 'today-col' : ''}>
+                  {day.isFuture ? '예정' : day.isToday ? '진행중' : day.crewAResult === 'DRAW' ? '무승부' : day.crewAResult === 'WIN' ? '성공' : '실패'}
+                </td>
               ))}
             </tr>
           </tbody>
         </table>
       </div>
       <p className="muted" style={{ margin: '10px 0' }}>
-        {battle.myWins}승 {battle.opponentWins}패
+        {battle.myWins}승 {battle.opponentWins}패{battle.draws > 0 ? ` ${battle.draws}무` : ''}
       </p>
       {battle.isLeader && (
         <button className="ghost-btn full-width" disabled={leaving} onClick={leave}>
@@ -225,7 +229,7 @@ function ActiveBattleTable({ battle, crewId, onLeft }: { battle: ActiveBattle; c
   );
 }
 
-export function CrewBattleSection({ crewId }: { crewId: string }) {
+export function CrewBattleSection({ crewId, hideRecommendations }: { crewId: string; hideRecommendations?: boolean }) {
   const [view, setView] = useState<ViewResponse | null>(null);
 
   function load() {
@@ -255,11 +259,15 @@ export function CrewBattleSection({ crewId }: { crewId: string }) {
           <span className="type-pill">{view.pending.metricType === 'DISTANCE' ? 'km 배틀' : '페이스 배틀'}</span>
         </div>
         <p className="muted" style={{ marginTop: 14 }}>
-          {view.pending.opponentCrewName} 크루와의 배틀 제안이 크루 채팅방에서 검토 중이에요. 채팅방에서 찬성/반대를 눌러주세요!
+          {view.pending.awaitingOpponentResponse
+            ? `${view.pending.opponentCrewName} 크루가 보낸 배틀 제안이 왔어요. 크루 채팅방에서 응답해주세요!`
+            : `${view.pending.opponentCrewName} 크루와의 배틀 제안이 크루 채팅방에서 검토 중이에요. 채팅방에서 찬성/반대를 눌러주세요!`}
         </p>
       </Card>
     );
   }
+
+  if (hideRecommendations) return null;
 
   if (view.recommendations) {
     return (

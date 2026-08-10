@@ -34,18 +34,18 @@ export function LineTrendChart({
     <svg className="line-trend-chart" width="100%" viewBox={`0 0 ${CHART_WIDTH} ${height}`} role="img" aria-label={ariaLabel}>
       <defs>
         <linearGradient id="lineTrendArea" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#2f6bff" stopOpacity="0.22" />
-          <stop offset="1" stopColor="#2f6bff" stopOpacity="0" />
+          <stop offset="0" stopColor="#74BDEB" stopOpacity="0.22" />
+          <stop offset="1" stopColor="#74BDEB" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <line x1="0" y1={bottom} x2={CHART_WIDTH} y2={bottom} stroke="#e2e8f2" strokeWidth="1" />
+      <line x1="0" y1={bottom} x2={CHART_WIDTH} y2={bottom} stroke="#CFE9FF" strokeWidth="1" />
       <path d={areaPath} fill="url(#lineTrendArea)" />
-      <path d={linePath} fill="none" stroke="#2f6bff" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={linePath} fill="none" stroke="#74BDEB" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       {coords.map((c, i) => (
         <g key={c.label + i}>
-          <circle cx={c.x} cy={c.y} r={c.highlighted ? 5 : 4} fill={c.highlighted ? '#ff8a3d' : '#2f6bff'} stroke="#fff" strokeWidth="1.5" />
+          <circle cx={c.x} cy={c.y} r={c.highlighted ? 5 : 4} fill={c.highlighted ? '#ff8a3d' : '#74BDEB'} stroke="#fff" strokeWidth="1.5" />
           {c.value > 0 && (
-            <text x={c.x} y={c.y - 10} textAnchor="middle" fontSize="11" fontWeight="800" fill="#0e2a54">
+            <text x={c.x} y={c.y - 10} textAnchor="middle" fontSize="11" fontWeight="800" fill="#3C6E71">
               {format(c.value)}
             </text>
           )}
@@ -55,7 +55,7 @@ export function LineTrendChart({
             textAnchor="middle"
             fontSize="11"
             fontWeight={c.highlighted ? 900 : 700}
-            fill={c.highlighted ? '#ff8a3d' : '#64748b'}
+            fill={c.highlighted ? '#ff8a3d' : 'rgba(0,0,0,.55)'}
           >
             {c.label}
           </text>
