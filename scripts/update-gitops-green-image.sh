@@ -59,6 +59,12 @@ test "$blue_before" = "$blue_after" || {
 git -C "$repo_dir" diff --check -- "$green_manifest"
 
 changed_files="$(git -C "$repo_dir" diff --name-only -- "$green_manifest")"
+
+if [ -z "$changed_files" ]; then
+    echo "Green already references ${image_ref} for ${harbor_repository}; no changes needed."
+    exit 0
+fi
+
 test "$changed_files" = "$green_manifest" || {
     echo "Unexpected GitOps files changed:" >&2
     printf '%s\n' "$changed_files" >&2
