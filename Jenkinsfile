@@ -21,6 +21,57 @@ def SERVICES = [
     // (deferred for cluster CPU headroom; add back once capacity allows).
 ]
 
+// Maps a SERVICES `id` to the dai-run-gitops production Deployment
+// manifest(s) it feeds (frontend's own prod target is handled via the
+// GITOPS_PROD_* environment values below instead, since it isn't part of
+// SERVICES). A service with no entry here has no production counterpart yet
+// -- course-recommendation-service and ai-assistant-service are built and
+// deployed to dev only, and are deliberately left out. Several prod
+// Deployments were originally built and pushed by hand under their own
+// `dir-*`-named Harbor repository, before this pipeline or dai-run-gitops
+// managed them; `oldRepository` lets the first automated deploy migrate
+// each one onto the same Harbor repository dev already uses (see
+// update-gitops-prod-image.sh), after which it's simply ignored.
+def PROD_TARGETS = [
+    'auth-web': [
+        [manifest: 'environments/prod/backend/deployment-dir-auth-web.yaml', oldRepository: 'dir-auth-web'],
+    ],
+    'auth-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-auth-user.yaml', oldRepository: 'dir-auth-user'],
+    ],
+    'challenge-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-challenge.yaml', oldRepository: 'dir-challenge'],
+        [manifest: 'environments/prod/backend/deployment-dir-challenge-consumer.yaml', oldRepository: 'dir-challenge'],
+    ],
+    'coaching-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-coaching.yaml', oldRepository: 'dir-coaching'],
+    ],
+    'course-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-course.yaml', oldRepository: 'dir-course'],
+    ],
+    'crew-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-crew.yaml', oldRepository: 'dir-crew'],
+        [manifest: 'environments/prod/backend/deployment-dir-crew-consumer.yaml', oldRepository: 'dir-crew'],
+    ],
+    'marathon-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-marathon.yaml', oldRepository: 'dir-marathon'],
+    ],
+    'media-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-media.yaml', oldRepository: 'dir-media'],
+    ],
+    'notification-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-notification.yaml', oldRepository: 'dir-notification'],
+        [manifest: 'environments/prod/backend/deployment-dir-notification-consumer.yaml', oldRepository: 'dir-notification'],
+    ],
+    'running-record-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-running-record.yaml', oldRepository: 'dir-running-record'],
+        [manifest: 'environments/prod/backend/deployment-dir-running-record-outbox-publisher.yaml', oldRepository: 'dir-running-record'],
+    ],
+    'shoe-service': [
+        [manifest: 'environments/prod/backend/deployment-dir-shoe.yaml', oldRepository: 'dir-shoe'],
+    ],
+]
+
 pipeline {
     agent {
         label 'dai-run-ci'
@@ -45,6 +96,8 @@ pipeline {
         GITOPS_REPOSITORY = 'git@github.com:dai-run/dai-run-gitops.git'
         GITOPS_BRANCH = 'main'
         GITOPS_GREEN_MANIFEST = 'environments/dev/deployment-green.yaml'
+        GITOPS_PROD_MANIFEST = 'environments/prod/frontend/deployment-dir-frontend.yaml'
+        GITOPS_PROD_OLD_REPOSITORY = 'dir-frontend'
     }
 
     stages {
@@ -329,6 +382,9 @@ git clone \
     "$GITOPS_REPOSITORY" \
     gitops-work
 
+git -C gitops-work config user.name 'DAI-RUN Jenkins'
+git -C gitops-work config user.email 'jenkins@dai-run.internal'
+
 "$WORKSPACE/scripts/update-gitops-green-image.sh" \
     "$WORKSPACE/gitops-work" \
     "$DIGEST_IMAGE" \
@@ -338,15 +394,33 @@ git clone \
 
 if git -C gitops-work diff --quiet -- "$GITOPS_GREEN_MANIFEST"; then
     echo "Green already references $IMAGE_DIGEST"
-    exit 0
+else
+    git -C gitops-work add -- "$GITOPS_GREEN_MANIFEST"
+    git -C gitops-work diff --cached --check
+    git -C gitops-work commit \
+        -m "deploy(dev): update green frontend to $SOURCE_COMMIT_SHORT"
 fi
 
-git -C gitops-work config user.name 'DAI-RUN Jenkins'
-git -C gitops-work config user.email 'jenkins@dai-run.internal'
-git -C gitops-work add -- "$GITOPS_GREEN_MANIFEST"
-git -C gitops-work diff --cached --check
-git -C gitops-work commit \
-    -m "deploy(dev): update green frontend to $SOURCE_COMMIT_SHORT"
+"$WORKSPACE/scripts/update-gitops-prod-image.sh" \
+    "$WORKSPACE/gitops-work" \
+    "$DIGEST_IMAGE" \
+    "$HARBOR_REPOSITORY" \
+    "$GITOPS_PROD_OLD_REPOSITORY" \
+    "$GITOPS_PROD_MANIFEST"
+
+if git -C gitops-work diff --quiet -- "$GITOPS_PROD_MANIFEST"; then
+    echo "Prod already references $IMAGE_DIGEST"
+else
+    git -C gitops-work add -- "$GITOPS_PROD_MANIFEST"
+    git -C gitops-work diff --cached --check
+    git -C gitops-work commit \
+        -m "deploy(prod): update frontend to $SOURCE_COMMIT_SHORT"
+fi
+
+if [ -z "$(git -C gitops-work log --oneline "origin/$GITOPS_BRANCH..HEAD" 2>/dev/null)" ]; then
+    echo 'Nothing changed for frontend; nothing to push.'
+    exit 0
+fi
 
 git -C gitops-work fetch origin "$GITOPS_BRANCH"
 git -C gitops-work rebase "origin/$GITOPS_BRANCH"
@@ -356,13 +430,15 @@ git -C gitops-work push origin "HEAD:$GITOPS_BRANCH"
             }
         }
 
-        // Builds, scans, and deploys the 16 services in SERVICES the same
-        // way the four stages above handle frontend, but driven by a single
-        // loop instead of one stage set per service. Each service gets its
-        // own Harbor repository (harbor.dai-run.internal/dai-run/<id>) and
-        // its own dai-run-gitops Green manifest
+        // Builds, scans, and deploys the services in SERVICES the same way
+        // the stages above handle frontend, but driven by a single loop
+        // instead of one stage set per service. Each service gets its own
+        // Harbor repository (harbor.dai-run.internal/dai-run/<id>) and its
+        // own dai-run-gitops Green manifest
         // (environments/dev/deployment-<id>-green.yaml); frontend's own
-        // manifest and commit history above are untouched.
+        // manifest and commit history above are untouched. Services listed
+        // in PROD_TARGETS additionally get their production Deployment
+        // manifest(s) updated in the same clone/commit/push cycle.
         stage('Build, Scan, and Deploy Services') {
             when {
                 expression {
@@ -586,14 +662,49 @@ set -eu
 
 if git -C gitops-services-work diff --quiet -- "$SERVICE_GREEN_MANIFEST"; then
     echo "Green already references $SERVICE_DIGEST_IMAGE for $SERVICE_ID"
-    exit 0
+else
+    git -C gitops-services-work add -- "$SERVICE_GREEN_MANIFEST"
+    git -C gitops-services-work diff --cached --check
+    git -C gitops-services-work commit \
+        -m "deploy(dev): update green $SERVICE_ID to $SOURCE_COMMIT_SHORT"
 fi
-
-git -C gitops-services-work add -- "$SERVICE_GREEN_MANIFEST"
-git -C gitops-services-work diff --cached --check
-git -C gitops-services-work commit \
-    -m "deploy(dev): update green $SERVICE_ID to $SOURCE_COMMIT_SHORT"
 '''
+                        }
+
+                        def prodTargets = PROD_TARGETS[svc.id] ?: []
+
+                        if (prodTargets.isEmpty()) {
+                            echo "== ${svc.id}: no production target, skipping =="
+                        }
+
+                        for (target in prodTargets) {
+                            echo "== ${svc.id}: update GitOps prod (${target.manifest}) =="
+                            withEnv([
+                                "SERVICE_ID=${svc.id}",
+                                "SERVICE_DIGEST_IMAGE=${digestImage}",
+                                "SERVICE_PROD_MANIFEST=${target.manifest}",
+                                "SERVICE_PROD_OLD_REPOSITORY=${target.oldRepository}"
+                            ]) {
+                                sh '''#!/bin/sh
+set -eu
+
+"$WORKSPACE/scripts/update-gitops-prod-image.sh" \
+    "$WORKSPACE/gitops-services-work" \
+    "$SERVICE_DIGEST_IMAGE" \
+    "$SERVICE_ID" \
+    "$SERVICE_PROD_OLD_REPOSITORY" \
+    "$SERVICE_PROD_MANIFEST"
+
+if git -C gitops-services-work diff --quiet -- "$SERVICE_PROD_MANIFEST"; then
+    echo "Prod already references $SERVICE_DIGEST_IMAGE for $SERVICE_ID ($SERVICE_PROD_MANIFEST)"
+else
+    git -C gitops-services-work add -- "$SERVICE_PROD_MANIFEST"
+    git -C gitops-services-work diff --cached --check
+    git -C gitops-services-work commit \
+        -m "deploy(prod): update $SERVICE_ID ($SERVICE_PROD_MANIFEST) to $SOURCE_COMMIT_SHORT"
+fi
+'''
+                            }
                         }
                     }
 
@@ -612,7 +723,7 @@ export GIT_SSH_COMMAND="ssh -i $GITOPS_SSH_KEY \
     -o UserKnownHostsFile=/etc/dai-run/github_known_hosts"
 
 if [ -z "$(git -C gitops-services-work log --oneline "origin/$GITOPS_BRANCH..HEAD" 2>/dev/null)" ]; then
-    echo 'No service Green manifests changed; nothing to push.'
+    echo 'No service Green or prod manifests changed; nothing to push.'
     exit 0
 fi
 
