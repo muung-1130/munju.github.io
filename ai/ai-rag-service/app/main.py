@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.bedrock_kb import BedrockKnowledgeBaseClient
 from app.config import Settings, get_settings
 from app.database import get_db
+from app.tool_calling import ToolRouter
 from app.tools import (
     get_active_challenges,
     get_current_weather,
@@ -31,7 +32,6 @@ app = FastAPI(
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEMO_CHAT_HTML = PROJECT_ROOT / "demo-chat.html"
-WEATHER_KEYWORDS = ("날씨", "기온", "습도", "강수", "비", "바람")
 PROFILE_KEYWORDS = ("프로필", "프로필 정보", "내 정보")
 DISTRICT_KEYWORDS = ("거주지역", "거주 지역", "사는 동", "지역이 뭐")
 LAST_RUN_KEYWORDS = ("마지막 러닝", "최근 러닝 날짜", "마지막 달리기")
@@ -344,6 +344,12 @@ def get_bedrock_client(
     return BedrockKnowledgeBaseClient(settings)
 
 
+def get_tool_router(
+    settings: Settings = Depends(get_settings),
+) -> ToolRouter:
+    return ToolRouter(settings)
+
+
 settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
@@ -373,6 +379,7 @@ def demo() -> FileResponse:
 def chat(
     request: RagChatRequest,
     bedrock_client: BedrockKnowledgeBaseClient = Depends(get_bedrock_client),
+    tool_router: ToolRouter = Depends(get_tool_router),
     db: Session = Depends(get_db),
 ) -> RagChatResponse:
     is_known_followup = bool(
@@ -429,10 +436,7 @@ def chat(
         if user_data_answer:
             return RagChatResponse(answer=user_data_answer, sessionId=request.session_id, sources=[])
 
-    is_weather_question = any(
-        keyword in lowered_question for keyword in WEATHER_KEYWORDS
-    )
-    if request.user_id and is_weather_question:
+    if request.user_id and tool_router.wants_weather_tool(request.question):
         weather_answer = build_weather_answer(db, request.user_id)
         if weather_answer:
             return RagChatResponse(
