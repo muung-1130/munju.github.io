@@ -662,7 +662,7 @@ python3 scripts/wait-for-harbor-scan.py \
     --timeout-seconds 600 \
     --poll-seconds 10 \
     --max-critical 0 \
-    $SERVICE_IGNORE_CVE_ARGS
+    ${SERVICE_IGNORE_CVE_ARGS:-}
 '''
                                 }
                             }
