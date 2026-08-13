@@ -46,6 +46,13 @@ RUNNING_KEYWORDS = (
     "가입",
     "마지막",
     "챌린지",
+    "날씨",
+    "기온",
+    "미세먼지",
+    "습도",
+    "강수",
+    "더워",
+    "추워",
 )
 
 PROMPT_INJECTION_PATTERNS = (
