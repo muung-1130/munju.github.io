@@ -16,9 +16,12 @@ def SERVICES = [
     [id: 'running-record-service', dockerfile: 'services-msa/running-record-service/Dockerfile', context: 'services-msa/running-record-service'],
     [id: 'shoe-service', dockerfile: 'services-msa/shoe-service/Dockerfile', context: 'services-msa/shoe-service'],
     [id: 'ai-assistant-service', dockerfile: 'services-msa/ai-assistant-service/Dockerfile', context: 'services-msa/ai-assistant-service'],
-    // ai-rag-service / ai-course-recommendation / ai-shoe-life are temporarily
-    // excluded: dai-run-gitops has no Deployment manifests for them yet
-    // (deferred for cluster CPU headroom; add back once capacity allows).
+    [id: 'ai-rag-service', dockerfile: 'ai/ai-rag-service/Dockerfile', context: 'ai/ai-rag-service'],
+    // ai-course-recommendation / ai-shoe-life are temporarily excluded:
+    // dai-run-gitops has no Deployment manifests for them yet (deferred for
+    // cluster CPU headroom; add back once capacity allows). ai-rag-service
+    // was in the same boat but worker1 has confirmed headroom (~2.2 cores
+    // free against its 150m request) so it's back in.
 ]
 
 // Maps a SERVICES `id` to the dai-run-gitops production Deployment
