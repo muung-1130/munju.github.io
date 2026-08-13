@@ -30,6 +30,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=int, default=600)
     parser.add_argument("--poll-seconds", type=int, default=10)
     parser.add_argument("--max-critical", type=int, default=0)
+    parser.add_argument(
+        "--ignore-cve",
+        action="append",
+        default=[],
+        metavar="CVE-ID",
+        help=(
+            "CVE ID to exclude from the severity gate (repeatable). Only "
+            "use this for CVEs confirmed irrelevant to how the image is "
+            "actually run (e.g. an OS component the app never invokes) -- "
+            "document the reasoning at the call site, not here."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -44,7 +56,18 @@ def artifact_url(args: argparse.Namespace) -> str:
     )
 
 
-def request_artifact(
+def vulnerabilities_url(args: argparse.Namespace) -> str:
+    project = urllib.parse.quote(args.project, safe="")
+    repository = urllib.parse.quote(args.repository, safe="")
+    reference = urllib.parse.quote(args.reference, safe="")
+    return (
+        f"{args.base_url.rstrip('/')}/api/v2.0/projects/{project}"
+        f"/repositories/{repository}/artifacts/{reference}"
+        "/additions/vulnerabilities"
+    )
+
+
+def request_json(
     url: str,
     username: str,
     password: str,
@@ -106,10 +129,76 @@ def severity_counts(report: dict[str, Any]) -> dict[str, int]:
     return counts
 
 
+def fetch_ignored_counts(
+    url: str,
+    username: str,
+    password: str,
+    context: ssl.SSLContext,
+    ignore_ids: set[str],
+) -> dict[str, int] | None:
+    """Best-effort: how many vulns per severity are in the ignore list.
+
+    Returns None (meaning "couldn't determine, don't exclude anything") if
+    the detailed per-CVE report isn't in a shape this can parse -- the
+    caller must fail closed in that case, not silently pass the gate.
+    """
+    if not ignore_ids:
+        return {}
+
+    try:
+        payload = request_json(url, username, password, context)
+    except RuntimeError as error:
+        print(
+            f"Warning: could not fetch detailed vulnerability list ({error}); "
+            "ignoring --ignore-cve for this run.",
+            file=sys.stderr,
+        )
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    ignored_counts: dict[str, int] = {}
+    matched_ids: set[str] = set()
+
+    for report in payload.values():
+        if not isinstance(report, dict):
+            continue
+        vulnerabilities = report.get("vulnerabilities")
+        if not isinstance(vulnerabilities, list):
+            continue
+        for vuln in vulnerabilities:
+            if not isinstance(vuln, dict):
+                continue
+            vuln_id = str(vuln.get("id", ""))
+            if vuln_id not in ignore_ids:
+                continue
+            severity = str(vuln.get("severity", "")).lower()
+            ignored_counts[severity] = ignored_counts.get(severity, 0) + 1
+            matched_ids.add(vuln_id)
+
+    unmatched = ignore_ids - matched_ids
+    if unmatched:
+        print(
+            "Note: --ignore-cve listed CVEs not found in this scan (already "
+            f"fixed, or wrong ID?): {', '.join(sorted(unmatched))}",
+            flush=True,
+        )
+    if matched_ids:
+        print(
+            f"Ignoring {len(matched_ids)} CVE(s) from the gate: "
+            f"{', '.join(sorted(matched_ids))}",
+            flush=True,
+        )
+
+    return ignored_counts
+
+
 def main() -> int:
     args = parse_args()
     username = os.environ.get("HARBOR_USERNAME", "")
     password = os.environ.get("HARBOR_PASSWORD", "")
+    ignore_ids = {cve_id.strip() for cve_id in args.ignore_cve if cve_id.strip()}
 
     if not username or not password:
         print(
@@ -136,11 +225,12 @@ def main() -> int:
 
     context = ssl.create_default_context(cafile=args.ca_file)
     url = artifact_url(args)
+    vuln_url = vulnerabilities_url(args)
     deadline = time.monotonic() + args.timeout_seconds
     last_status = ""
 
     while time.monotonic() < deadline:
-        artifact = request_artifact(url, username, password, context)
+        artifact = request_json(url, username, password, context)
         if artifact is not None:
             observed_digest = str(artifact.get("digest", ""))
             if observed_digest != args.expected_digest:
@@ -209,6 +299,28 @@ def main() -> int:
                 f"critical={critical}, high={high}",
                 flush=True,
             )
+
+            if ignore_ids:
+                ignored_counts = fetch_ignored_counts(
+                    vuln_url, username, password, context, ignore_ids
+                )
+                if ignored_counts is None:
+                    print(
+                        "Harbor Trivy gate: could not verify --ignore-cve "
+                        "list against this scan, evaluating without it.",
+                        file=sys.stderr,
+                    )
+                else:
+                    adjusted_critical = critical - ignored_counts.get("critical", 0)
+                    if adjusted_critical != critical:
+                        print(
+                            "Harbor Trivy result after --ignore-cve: "
+                            f"critical={adjusted_critical} "
+                            f"(was {critical})",
+                            flush=True,
+                        )
+                    critical = max(adjusted_critical, 0)
+
             if critical > args.max_critical:
                 print(
                     "Harbor Trivy gate failed: "
