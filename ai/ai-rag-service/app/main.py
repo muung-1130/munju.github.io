@@ -21,7 +21,7 @@ from app.tools import (
     get_user_profile,
     search_nearby_courses,
 )
-from app.guardrails import apply_input_guardrails
+from app.guardrails import apply_aws_pii_guardrail, apply_input_guardrails
 from app.schemas import RagChatRequest, RagChatResponse, TodayCoachingRequest, TodayCoachingResponse
 
 
@@ -380,12 +380,18 @@ def chat(
     request: RagChatRequest,
     bedrock_client: BedrockKnowledgeBaseClient = Depends(get_bedrock_client),
     tool_router: ToolRouter = Depends(get_tool_router),
+    settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ) -> RagChatResponse:
     is_known_followup = bool(
         request.session_id and request.session_id in active_session_ids
     )
-    guardrail = apply_input_guardrails(request.question, allow_followup=is_known_followup)
+    # AWS Guardrail은 민감정보(PII)만 사전 검사한다 — 발견하지 못했거나 호출에
+    # 실패하면 None을 반환하고, 아래 apply_input_guardrails()가 그대로 이어서
+    # 주제 제한/프롬프트 인젝션/의료진단/PII를 전부 검사한다.
+    guardrail = apply_aws_pii_guardrail(request.question, settings)
+    if guardrail is None:
+        guardrail = apply_input_guardrails(request.question, allow_followup=is_known_followup)
     if not guardrail.allowed:
         return RagChatResponse(
             answer=guardrail.answer or "요청을 처리할 수 없습니다.",

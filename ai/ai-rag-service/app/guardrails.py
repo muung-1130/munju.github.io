@@ -1,5 +1,10 @@
 from dataclasses import dataclass
 
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
+from app.config import Settings
+
 
 RUNNING_KEYWORDS = (
     "러닝",
@@ -147,4 +152,50 @@ def apply_input_guardrails(question: str, allow_followup: bool = False) -> Guard
     return GuardrailResult(
         allowed=True,
         question=guarded_question,
+    )
+
+
+_bedrock_runtime_client = None
+
+
+def _get_bedrock_runtime_client(settings: Settings):
+    global _bedrock_runtime_client
+    if _bedrock_runtime_client is None:
+        _bedrock_runtime_client = boto3.client("bedrock-runtime", region_name=settings.aws_region)
+    return _bedrock_runtime_client
+
+
+def apply_aws_pii_guardrail(question: str, settings: Settings) -> GuardrailResult | None:
+    """AWS Bedrock Guardrails로 민감정보(PII)만 사전 검사한다.
+
+    주제 제한/프롬프트 인젝션/의료진단 거부는 실측 결과 AWS Guardrails의 topic policy와
+    한국어 PROMPT_ATTACK 필터가 신뢰할 수 없어(정책 예제와 동일한 문장도 통과) 이관하지
+    않았다 — 이 Guardrail은 PII 전용으로만 구성되어 있다. 그 세 가지는 계속
+    apply_input_guardrails()가 담당한다.
+
+    AWS 호출이 실패하거나 guardrail이 설정되지 않은 경우, 또는 AWS가 PII를 발견하지
+    못한 경우 모두 None을 반환한다 — 호출자는 이어서 apply_input_guardrails()를
+    그대로 실행해야 한다(그 함수가 SENSITIVE_DATA_PATTERNS로 PII도 다시 한번 검사하므로
+    이중 방어가 된다).
+    """
+    if not settings.guardrail_id:
+        return None
+
+    try:
+        response = _get_bedrock_runtime_client(settings).apply_guardrail(
+            guardrailIdentifier=settings.guardrail_id,
+            guardrailVersion=settings.guardrail_version,
+            source="INPUT",
+            content=[{"text": {"text": question}}],
+        )
+    except (ClientError, BotoCoreError):
+        return None
+
+    if response.get("action") != "GUARDRAIL_INTERVENED":
+        return None
+
+    return GuardrailResult(
+        allowed=False,
+        reason="SENSITIVE_DATA",
+        answer="비밀번호, API 키, 토큰 같은 민감 정보는 입력하지 마세요. 해당 정보 없이 러닝 관련 질문만 도와드릴 수 있습니다.",
     )
