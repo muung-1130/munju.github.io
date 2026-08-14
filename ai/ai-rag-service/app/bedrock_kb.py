@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.schemas import RagChatResponse, RunnerProfile, TodayCoachingResponse
+from app.text_format import wrap_text_for_chat
 from app.tools import (
     get_user_profile, get_recent_runs, get_current_weather,
     get_air_quality, search_nearby_courses, get_active_challenges,
@@ -109,7 +110,7 @@ class BedrockKnowledgeBaseClient:
 
         sources = self._extract_sources(response)
         return RagChatResponse(
-            answer=answer,
+            answer=wrap_text_for_chat(answer),
             sessionId=response.get("sessionId"),
             sources=sources,
         )
@@ -194,7 +195,7 @@ class BedrockKnowledgeBaseClient:
 
         return TodayCoachingResponse(
             title="오늘의 러닝 코칭",
-            recommendation=answer,
+            recommendation=wrap_text_for_chat(answer),
             caution="통증이 있거나 컨디션이 좋지 않으면 강도를 낮추고 필요하면 전문가와 상담하세요.",
             sources=self._extract_sources(response),
         )

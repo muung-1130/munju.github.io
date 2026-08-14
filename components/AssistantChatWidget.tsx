@@ -56,6 +56,7 @@ export function AssistantChatWidget() {
   const pollingRef = useRef(false);
   const bedrockSessionIdRef = useRef<string | null>(null);
   const [sending, setSending] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [iconPos, setIconPos] = useState<{ top: number; left: number } | null>(null);
   const draggedRef = useRef(false);
@@ -211,6 +212,15 @@ export function AssistantChatWidget() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 
+  // 메시지를 보내는 동안 입력창이 disabled라 브라우저가 포커스를 놓치고, 응답이
+  // 와도 자동으로 돌아오지 않아 매번 다시 클릭해야 했다. 전송이 끝나는 시점에
+  // 맞춰 다시 포커스를 준다(패널이 열려 있을 때만).
+  useEffect(() => {
+    if (open && !sending) {
+      inputRef.current?.focus();
+    }
+  }, [open, sending]);
+
   function handleIconMouseDown(event: React.MouseEvent<HTMLButtonElement>) {
     if (event.button !== 0) return;
     const startX = event.clientX;
@@ -342,6 +352,7 @@ export function AssistantChatWidget() {
           }}
         >
           <input
+            ref={inputRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder={sending ? 'AI 러닝 비서가 답변을 준비하고 있어요...' : 'AI 러닝 비서에게 물어보세요...'}

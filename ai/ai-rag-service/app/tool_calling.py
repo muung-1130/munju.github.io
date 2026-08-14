@@ -31,6 +31,8 @@ WEATHER_TOOL_SPEC = {
     }
 }
 
+WEATHER_PREFILTER_KEYWORDS = ("날씨", "기온", "미세먼지", "습도", "강수", "더워", "추워", "바람")
+
 ROUTER_SYSTEM_PROMPT = (
     "너는 러닝 앱 챗봇의 도구 라우터다. 사용자 질문 하나만 보고, 제공된 도구 중 "
     "지금 필요한 게 있으면 반드시 그 도구를 호출해라. 필요한 도구가 없으면 아무 "
@@ -52,6 +54,16 @@ class ToolRouter:
 
     def wants_weather_tool(self, question: str) -> bool:
         if not self.settings.model_arn or not question.strip():
+            return False
+
+        # 날씨 관련 단어가 전혀 없으면 모델에게 물어보지 않는다 -- 이 Bedrock 호출은
+        # 매번 2~3초가 걸리는데, 로그인 사용자의 모든 질문에 무조건 실행되고 있어서
+        # 날씨와 무관한 질문 대다수에도 이 비용이 그대로 붙어 응답이 느려지는
+        # 원인이었다. 이건 정확성 게이트가 아니라 성능 최적화라 약간의 재현율
+        # 손실(애매한 표현을 놓치는 경우)은 감수한다 -- 놓쳐도 그냥 일반 RAG로
+        # 자연스럽게 넘어갈 뿐이다.
+        lowered = question.lower()
+        if not any(keyword in lowered for keyword in WEATHER_PREFILTER_KEYWORDS):
             return False
 
         try:
