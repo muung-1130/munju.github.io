@@ -27,8 +27,9 @@ type PendingBattle = {
   expiresAtLabel: string | null;
 };
 
+// 채팅 진입 버튼의 기본 가로 위치는 화면 우측 끝이 아니라 우측 2/3 지점으로 둔다.
 function defaultIconPosition() {
-  return { top: window.innerHeight - ICON_SIZE - 24, left: window.innerWidth - ICON_SIZE - 24 };
+  return { top: window.innerHeight - ICON_SIZE - 24, left: (window.innerWidth * 2) / 3 };
 }
 
 function clampIconPosition(pos: { top: number; left: number }) {
@@ -47,8 +48,8 @@ function clampPanelPosition(pos: { top: number; left: number }, width: number, h
 
 // AI 러닝 비서 아이콘과 같은 방식(드래그 가능한 떠다니는 아이콘)으로 만든, 크루 채팅 전용 위젯.
 // 크루 채팅방에 한 번 "참여하기"로 입장하면 다른 페이지로 이동해도 이 아이콘을 통해 계속 접근할 수 있다.
-// 열린 패널 자체도 헤더를 드래그해 자유롭게 옮길 수 있고, 📌로 고정하지 않으면 바깥을 클릭했을 때
-// 자동으로 최소화된다.
+// 열린 패널 자체도 헤더를 드래그해 자유롭게 옮길 수 있고, "고정" 버튼으로 고정하지 않으면
+// 바깥을 클릭했을 때 자동으로 최소화된다.
 export function CrewChatWidget() {
   const { data: session } = useSession();
   const { crewId, crewName, open, pinned, messages, bubbleMessage, setOpen, setPinned, addMessage, dismissBubble, exitCrewChat } =
@@ -61,6 +62,14 @@ export function CrewChatWidget() {
   const panelDraggingRef = useRef(false);
   const panelRef = useRef<HTMLElement>(null);
   const [panelSize, setPanelSize] = useState<{ width: number; height: number } | null>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
+
+  // 채팅창을 열 때와 새 메시지가 도착할 때 항상 맨 아래(최신 메시지)부터 보이게 한다.
+  useEffect(() => {
+    if (!open) return;
+    const el = chatListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [open, messages]);
 
   // 패널 우하단 모서리를 오른쪽 화면 끝에 고정해둔 채, 왼쪽/아래로 끄는 만큼 너비·높이를 키운다.
   function handleResizeMouseDown(event: React.MouseEvent<HTMLDivElement>) {
@@ -372,7 +381,7 @@ export function CrewChatWidget() {
             onMouseLeave={() => setMyWeeklyStatsOpen(false)}
             style={{ position: 'relative', cursor: 'default' }}
           >
-            👥
+            {crewName?.[0] ?? '크'}
             {myWeeklyStatsOpen && myWeeklyStats && (
               <div className="crew-battle-info-popup" style={{ left: 0, top: '110%' }}>
                 <strong>{crewName}</strong>
@@ -409,7 +418,7 @@ export function CrewChatWidget() {
               aria-label={pinned ? '고정 해제' : '화면에 고정'}
               title={pinned ? '고정됨 (다시 눌러 해제)' : '고정하기 (다른 곳을 눌러도 안 닫혀요)'}
             >
-              📌
+              고정
             </button>
             <button className="crew-chat-leave" onClick={() => setLeaveConfirmOpen(true)}>
               나가기
@@ -426,7 +435,7 @@ export function CrewChatWidget() {
             </div>
             <p>{pendingBattle.description}</p>
             {pendingBattle.awaitingOpponentResponse && pendingBattle.expiresAtLabel && (
-              <p className="crew-battle-deadline">⏰ {pendingBattle.expiresAtLabel}까지 응답이 없으면 자동으로 거절돼요.</p>
+              <p className="crew-battle-deadline">{pendingBattle.expiresAtLabel}까지 응답이 없으면 자동으로 거절돼요.</p>
             )}
             {crewId && (
               <CrewVsPanel
@@ -461,7 +470,7 @@ export function CrewChatWidget() {
             )}
           </div>
         )}
-        <div className="home-chat-list">
+        <div className="home-chat-list" ref={chatListRef}>
           {messages.map((message, index) => {
             // dateLabel은 서버가 이미 KST로 계산해서 내려준 값이라 여기서는 문자열 비교만 한다
             // (직접 타임존 변환을 하지 않는다) — 날짜가 바뀌는 지점에만 구분선을 넣는다.

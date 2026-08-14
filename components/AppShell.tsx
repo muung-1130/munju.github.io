@@ -16,6 +16,31 @@ import { CrewChatWidget } from './CrewChatWidget';
 import { PreferencesModalProvider } from './PreferencesModalContext';
 import { RunningPreferencesOnboardingModal } from './RunningPreferencesOnboardingModal';
 
+// 네비게이션 우측 상단 아이콘 3개(알림/고객센터/프로필)는 이모지 대신 단색 SVG로 그린다.
+function BellIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+function ChatIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+function ProfileIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+    </svg>
+  );
+}
+
 const navItems = [
   { href: '/', label: '홈' },
   { href: '/courses', label: '코스 탐색' },
@@ -112,7 +137,7 @@ function NotificationBell({ session }: { session: ReturnType<typeof useSession>[
   return (
     <div className="profile-menu-wrap" ref={ref}>
       <button aria-label="알림" onClick={() => setOpen((v) => !v)} style={{ position: 'relative' }}>
-        🔔
+        <BellIcon />
         {notifications.length > 0 && <span className="notification-badge">{notifications.length}</span>}
       </button>
       {open && (
@@ -217,13 +242,13 @@ function AppShellInner({ children }: { children: ReactNode }) {
           <div className="nav-actions">
             {session && <span className="nav-username">{session.user?.name}님</span>}
             <NotificationBell session={session} />
-            <Link href="/support" className="nav-icon-link" aria-label="고객센터">💬</Link>
+            <Link href="/support" className="nav-icon-link" aria-label="고객센터"><ChatIcon /></Link>
             <div className="profile-menu-wrap" ref={profileMenuRef}>
               <button
                 aria-label="프로필"
                 onClick={() => (session ? setProfileMenuOpen((prev) => !prev) : openAuthModal())}
               >
-                👤
+                <ProfileIcon />
               </button>
               {session && profileMenuOpen && (
                 <div className="profile-menu">

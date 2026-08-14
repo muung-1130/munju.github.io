@@ -70,27 +70,26 @@ async def create_ai_generated_course(
         await dismiss_ignored_previous_ai_pick(request.owner_user_id)
 
         started_at = time.monotonic()
-        result = await bedrock_service.generate_course(request)
+        results = await bedrock_service.generate_course(request)
         processing_time_ms = int((time.monotonic() - started_at) * 1000)
 
-        recommendation_id, item_scores = await save_recommendation_run(
+        recommendation_id, item_scores_list = await save_recommendation_run(
             request=request,
-            result=result,
+            results=results,
             processing_time_ms=processing_time_ms,
         )
 
-        items = (
-            [
-                RecommendationItemOut(
-                    course_id=result.selected_candidate_id,
-                    rank_no=1,
-                    reason=result.selection_reason,
-                    **item_scores,
-                )
-            ]
-            if result.selected_candidate_id
-            else []
-        )
+        items = [
+            RecommendationItemOut(
+                course_id=result.selected_candidate_id,
+                rank_no=rank_no,
+                reason=result.selection_reason,
+                **scores,
+            )
+            for rank_no, (result, scores) in enumerate(
+                zip((r for r in results if r.selected_candidate_id), item_scores_list), start=1
+            )
+        ]
 
         return AiGeneratedCourseResponse(
             recommendation_id=recommendation_id,

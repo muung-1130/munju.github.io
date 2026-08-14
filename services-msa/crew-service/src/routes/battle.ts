@@ -77,10 +77,10 @@ router.get('/:crewId/battle/history', requireAuth, async (req, res) => {
     res.status(403).json({ error: '이 크루의 멤버만 볼 수 있어요.' });
     return;
   }
-  const from = typeof req.query.from === 'string' ? req.query.from : null;
-  const to = typeof req.query.to === 'string' ? req.query.to : null;
-  const history = await getBattleHistory(req.params.crewId, from, to);
-  res.json({ history });
+  const offsetRaw = Number(req.query.offset ?? '0');
+  const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? Math.floor(offsetRaw) : 0;
+  const { entries, hasMore } = await getBattleHistory(req.params.crewId, offset);
+  res.json({ history: entries, hasMore });
 });
 
 router.post('/:crewId/battle/leave', requireAuth, async (req, res) => {

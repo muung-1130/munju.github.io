@@ -63,6 +63,12 @@ class AiGeneratedCourseResult(BaseModel):
     region: str | None = None
 
 
+class AiGeneratedCourseResultList(BaseModel):
+    # Bedrock에게 서로 다른 후보 최대 3개를 한 번에 고르게 해서 응답 배열로 받는다(요청당 1회
+    # Bedrock 호출 유지 — 3회 나눠 부르지 않는다). 후보가 3개 미만이면 있는 만큼만 채워진다.
+    recommendations: list[AiGeneratedCourseResult] = Field(default_factory=list)
+
+
 class RecommendationItemOut(BaseModel):
     course_id: str
     rank_no: int

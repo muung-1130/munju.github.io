@@ -35,22 +35,18 @@ export default async function HomePage() {
 
       <section className="home-feature-grid">
         <Link href="/courses" className="home-feature-tile accent">
-          <span className="home-feature-icon">🧭</span>
           <strong>AI 러닝코스 추천</strong>
           <p>날씨와 최근 기록을 분석해 오늘 딱 맞는 코스를 추천해드려요.</p>
         </Link>
         <Link href="/crew" className="home-feature-tile">
-          <span className="home-feature-icon">🏃</span>
           <strong>러닝크루</strong>
           <p>함께 달리는 크루를 찾고 주간 크루 대결에 참여해보세요.</p>
         </Link>
         <Link href="/challenges" className="home-feature-tile">
-          <span className="home-feature-icon">🏆</span>
           <strong>챌린지</strong>
           <p>목표를 세우고 완주하며 나만의 러닝 기록을 쌓아가요.</p>
         </Link>
         <Link href="/shoes" className="home-feature-tile">
-          <span className="home-feature-icon">👟</span>
           <strong>AI 러닝화 수명예측</strong>
           <p>사진 한 장으로 러닝화 마모도와 교체 시기를 확인하세요.</p>
         </Link>

@@ -242,23 +242,27 @@ export function CourseNearbyExplorer() {
           <button type="button" className="locate-me-btn icon-only" onClick={locateMe} aria-label="현재 위치로 이동">
             <img src="/assets/gps-target.png" alt="" />
           </button>
-          {!showAll && !activeSearch && (
-            <div className="radius-slider">
-              <div className="radius-slider-track">
-                {RADIUS_PRESETS_KM.map((km, i) => (
-                  <button
-                    key={km}
-                    type="button"
-                    className={`radius-slider-dot ${km === radiusKm ? 'active' : ''}`}
-                    style={{ left: `${(i / (RADIUS_PRESETS_KM.length - 1)) * 100}%` }}
-                    onClick={() => selectRadius(km)}
-                  >
-                    <span className="radius-slider-label">{km}km</span>
-                  </button>
-                ))}
+          {(() => {
+            const radiusDisabled = showAll || Boolean(activeSearch);
+            return (
+              <div className={`radius-slider ${radiusDisabled ? 'disabled' : ''}`}>
+                <div className="radius-slider-track">
+                  {RADIUS_PRESETS_KM.map((km, i) => (
+                    <button
+                      key={km}
+                      type="button"
+                      className={`radius-slider-dot ${km === radiusKm ? 'active' : ''}`}
+                      style={{ left: `${(i / (RADIUS_PRESETS_KM.length - 1)) * 100}%` }}
+                      onClick={() => selectRadius(km)}
+                      disabled={radiusDisabled}
+                    >
+                      <span className="radius-slider-label">{km}km</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
           {!activeSearch && (
             <label className="switch-toggle">
               <input type="checkbox" checked={showAll} onChange={() => setShowAll((v) => !v)} />

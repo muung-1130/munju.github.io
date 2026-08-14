@@ -24,12 +24,11 @@ export type AiRecommendedCourse = {
   likeCount: number;
 };
 
-// rank_no는 2안 결정에 따라 고정된 슬롯 의미를 가진다 (숫자 순위가 아니라 슬롯 종류) —
-// 새 슬롯이 추가되면 여기 라벨만 늘리면 된다.
+// 찜/인기 슬롯을 없애고 rank_no 1~3 모두 순수 AI 추천으로 통일했다 — 모든 슬롯이 같은 라벨을 쓴다.
 const SLOT_LABELS: Record<number, string> = {
   1: 'AI 추천',
-  2: '찜했던 코스',
-  3: '인기 코스'
+  2: 'AI 추천',
+  3: 'AI 추천'
 };
 
 export const FEEDBACK_TYPES = ['CLICK', 'LIKE', 'START_RUN', 'DISMISS'] as const;
@@ -185,9 +184,17 @@ export async function recordRecommendationFeedback(
 // 패널 자체가 비어 보이는 것보다 이 편이 낫다는 판단.
 export async function getAiRecoPanelCourses(
   userId: string | null,
-  location?: { latitude: number; longitude: number }
+  location?: { latitude: number; longitude: number },
+  forceRefresh = false,
+  override?: { searchRadiusKm?: number; recommendationType?: string }
 ): Promise<AiRecoCourse[]> {
-  if (userId && (await hasRunningPreferences(userId))) {
+  // 반경/추천기준 필터나 "AI 추천 다시 받기" 버튼(forceRefresh)은 그 자체가 명시적인 개인
+  // 요청이므로, 아직 선호도 설문(user_running_preferences 행)이 없는 로그인 사용자도 이
+  // 순간만큼은 개인화 경로로 보낸다 — 안 그러면 게스트 공용 추천 쪽으로 빠져서 버튼을 눌러도
+  // 아무 일도 일어나지 않고(게스트 추천은 전원 공유라 개인 재계산이 없다), 하루 사용 횟수도
+  // 절대 줄지 않는 문제가 생긴다.
+  const hasInlineFilter = Boolean(override?.searchRadiusKm || override?.recommendationType);
+  if (userId && (forceRefresh || hasInlineFilter || (await hasRunningPreferences(userId)))) {
     // 오늘(KST 03:00 기준) 추천이 아직 없으면 여기서 생성을 "시작"만 시킨다 — 예전엔 이 호출을
     // await로 끝까지 기다렸는데, Bedrock 왕복이 평균 4~5초(느릴 때는 더 걸림)라 이 함수를 부르는
     // /courses, / 페이지의 SSR 전체(코스 탐색처럼 AI 추천과 무관한 영역까지)가 하루 첫 방문마다
@@ -196,7 +203,15 @@ export async function getAiRecoPanelCourses(
     // 계속 진행해 완료되면 다음 조회(클라이언트의 위치 기반 재조회 등)에서 자연스럽게 반영된다.
     // location이 있으면(AiRecoPanel이 브라우저 GPS로 넘겨준 좌표) 그 위치를 기준으로 계산하고,
     // 이미 오늘 계산된 추천이 있으면 하루 1회 제한에 따라 location과 무관하게 그대로 재사용한다.
-    ensureTodaysRecommendation(userId, location).catch(() => {});
+    //
+    // forceRefresh("AI 추천 다시 받기" 버튼)일 때는 예외적으로 끝까지 기다린다 — 사용자가 명시적
+    // 버튼을 눌러 방금 새로 받은 결과를 보고 싶어하는 경우라, 백그라운드로 흘려보내면 화면이
+    // 그대로인 채 아무 일도 안 일어난 것처럼 보인다.
+    if (forceRefresh) {
+      await ensureTodaysRecommendation(userId, location, true, override);
+    } else {
+      ensureTodaysRecommendation(userId, location, false, override).catch(() => {});
+    }
 
     const recommended = await getActiveRecommendationsForUser(userId);
     if (recommended.length > 0) {

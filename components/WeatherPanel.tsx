@@ -264,7 +264,7 @@ export function WeatherPanel() {
         <h3>미세먼지</h3>
         {dust && dust.pm10_grade ? (
           <>
-            <strong className={GRADE_CLASS[dust.pm10_grade] ?? ''}>{dust.pm10_grade} 🙂</strong>
+            <strong className={GRADE_CLASS[dust.pm10_grade] ?? ''}>{dust.pm10_grade}</strong>
             <div className="dust-values">
               <span>PM10 <b>{Math.round(Number(dust.pm10_value))}</b>㎍/m³</span>
               <span>PM2.5 <b>{Math.round(Number(dust.pm25_value))}</b>㎍/m³</span>

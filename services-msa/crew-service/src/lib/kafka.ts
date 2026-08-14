@@ -160,3 +160,42 @@ export async function publishBattleDeclinedEvent(payload: BattleDeclinedEvent['p
     messages: [{ key: payload.battleId, value: JSON.stringify(event) }]
   });
 }
+
+type BattleStartedEvent = {
+  eventId: string;
+  eventType: 'BattleStarted';
+  occurredAt: string;
+  producer: string;
+  aggregateId: string;
+  schemaVersion: number;
+  traceId: string;
+  payload: {
+    battleId: string;
+    userId: string;
+    opponentCrewName: string;
+    metricLabel: string;
+  };
+};
+
+// 배틀 제안을 방장이 승인했거나 크루원 과반수 찬성으로 받아들여 배틀이 ACTIVE로 시작됐을 때,
+// 양쪽 크루의 활성 멤버 각자에게 알림을 보낸다. JoinRequestSubmitted/BattleDeclined와 동일하게
+// "이벤트 1건 = 알림 대상 1명" 단위를 유지한다(크루원 수만큼 이 함수가 반복 호출된다).
+export async function publishBattleStartedEvent(payload: BattleStartedEvent['payload']) {
+  const event: BattleStartedEvent = {
+    eventId: randomUUID(),
+    eventType: 'BattleStarted',
+    occurredAt: new Date().toISOString(),
+    producer: 'crew-service',
+    aggregateId: payload.battleId,
+    schemaVersion: 1,
+    traceId: randomUUID(),
+    payload
+  };
+
+  const p = getProducer();
+  await p.connect();
+  await p.send({
+    topic: CREW_JOIN_REQUEST_EVENTS_TOPIC,
+    messages: [{ key: `${payload.battleId}:${payload.userId}`, value: JSON.stringify(event) }]
+  });
+}

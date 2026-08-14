@@ -62,7 +62,7 @@ export function CrewVsPanel({
   return (
     <div className="crew-vs-panel">
       <CrewColumn crewId={myCrewId} fallbackName={myCrewName} metricType={metricType} />
-      <span className="crew-vs-flame">🔥</span>
+      <span className="crew-vs-divider">VS</span>
       <CrewColumn crewId={opponentCrewId} fallbackName={opponentCrewName} metricType={metricType} />
     </div>
   );

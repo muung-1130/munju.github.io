@@ -68,23 +68,21 @@ export function RunSummaryCard() {
       ) : summary ? (
         <>
           <div className="summary-stats summary-stats-lg">
-            <StatCard icon="↔" label="거리" value={(summary.totalDistanceM / 1000).toFixed(1)} suffix="km" />
-            <StatCard icon="⏱" label="시간" value={formatDuration(summary.totalDurationSec)} />
+            <StatCard label="거리" value={(summary.totalDistanceM / 1000).toFixed(1)} suffix="km" />
+            <StatCard label="시간" value={formatDuration(summary.totalDurationSec)} />
             <StatCard
-              icon="⚡"
               label="평균 페이스"
               value={summary.averagePaceSecPerKm ? formatPace(summary.averagePaceSecPerKm) : '-'}
               suffix="/km"
             />
             <StatCard
-              icon="🚀"
               label="최고 페이스"
               value={summary.bestPaceSecPerKm ? formatPace(summary.bestPaceSecPerKm) : '-'}
               suffix="/km"
             />
-            <StatCard icon="❤" label="평균 심박수" value={summary.averageHeartRate ? String(summary.averageHeartRate) : '-'} suffix="bpm" />
-            <StatCard icon="💥" label="최고 심박수" value={summary.maxHeartRate ? String(summary.maxHeartRate) : '-'} suffix="bpm" />
-            <StatCard icon="🔥" label="칼로리" value={summary.totalCalories.toLocaleString()} suffix="kcal" />
+            <StatCard label="평균 심박수" value={summary.averageHeartRate ? String(summary.averageHeartRate) : '-'} suffix="bpm" />
+            <StatCard label="최고 심박수" value={summary.maxHeartRate ? String(summary.maxHeartRate) : '-'} suffix="bpm" />
+            <StatCard label="칼로리" value={summary.totalCalories.toLocaleString()} suffix="kcal" />
           </div>
           <WeeklyDistanceChart data={dailyDistances} />
           <p className="muted">최근 {summary.runCount}회 러닝 기록 기준</p>

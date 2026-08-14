@@ -63,6 +63,19 @@ async function handleBattleDeclined(client, event) {
   });
 }
 
+async function handleBattleStarted(client, event) {
+  const { battleId, userId, opponentCrewName, metricLabel } = event.payload;
+  await insertNotification(client, {
+    userId,
+    notificationType: 'CREW_BATTLE_STARTED',
+    title: `${opponentCrewName} 크루와의 배틀이 시작되었어요`,
+    body: `${metricLabel} 배틀이 시작됐어요. 1주일간 힘내봐요!`,
+    referenceType: 'CREW_BATTLE',
+    referenceId: battleId,
+    eventId: event.eventId
+  });
+}
+
 async function main() {
   // 단일 Client를 프로세스 수명 내내 붙들고 있으면, 그 커넥션이 네트워크 계층에서 리셋될 때
   // (ECONNRESET) unhandled 'error' event로 프로세스 전체가 죽는다 — 실제로 이 크래시가
@@ -122,6 +135,9 @@ async function main() {
         } else if (event.eventType === 'BattleDeclined') {
           await handleBattleDeclined(pg, event);
           console.log(`[crew-notification-consumer] BattleDeclined battle=${event.payload.battleId}`);
+        } else if (event.eventType === 'BattleStarted') {
+          await handleBattleStarted(pg, event);
+          console.log(`[crew-notification-consumer] BattleStarted battle=${event.payload.battleId} user=${event.payload.userId}`);
         }
       } catch (err) {
         console.error('[crew-notification-consumer] 알림 적재 실패:', err.message);

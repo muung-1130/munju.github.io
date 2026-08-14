@@ -7,7 +7,7 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 from app.config import settings
-from app.schemas import AiGeneratedCourseRequest, AiGeneratedCourseResult
+from app.schemas import AiGeneratedCourseRequest, AiGeneratedCourseResult, AiGeneratedCourseResultList
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,10 @@ SYSTEM_PROMPT = """
 
 역할:
 - 사용자의 현재 위치, 검색 반경, 선호 거리, 난이도, 선호 러닝 환경, 추천 유형을 기준으로 러닝 코스를 추천합니다.
-- 후보 코스(candidate_routes)가 주어지면 반드시 그 후보 중 하나를 선택합니다.
+- 후보 코스(candidate_routes)가 주어지면 그 후보 중에서 서로 다른 코스 최대 3개를 골라 순위대로 추천합니다.
+- 후보가 3개 미만이면 있는 만큼만(1개 또는 2개) 반환합니다. 같은 candidate_id를 중복 선택하지 않습니다.
 - 실제 존재하지 않는 GPS 경로나 좌표를 임의로 만들어내면 안 됩니다.
-- 추천 이유는 사용자가 이해할 수 있도록 구체적으로 작성합니다.
+- 각 코스의 추천 이유는 사용자가 이해할 수 있도록 구체적으로 작성합니다.
 
 추천 시 고려할 정보:
 1. 현재 위치와의 적합성
@@ -39,6 +40,7 @@ SYSTEM_PROMPT = """
 - 추천 유형이 location_based이면 현재 위치와 가까운 코스를 더 중요하게 반영합니다.
 - 추천 유형이 distance_based이면 선호 거리와 가까운 코스를 더 중요하게 반영합니다.
 - 추천 유형이 difficulty_based이면 사용자가 선택한 난이도와 맞는 코스를 더 중요하게 반영합니다.
+- recommendations 배열의 순서가 곧 추천 순위입니다(1번째가 가장 추천).
 
 응답 규칙:
 - 반드시 JSON만 반환합니다.
@@ -49,13 +51,17 @@ SYSTEM_PROMPT = """
 
 JSON 형식:
 {
-  "course_name": "추천 코스 이름",
-  "description": "코스 설명",
-  "selection_reason": "추천 근거",
-  "selected_candidate_id": "선택한 후보 코스 ID",
-  "distance_m": 5000,
-  "difficulty": 2,
-  "region": "서울"
+  "recommendations": [
+    {
+      "course_name": "추천 코스 이름",
+      "description": "코스 설명",
+      "selection_reason": "추천 근거",
+      "selected_candidate_id": "선택한 후보 코스 ID",
+      "distance_m": 5000,
+      "difficulty": 2,
+      "region": "서울"
+    }
+  ]
 }
 """
 
@@ -70,13 +76,13 @@ class BedrockCourseRecommendationService:
     async def generate_course(
         self,
         request: AiGeneratedCourseRequest,
-    ) -> AiGeneratedCourseResult:
+    ) -> list[AiGeneratedCourseResult]:
         return await asyncio.to_thread(self._generate_course_sync, request)
 
     def _generate_course_sync(
         self,
         request: AiGeneratedCourseRequest,
-    ) -> AiGeneratedCourseResult:
+    ) -> list[AiGeneratedCourseResult]:
         user_payload = {
             "user_location": request.location.model_dump(),
             "preference": request.preference.model_dump(),
@@ -97,7 +103,18 @@ class BedrockCourseRecommendationService:
                 text = self._invoke(user_payload)
                 data = self._parse_json(text)
 
-            return AiGeneratedCourseResult(**data)
+            results = AiGeneratedCourseResultList(**data).recommendations
+            # 프롬프트에서 중복 선택 금지를 지시했지만, 모델이 지키지 않을 가능성에 대비해
+            # 서버에서도 같은 candidate_id 중복을 걸러낸다(최대 3개로 자른다).
+            seen: set[str] = set()
+            deduped: list[AiGeneratedCourseResult] = []
+            for item in results:
+                if item.selected_candidate_id and item.selected_candidate_id in seen:
+                    continue
+                if item.selected_candidate_id:
+                    seen.add(item.selected_candidate_id)
+                deduped.append(item)
+            return deduped[:3]
 
         except (BotoCoreError, ClientError) as exc:
             logger.error("Bedrock 호출 중 오류가 발생했습니다: %s", exc)
@@ -126,9 +143,10 @@ class BedrockCourseRecommendationService:
             ],
             inferenceConfig={
                 # 후보(candidate_routes)가 많을 때 모델이 생성하는 selection_reason이 길어지면
-                # 1000 토큰으로는 JSON이 중간에 잘려 파싱에 실패했다 — 여유를 두 배로 늘린다.
+                # JSON이 중간에 잘려 파싱에 실패했다 — 이제 코스 1개가 아니라 최대 3개(각자
+                # description/selection_reason 포함)를 배열로 받으므로 여유를 더 늘린다.
                 "temperature": 0.2,
-                "maxTokens": 2000,
+                "maxTokens": 3000,
             },
         )
         return response["output"]["message"]["content"][0]["text"]

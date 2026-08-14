@@ -46,7 +46,7 @@ export function LocationPermissionButton() {
       () => {
         setChecking(false);
         setState('granted');
-        addMessage({ from: 'ai', text: '위치 확인 완료! 이제 내 주변 코스를 정확하게 찾아드릴 수 있어요 🏃' });
+        addMessage({ from: 'ai', text: '위치 확인 완료! 이제 내 주변 코스를 정확하게 찾아드릴 수 있어요.' });
       },
       (error) => {
         setChecking(false);
@@ -60,7 +60,7 @@ export function LocationPermissionButton() {
   if (state === 'unsupported') return null;
 
   const label =
-    state === 'granted' ? '📍 위치 확인됨 (다시 확인)' : state === 'denied' ? '📍 위치 권한이 거부됨 — 다시 시도' : '📍 위치 권한 허용하기';
+    state === 'granted' ? '위치 확인됨 (다시 확인)' : state === 'denied' ? '위치 권한이 거부됨 — 다시 시도' : '위치 권한 허용하기';
 
   return (
     <button type="button" className="location-permission-btn" onClick={requestLocation} disabled={checking}>

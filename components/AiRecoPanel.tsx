@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card } from '@/components/UI';
 import { CourseMapView } from '@/components/CourseMapView';
@@ -35,6 +35,13 @@ export type AiRecoCourse = {
 
 const AVERAGE_PACE_MIN_PER_KM = 6;
 const ROUTE_COLOR = '#74BDEB';
+const RADIUS_PRESETS_KM = [1, 3, 5, 10];
+const RECOMMENDATION_TYPE_OPTIONS = [
+  { value: 'location_based', label: '내 주변' },
+  { value: 'distance_based', label: '선호 거리' },
+  { value: 'difficulty_based', label: '난이도' },
+  { value: 'popular_based', label: '인기' }
+];
 
 function estimatedTimeLabel(distanceM: number) {
   const minutes = Math.round((distanceM / 1000) * AVERAGE_PACE_MIN_PER_KM);
@@ -55,12 +62,21 @@ function sendFeedback(recommendationId: string, courseId: string, feedbackType: 
   }).catch(() => {});
 }
 
+function SearchIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  );
+}
+
 export function AiRecoPanel({
   courses: initialCourses,
   locationSlot
 }: {
   courses: AiRecoCourse[];
-  /** 지도 바로 위에 띄울 요소(예: 홈페이지의 위치 확인 버튼). */
+  /** 위치 확인 버튼 등, 헤더 우측 끝에 띄울 요소(예: 홈페이지의 위치 확인 버튼). */
   locationSlot?: ReactNode;
 }) {
   const { data: session } = useSession();
@@ -69,6 +85,29 @@ export function AiRecoPanel({
   const [courses, setCourses] = useState(initialCourses);
   const [index, setIndex] = useState(0);
   const [likePending, setLikePending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  // 반경/추천기준 버튼은 누르는 즉시 재조회하지 않는다 — 여기서는 선택 상태만 바꾸고,
+  // 실제 재계산은 "AI 추천 다시 받기" 버튼을 눌렀을 때만 이 값을 함께 실어 보낸다.
+  const [filterRadiusKm, setFilterRadiusKm] = useState<number | null>(null);
+  const [filterRecommendationType, setFilterRecommendationType] = useState<string | null>(null);
+  const [remainingRefreshes, setRemainingRefreshes] = useState<number | null>(null);
+  const [quotaExceededOpen, setQuotaExceededOpen] = useState(false);
+  const lastCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+
+  // 처음 진입 시, 이미 저장된 선호도(반경/추천기준)가 있으면 그 값이 버튼에 미리 선택된
+  // 상태로 보이게 한다 — 지금 실제로 적용되고 있는 조건을 그대로 보여주는 것이 목적이다.
+  useEffect(() => {
+    if (!session?.user) return;
+    fetch('/api/user-running-preferences')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const prefs = data?.preferences;
+        if (!prefs) return;
+        if (prefs.searchRadiusM) setFilterRadiusKm(prefs.searchRadiusM / 1000);
+        if (prefs.recommendationType) setFilterRecommendationType(prefs.recommendationType);
+      })
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   // 서버 렌더링 시점엔 브라우저 GPS를 모르므로 일단 기본 위치 기준 추천을 보여주고,
   // 마운트 후 실제 위치를 얻으면 그 좌표로 다시 조회한다 — "내 위치와 가까운 코스"를
@@ -90,7 +129,9 @@ export function AiRecoPanel({
       fetch(`/api/ai-recommendations/panel${params ? `?${params.toString()}` : ''}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (cancelled || !data?.courses?.length) return;
+          if (cancelled || !data) return;
+          if (typeof data.remainingRefreshes === 'number') setRemainingRefreshes(data.remainingRefreshes);
+          if (!data.courses?.length) return;
           setCourses(data.courses);
           setIndex(0);
           const stillFallback = data.courses.every((c: AiRecoCourse) => c.recommendationId === null);
@@ -109,7 +150,11 @@ export function AiRecoPanel({
       };
     }
     navigator.geolocation.getCurrentPosition(
-      (position) => fetchPanel({ latitude: position.coords.latitude, longitude: position.coords.longitude }, true),
+      (position) => {
+        const coords = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        lastCoordsRef.current = coords;
+        fetchPanel(coords, true);
+      },
       () => fetchPanel(null, true),
       { timeout: 8000 }
     );
@@ -118,6 +163,46 @@ export function AiRecoPanel({
       clearTimeout(retryTimer);
     };
   }, []);
+
+  function handleRefreshClick() {
+    if (!session?.user) {
+      openAuthModal();
+      return;
+    }
+    if (refreshing) return;
+    if (remainingRefreshes !== null && remainingRefreshes <= 0) {
+      setQuotaExceededOpen(true);
+      return;
+    }
+    setRefreshing(true);
+    const coords = lastCoordsRef.current;
+    const params = new URLSearchParams({ forceRefresh: 'true' });
+    if (coords) {
+      params.set('lat', String(coords.latitude));
+      params.set('lng', String(coords.longitude));
+    }
+    if (filterRadiusKm) params.set('radiusKm', String(filterRadiusKm));
+    if (filterRecommendationType) params.set('recommendationType', filterRecommendationType);
+    fetch(`/api/ai-recommendations/panel?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        if (typeof data.remainingRefreshes === 'number') setRemainingRefreshes(data.remainingRefreshes);
+        if (data.courses?.length) {
+          setCourses(data.courses);
+          setIndex(0);
+        }
+      })
+      .finally(() => setRefreshing(false));
+  }
+
+  function toggleRadiusFilter(km: number) {
+    setFilterRadiusKm((prev) => (prev === km ? null : km));
+  }
+
+  function toggleTypeFilter(value: string) {
+    setFilterRecommendationType((prev) => (prev === value ? null : value));
+  }
 
   const course = courses.length > 0 ? courses[index % courses.length] : null;
 
@@ -174,9 +259,53 @@ export function AiRecoPanel({
     <Card className="ai-reco-panel">
       <div className="card-head">
         <h3>오늘의 AI 추천 코스</h3>
-        <span>AI 추천</span>
+        <div className="ai-reco-header-actions">
+          <span className="ai-reco-mark">AI 추천</span>
+          <button type="button" className="ghost-btn small" onClick={handleAddPreferencesClick}>
+            선호도 재설정
+          </button>
+          {locationSlot && (
+            <div className="ai-reco-location-slot">{locationSlot}</div>
+          )}
+        </div>
       </div>
       <p>오늘의 날씨와 평소 러닝 패턴에 따른 맞춤 코스를 추천해드릴게요!</p>
+      <div className="ai-reco-inline-filters">
+        <div className="ai-reco-inline-filter-group">
+          <span className="ai-reco-filter-group-label">거리 설정</span>
+          <div className="ai-reco-inline-filter-buttons">
+            {RADIUS_PRESETS_KM.map((km) => (
+              <button
+                key={km}
+                type="button"
+                className={filterRadiusKm === km ? 'active' : ''}
+                onClick={() => toggleRadiusFilter(km)}
+              >
+                {km}km
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="ai-reco-inline-filter-group">
+          <span className="ai-reco-filter-group-label">추천기준</span>
+          <div className="ai-reco-inline-filter-buttons">
+            {RECOMMENDATION_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={filterRecommendationType === opt.value ? 'active' : ''}
+                onClick={() => toggleTypeFilter(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button type="button" className="ai-reco-refresh-btn" onClick={handleRefreshClick} disabled={refreshing}>
+          <SearchIcon />
+          {refreshing ? '다시 받는 중...' : `AI 추천 다시 받기${remainingRefreshes !== null ? ` (${remainingRefreshes})` : ''}`}
+        </button>
+      </div>
       {course.isDefaultRecommendation && (
         <div className="ai-reco-default-notice">
           <span>사용자 선호 정보가 없어서 기본 추천 정보를 안내해요!</span>
@@ -197,7 +326,6 @@ export function AiRecoPanel({
 
         <div className="ai-reco-media">
           {course.recommendationId && course.slotLabel && <span className="ai-reco-slot-badge">{course.slotLabel}</span>}
-          {locationSlot && <div className="ai-reco-location-slot">{locationSlot}</div>}
           {course.positions.length > 0 && (
             <div className="ai-reco-map">
               <CourseMapView routes={[route]} height={320} scrollWheelZoom />
@@ -253,6 +381,19 @@ export function AiRecoPanel({
           ›
         </button>
       </div>
+
+      {quotaExceededOpen && (
+        <div className="run-modal-overlay" onClick={() => setQuotaExceededOpen(false)}>
+          <div className="crew-detail-modal" style={{ width: 360 }} onClick={(event) => event.stopPropagation()}>
+            <p>오늘은 AI 추천을 더 이상 다시 받을 수 없어요. 내일 다시 시도해주세요.</p>
+            <div className="crew-battle-actions">
+              <button className="primary-btn full-width" onClick={() => setQuotaExceededOpen(false)}>
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

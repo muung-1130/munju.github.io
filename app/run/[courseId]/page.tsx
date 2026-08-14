@@ -16,9 +16,11 @@ import {
 } from '@/lib/geoRoute';
 
 type CourseInfo = { courseId: string; courseName: string; distanceM: number; positions: [number, number][] };
-type Phase = 'loading' | 'preview' | 'countdown' | 'running' | 'manualReview' | 'finished' | 'error';
+type Phase = 'loading' | 'preview' | 'guideToStart' | 'countdown' | 'running' | 'manualReview' | 'finished' | 'error';
 
 const ARRIVAL_TOLERANCE_M = 40;
+// 코스 "시작점" 근처 도착 판정 반경 — 종료 지점 판정(ARRIVAL_TOLERANCE_M)과는 별개 기준이다.
+const START_ARRIVAL_TOLERANCE_M = 10;
 const SAMPLE_FLUSH_MS = 30000;
 const PACE_CHECK_MS = 30000;
 const FORGOT_TO_STOP_TIMEOUT_MS = 45000;
@@ -46,6 +48,10 @@ export default function RunTrackingPage() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [forgotToStopOpen, setForgotToStopOpen] = useState(false);
   const [noLocationArriveOpen, setNoLocationArriveOpen] = useState(false);
+  const [arrivedAtStartConfirmOpen, setArrivedAtStartConfirmOpen] = useState(false);
+  const [guidePositions, setGuidePositions] = useState<[number, number][] | null>(null);
+  const [guideCurrentPos, setGuideCurrentPos] = useState<[number, number] | null>(null);
+  const [distanceToStartM, setDistanceToStartM] = useState<number | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [locationAvailable, setLocationAvailable] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -68,6 +74,8 @@ export default function RunTrackingPage() {
 
   const cumulativeRef = useRef<number[]>([]);
   const watchIdRef = useRef<number | null>(null);
+  const guideWatchIdRef = useRef<number | null>(null);
+  const guideArrivedOnceRef = useRef(false);
   const timerIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const trackingStartMsRef = useRef<number | null>(null);
   const lastRawPositionRef = useRef<[number, number] | null>(null);
@@ -107,11 +115,13 @@ export default function RunTrackingPage() {
 
   const clearAllTimers = useCallback(() => {
     if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    if (guideWatchIdRef.current !== null) navigator.geolocation.clearWatch(guideWatchIdRef.current);
     if (timerIdRef.current) clearInterval(timerIdRef.current);
     if (flushTimerRef.current) clearInterval(flushTimerRef.current);
     if (paceCheckTimerRef.current) clearInterval(paceCheckTimerRef.current);
     if (forgotTimeoutRef.current) clearTimeout(forgotTimeoutRef.current);
     watchIdRef.current = null;
+    guideWatchIdRef.current = null;
     timerIdRef.current = null;
     flushTimerRef.current = null;
     paceCheckTimerRef.current = null;
@@ -227,11 +237,7 @@ export default function RunTrackingPage() {
     checkpointRef.current = { time: Date.now(), distance: maxDistanceAlongMRef.current };
   }
 
-  async function handleStart() {
-    if (!session?.user) {
-      router.push('/');
-      return;
-    }
+  async function beginCountdown() {
     setFinishing(true);
     try {
       const res = await fetch('/api/runs/start', {
@@ -252,6 +258,95 @@ export default function RunTrackingPage() {
     } finally {
       setFinishing(false);
     }
+  }
+
+  function handleGuidePosition(position: GeolocationPosition) {
+    if (!course) return;
+    const raw: [number, number] = [position.coords.latitude, position.coords.longitude];
+    setGuideCurrentPos(raw);
+    setRecenterSignal((v) => v + 1);
+    const dist = haversineMeters(raw, course.positions[0]);
+    setDistanceToStartM(dist);
+    if (dist <= START_ARRIVAL_TOLERANCE_M) {
+      if (!guideArrivedOnceRef.current) {
+        guideArrivedOnceRef.current = true;
+        setArrivedAtStartConfirmOpen(true);
+      }
+    } else {
+      // 잠깐 반경을 벗어났다가 다시 들어오면(예: "나중에 시작"으로 닫은 뒤 다시 접근) 팝업을
+      // 다시 띄울 수 있게 초기화한다.
+      guideArrivedOnceRef.current = false;
+    }
+  }
+
+  async function enterGuideToStart(currentPos: [number, number]) {
+    if (!course) return;
+    setPhase('guideToStart');
+    setGuideCurrentPos(currentPos);
+    setDistanceToStartM(haversineMeters(currentPos, course.positions[0]));
+    guideArrivedOnceRef.current = false;
+
+    const [startLat, startLng] = course.positions[0];
+    try {
+      const res = await fetch(
+        `/api/geo/walking-directions?fromLat=${currentPos[0]}&fromLng=${currentPos[1]}&toLat=${startLat}&toLng=${startLng}`
+      );
+      const data = res.ok ? await res.json() : null;
+      setGuidePositions(data?.positions?.length ? data.positions : [currentPos, course.positions[0]]);
+    } catch {
+      // 길찾기 API가 실패해도 직선 안내로라도 방향은 보여준다.
+      setGuidePositions([currentPos, course.positions[0]]);
+    }
+
+    guideWatchIdRef.current = navigator.geolocation.watchPosition(handleGuidePosition, () => {}, {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000
+    });
+  }
+
+  function confirmStartFromGuide() {
+    if (guideWatchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(guideWatchIdRef.current);
+      guideWatchIdRef.current = null;
+    }
+    setArrivedAtStartConfirmOpen(false);
+    beginCountdown();
+  }
+
+  function dismissArrivedAtStartPopup() {
+    setArrivedAtStartConfirmOpen(false);
+  }
+
+  async function handleStart() {
+    if (!session?.user) {
+      router.push('/');
+      return;
+    }
+    if (!course || !navigator.geolocation) {
+      // 위치를 아예 확인할 수 없으면 기존처럼 시작점 확인 없이 바로 카운트다운으로 진입한다.
+      await beginCountdown();
+      return;
+    }
+    setFinishing(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        setFinishing(false);
+        const currentPos: [number, number] = [position.coords.latitude, position.coords.longitude];
+        const distanceToStart = haversineMeters(currentPos, course.positions[0]);
+        if (distanceToStart <= START_ARRIVAL_TOLERANCE_M) {
+          await beginCountdown();
+        } else {
+          await enterGuideToStart(currentPos);
+        }
+      },
+      async () => {
+        // 현재 위치를 못 가져오면 시작점 확인 없이 기존 흐름대로 바로 시작한다.
+        setFinishing(false);
+        await beginCountdown();
+      },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
   }
 
   useEffect(() => {
@@ -403,6 +498,12 @@ export default function RunTrackingPage() {
     [course]
   );
 
+  // 시작점 경로안내용 지도 라인 — 도보 길찾기 API 응답(또는 실패 시 직선 폴백)을 그대로 그린다.
+  const guideRouteForMap: CourseRoute | null = useMemo(
+    () => (course && guidePositions ? { id: `${course.courseId}-guide`, name: '시작점까지', color: '#ff8b1a', positions: guidePositions } : null),
+    [course, guidePositions]
+  );
+
   const progressPct = course && course.distanceM > 0 ? Math.min(100, Math.round((maxDistanceAlongM / course.distanceM) * 100)) : 0;
 
   if (sessionStatus !== 'loading' && !session?.user) {
@@ -446,12 +547,28 @@ export default function RunTrackingPage() {
         </div>
       )}
 
+      {phase === 'guideToStart' && course && guideRouteForMap && (
+        <div className="run-preview run-guide-to-start">
+          <h1>{course.courseName} 시작점으로 이동</h1>
+          <p className="muted">
+            {distanceToStartM !== null ? `시작점까지 약 ${Math.round(distanceToStartM)}m 남았어요.` : '시작점까지 경로를 안내할게요.'}
+          </p>
+          <div className="run-preview-map">
+            <CourseMapView
+              routes={[guideRouteForMap]}
+              height={360}
+              center={guideCurrentPos ?? undefined}
+              recenterSignal={recenterSignal}
+              defaultZoom={16}
+              locationMarker={guideCurrentPos ?? undefined}
+            />
+          </div>
+        </div>
+      )}
+
       {phase === 'countdown' && (
         <div className="run-countdown">
           <span key={countdownValue}>{countdownValue > 0 ? countdownValue : '출발!'}</span>
-          <p className="run-countdown-location">
-            {locationAvailable ? '✅ 위치 확인 완료' : locationError ? `⚠️ ${locationError}` : '📍 위치 확인 중...'}
-          </p>
         </div>
       )}
 
@@ -580,6 +697,22 @@ export default function RunTrackingPage() {
             <div className="crew-battle-actions">
               <button className="primary-btn full-width" onClick={dismissForgotToStopAlert}>
                 아직 뛰고 있어요
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {arrivedAtStartConfirmOpen && (
+        <div className="run-modal-overlay">
+          <div className="crew-detail-modal" style={{ width: 360 }}>
+            <p>주변에 도착했어요. 시작하시겠습니까?</p>
+            <div className="crew-battle-actions">
+              <button className="ghost-btn" onClick={dismissArrivedAtStartPopup}>
+                나중에 시작
+              </button>
+              <button className="primary-btn" disabled={finishing} onClick={confirmStartFromGuide}>
+                출발
               </button>
             </div>
           </div>

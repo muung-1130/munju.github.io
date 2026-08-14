@@ -16,10 +16,10 @@ export function Card({ children, className = '', id }: { children: ReactNode; cl
   return <section id={id} className={`card ${className}`}>{children}</section>;
 }
 
-export function StatCard({ label, value, suffix, icon }: { label: string; value: string; suffix?: string; icon: string }) {
+export function StatCard({ label, value, suffix, icon }: { label: string; value: string; suffix?: string; icon?: string }) {
   return (
     <div className="stat-card">
-      <div className="stat-icon">{icon}</div>
+      {icon && <div className="stat-icon">{icon}</div>}
       <div>
         <span>{label}</span>
         <strong>{value}</strong>{suffix && <em>{suffix}</em>}

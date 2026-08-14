@@ -83,7 +83,6 @@ export default async function MyPage() {
       <PageTitle title="마이페이지" subtitle="나의 러닝 활동과 성과를 한눈에 확인하세요." />
       <Card className="profile-summary">
         <div className="profile-left">
-          <img src="/assets/avatar-runner.jpg" alt="러너 프로필" />
           <div>
             <h2>{nickname}</h2>
             <p>{email}</p>

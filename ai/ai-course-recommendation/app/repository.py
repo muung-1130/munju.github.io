@@ -111,12 +111,12 @@ async def dismiss_ignored_previous_ai_pick(user_id: UUID) -> None:
 
 async def save_recommendation_run(
     request: AiGeneratedCourseRequest,
-    result: AiGeneratedCourseResult,
+    results: list[AiGeneratedCourseResult],
     processing_time_ms: int,
-) -> tuple[UUID, dict[str, float | None]]:
-    """course_id만 참조하는 추천 실행 1건 + 결과 항목(현재는 Bedrock이 1개만 선택하므로 rank_no=1
-    한 건)을 저장한다. 코스 이름/설명/거리 등은 course.courses에 이미 있으므로 여기서는 복제하지
-    않는다 — 화면에서 그 코스 상세는 기존 코스 조회 API로 가져오면 된다."""
+) -> tuple[UUID, list[dict[str, float | None]]]:
+    """course_id만 참조하는 추천 실행 1건 + 결과 항목(Bedrock이 고른 서로 다른 코스 최대 3개,
+    rank_no 1~len(results))을 저장한다. 코스 이름/설명/거리 등은 course.courses에 이미 있으므로
+    여기서는 복제하지 않는다 — 화면에서 그 코스 상세는 기존 코스 조회 API로 가져오면 된다."""
     pool = get_pool()
 
     context_snapshot: dict[str, Any] = {
@@ -126,6 +126,9 @@ async def save_recommendation_run(
         "candidate_ids": [route.candidate_id for route in request.candidate_routes],
         "bedrock_model_id": settings.bedrock_model_id,
         "prompt_version": settings.prompt_version,
+        # "AI 추천 다시 받기" 버튼의 하루 사용 횟수 제한(course-recommendation-service의
+        # getManualRefreshCountToday)이 이 값으로 자동 생성과 수동 재검색을 구분한다.
+        "force_refresh": request.force_refresh,
     }
 
     # model_version 컬럼은 varchar(50)이라 전체 inference profile ARN(약 90자 이상)이 안 들어간다 —
@@ -180,9 +183,11 @@ async def save_recommendation_run(
             "environment_score": None,
             "preference_score": None,
         }
-        scores = empty_scores
+        item_scores: list[dict[str, float | None]] = []
 
-        if result.selected_candidate_id:
+        for rank_no, result in enumerate(results, start=1):
+            if not result.selected_candidate_id:
+                continue
             selected_candidate = next(
                 (
                     route
@@ -196,6 +201,7 @@ async def save_recommendation_run(
                 if selected_candidate is not None
                 else empty_scores
             )
+            item_scores.append(scores)
 
             await conn.execute(
                 """
@@ -204,10 +210,12 @@ async def save_recommendation_run(
                     score, distance_score, difficulty_score, environment_score, preference_score,
                     reason
                 )
-                VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (recommendation_id, course_id) DO NOTHING
                 """,
                 recommendation_id,
                 result.selected_candidate_id,
+                rank_no,
                 scores["score"],
                 scores["distance_score"],
                 scores["difficulty_score"],
@@ -216,4 +224,4 @@ async def save_recommendation_run(
                 result.selection_reason,
             )
 
-    return recommendation_id, scores
+    return recommendation_id, item_scores

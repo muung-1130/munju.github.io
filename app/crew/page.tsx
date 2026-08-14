@@ -43,9 +43,9 @@ function WeeklyStatsBadge({ crew }: { crew: Pick<Crew, 'avgWeeklyDistanceM' | 'a
   if (crew.avgWeeklyDistanceM === null && crew.avgWeeklyPaceSecPerKm === null) return null;
   return (
     <span className="crew-weekly-stats-badge" title="최근 7일 크루원 평균 기록">
-      {crew.avgWeeklyDistanceM !== null && <>🏃 주간 평균 {(crew.avgWeeklyDistanceM / 1000).toFixed(1)}km</>}
+      {crew.avgWeeklyDistanceM !== null && <>주간 평균 {(crew.avgWeeklyDistanceM / 1000).toFixed(1)}km</>}
       {crew.avgWeeklyDistanceM !== null && crew.avgWeeklyPaceSecPerKm !== null && ' · '}
-      {crew.avgWeeklyPaceSecPerKm !== null && <>⚡ 평균 페이스 {formatWeeklyPace(crew.avgWeeklyPaceSecPerKm)}/km</>}
+      {crew.avgWeeklyPaceSecPerKm !== null && <>평균 페이스 {formatWeeklyPace(crew.avgWeeklyPaceSecPerKm)}/km</>}
     </span>
   );
 }
@@ -77,9 +77,12 @@ export default function CrewPage() {
   const { data: session } = useSession();
   const { openAuthModal } = useAuthModal();
   const { openCrewChat } = useCrewChat();
-  const [activeTab, setActiveTab] = useState<'my' | 'find' | 'battle'>('find');
+  const [activeTab, setActiveTab] = useState<'my' | 'find' | 'battle'>('my');
   const [crews, setCrews] = useState<Crew[] | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [filterQuery, setFilterQuery] = useState('');
+  const [filterJoinType, setFilterJoinType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [detailCrewId, setDetailCrewId] = useState<string | null>(null);
   const [participateLoading, setParticipateLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -113,7 +116,22 @@ export default function CrewPage() {
       .then((data) => setMyCrew(data.crewId ? { crewId: data.crewId } : null));
   }, [session?.user?.id]);
 
-  const visibleCrews = crews ? (showAll ? crews : crews.filter((crew) => crew.fitsMyConditions)) : [];
+  const baseCrews = crews ? (showAll ? crews : crews.filter((crew) => crew.fitsMyConditions)) : [];
+  // 전체보기일 때만 검색/조건 필터를 추가로 적용한다 — 기본(내 조건에 맞는 크루만) 보기에서는
+  // 이미 좁혀진 목록이라 별도 필터 UI를 노출하지 않는다.
+  const visibleCrews =
+    showAll && (filterQuery || filterJoinType || filterStatus)
+      ? baseCrews.filter((crew) => {
+          if (filterQuery) {
+            const q = filterQuery.trim().toLowerCase();
+            const matchesQuery = crew.crewName.toLowerCase().includes(q) || (crew.regionCode ?? '').toLowerCase().includes(q);
+            if (!matchesQuery) return false;
+          }
+          if (filterJoinType && crew.joinType !== filterJoinType) return false;
+          if (filterStatus && crew.status !== filterStatus) return false;
+          return true;
+        })
+      : baseCrews;
   const detailCrew = crews?.find((crew) => crew.crewId === detailCrewId) ?? null;
   const myCrewData = crews?.find((crew) => crew.crewId === myCrew?.crewId) ?? null;
   // 이미 /api/crew 목록 조회에서 모든 크루의 avg_weekly_distance_m을 함께 받아오므로
@@ -206,16 +224,18 @@ export default function CrewPage() {
         <button className={activeTab === 'my' ? 'active' : ''} onClick={() => setActiveTab('my')}>
           내 크루
         </button>
-        <button className={activeTab === 'find' ? 'active' : ''} onClick={() => setActiveTab('find')}>
-          크루찾기
-        </button>
         <button className={activeTab === 'battle' ? 'active' : ''} onClick={() => setActiveTab('battle')}>
           크루 배틀
+        </button>
+        <button className={activeTab === 'find' ? 'active' : ''} onClick={() => setActiveTab('find')}>
+          크루찾기
         </button>
       </div>
 
       {activeTab === 'my' &&
-        (myCrewData ? (
+        (myCrew === undefined || crews === null ? (
+          <Card>내 크루 정보를 불러오는 중...</Card>
+        ) : myCrewData ? (
           <>
             <Card className="my-crew-card">
               <div className="card-head">
@@ -226,11 +246,11 @@ export default function CrewPage() {
               </div>
               {myCrewData.description && <p className="crew-detail-intro">“{myCrewData.description}”</p>}
               <div className="crew-info-row">
-                <span>📍 {myCrewData.regionCode ?? '지역 무관'}</span>
-                <span>🎯 {distanceRangeLabel(myCrewData.targetDistanceMinM, myCrewData.targetDistanceMaxM)}</span>
-                <span>⚡ {paceRangeLabel(myCrewData.paceMinSecPerKm, myCrewData.paceMaxSecPerKm)}</span>
-                <span>🗓 주 {myCrewData.minimumWeeklyFrequency ?? '-'}회↑</span>
-                <span>👥 {myCrewData.memberCount}/{myCrewData.maxMembers}명</span>
+                <span>{myCrewData.regionCode ?? '지역 무관'}</span>
+                <span>{distanceRangeLabel(myCrewData.targetDistanceMinM, myCrewData.targetDistanceMaxM)}</span>
+                <span>{paceRangeLabel(myCrewData.paceMinSecPerKm, myCrewData.paceMaxSecPerKm)}</span>
+                <span>주 {myCrewData.minimumWeeklyFrequency ?? '-'}회↑</span>
+                <span>{myCrewData.memberCount}/{myCrewData.maxMembers}명</span>
               </div>
               <WeeklyStatsBadge crew={myCrewData} />
             </Card>
@@ -238,7 +258,12 @@ export default function CrewPage() {
             <CrewMembersSection crewId={myCrewData.crewId} />
           </>
         ) : (
-          <Card>아직 가입한 크루가 없어요. &apos;크루찾기&apos; 탭에서 나에게 맞는 크루를 찾아보세요.</Card>
+          <Card className="crew-no-my-crew">
+            <p>아직 가입한 크루가 없어요.</p>
+            <button className="primary-btn" onClick={() => setActiveTab('find')}>
+              크루찾기로 이동 →
+            </button>
+          </Card>
         ))}
 
       {activeTab === 'find' && (
@@ -254,6 +279,29 @@ export default function CrewPage() {
                 <span>전체보기</span>
               </label>
             </div>
+
+            {showAll && (
+              <div className="crew-search-filters">
+                <input
+                  type="text"
+                  placeholder="크루 이름 또는 지역으로 검색"
+                  value={filterQuery}
+                  onChange={(event) => setFilterQuery(event.target.value)}
+                />
+                <select value={filterJoinType} onChange={(event) => setFilterJoinType(event.target.value)}>
+                  <option value="">가입 방식 전체</option>
+                  {Object.entries(JOIN_TYPE_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>
+                  <option value="">모집 상태 전체</option>
+                  {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {crews === null ? (
               <Card className="crew-empty">크루 목록을 불러오는 중...</Card>
@@ -275,11 +323,11 @@ export default function CrewPage() {
                       {outOfMyCondition && <span className="type-pill">조건 외</span>}
                     </div>
                     <div className="crew-info-row">
-                      <span>📍 {crew.regionCode ?? '지역 무관'}</span>
-                      <span>🎯 {distanceRangeLabel(crew.targetDistanceMinM, crew.targetDistanceMaxM)}</span>
-                      <span>⚡ {paceRangeLabel(crew.paceMinSecPerKm, crew.paceMaxSecPerKm)}</span>
-                      <span>🗓 주 {crew.minimumWeeklyFrequency ?? '-'}회↑</span>
-                      <span>👥 {crew.memberCount}/{crew.maxMembers}명</span>
+                      <span>{crew.regionCode ?? '지역 무관'}</span>
+                      <span>{distanceRangeLabel(crew.targetDistanceMinM, crew.targetDistanceMaxM)}</span>
+                      <span>{paceRangeLabel(crew.paceMinSecPerKm, crew.paceMaxSecPerKm)}</span>
+                      <span>주 {crew.minimumWeeklyFrequency ?? '-'}회↑</span>
+                      <span>{crew.memberCount}/{crew.maxMembers}명</span>
                     </div>
                     <WeeklyStatsBadge crew={crew} />
                   </Card>
@@ -342,11 +390,11 @@ export default function CrewPage() {
               <button onClick={() => setDetailCrewId(null)} aria-label="닫기">✕</button>
             </div>
             <div className="crew-info-row">
-              <span>📍 {detailCrew.regionCode ?? '지역 무관'}</span>
-              <span>🎯 {distanceRangeLabel(detailCrew.targetDistanceMinM, detailCrew.targetDistanceMaxM)}</span>
-              <span>⚡ {paceRangeLabel(detailCrew.paceMinSecPerKm, detailCrew.paceMaxSecPerKm)}</span>
-              <span>🗓 주 {detailCrew.minimumWeeklyFrequency ?? '-'}회↑</span>
-              <span>👥 {detailCrew.memberCount}/{detailCrew.maxMembers}명</span>
+              <span>{detailCrew.regionCode ?? '지역 무관'}</span>
+              <span>{distanceRangeLabel(detailCrew.targetDistanceMinM, detailCrew.targetDistanceMaxM)}</span>
+              <span>{paceRangeLabel(detailCrew.paceMinSecPerKm, detailCrew.paceMaxSecPerKm)}</span>
+              <span>주 {detailCrew.minimumWeeklyFrequency ?? '-'}회↑</span>
+              <span>{detailCrew.memberCount}/{detailCrew.maxMembers}명</span>
             </div>
             <div className="crew-detail">
               {detailCrew.description && <p className="crew-detail-intro">“{detailCrew.description}”</p>}
@@ -365,7 +413,7 @@ export default function CrewPage() {
                   <span>개설일</span>
                   <strong>{new Date(detailCrew.createdAt).toLocaleDateString('ko-KR')}</strong>
                 </div>
-                <div><span>내 조건 매칭</span><strong>{detailCrew.fitsMyConditions ? '맞음 ✅' : '안 맞음'}</strong></div>
+                <div><span>내 조건 매칭</span><strong>{detailCrew.fitsMyConditions ? '맞음' : '안 맞음'}</strong></div>
               </div>
             </div>
             {participateError && <p className="field-error">{participateError}</p>}
@@ -388,7 +436,7 @@ export default function CrewPage() {
               <button onClick={() => setJoinRequestCrew(null)} aria-label="닫기">✕</button>
             </div>
             {joinRequestSent ? (
-              <p className="field-ok">크루 신청이 보내졌어요! 크루 가입 여부는 확인 후 알려드릴게요 🙌</p>
+              <p className="field-ok">크루 신청이 보내졌어요! 크루 가입 여부는 확인 후 알려드릴게요.</p>
             ) : (
               <>
                 <textarea

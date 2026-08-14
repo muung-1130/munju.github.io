@@ -1,6 +1,6 @@
 import { getPool } from './db.js';
 import { addCrewChatMessage } from './crewChat.js';
-import { publishBattleDeclinedEvent } from './kafka.js';
+import { publishBattleDeclinedEvent, publishBattleStartedEvent } from './kafka.js';
 
 export type BattleMetricType = 'DISTANCE' | 'PACE';
 
@@ -244,10 +244,10 @@ export async function resolveBattle(battleId: string, approve: boolean): Promise
         expiresAt
       ]);
       await announceOnce(battle.crew_a_id, battleId, 'SENT_TO_OPPONENT', `${crewBName} 크루에 ${metricLabel} 배틀을 신청했어요. 24시간 안에 응답을 기다려요!`);
-      await announceOnce(battle.crew_b_id, battleId, 'RECEIVED_PROPOSAL', `🔥 ${crewAName} 크루가 ${metricLabel} 배틀을 신청했어요! 24시간 안에 크루장 승인 또는 크루원 과반수 찬성이 필요해요.`);
+      await announceOnce(battle.crew_b_id, battleId, 'RECEIVED_PROPOSAL', `${crewAName} 크루가 ${metricLabel} 배틀을 신청했어요! 24시간 안에 크루장 승인 또는 크루원 과반수 찬성이 필요해요.`);
     } else {
       await pool.query(`UPDATE crew.crew_battles SET status = 'CANCELLED', resolved_at = now() WHERE battle_id = $1`, [battleId]);
-      await announceOnce(battle.crew_a_id, battleId, 'CANCELLED_BEFORE_SEND', `이번 ${crewBName} 크루와의 배틀 제안은 다음 기회에 도전해봐요 🙏`);
+      await announceOnce(battle.crew_a_id, battleId, 'CANCELLED_BEFORE_SEND', `이번 ${crewBName} 크루와의 배틀 제안은 다음 기회에 도전해봐요.`);
     }
   } else {
     // PENDING_OPPONENT
@@ -256,14 +256,15 @@ export async function resolveBattle(battleId: string, approve: boolean): Promise
         `UPDATE crew.crew_battles SET status = 'ACTIVE', start_date = CURRENT_DATE, end_date = CURRENT_DATE + 6, resolved_at = now(), expires_at = NULL WHERE battle_id = $1`,
         [battleId]
       );
-      await announceOnce(battle.crew_a_id, battleId, 'STARTED', `🔥 ${crewBName} 크루와 ${metricLabel} 배틀이 시작됐어요! 1주일간 힘내봐요 💪`);
-      await announceOnce(battle.crew_b_id, battleId, 'STARTED', `🔥 ${crewAName} 크루와 ${metricLabel} 배틀이 시작됐어요! 1주일간 힘내봐요 💪`);
+      await announceOnce(battle.crew_a_id, battleId, 'STARTED', `${crewBName} 크루와의 ${metricLabel} 배틀이 시작되었어요. 1주일간 힘내봐요!`);
+      await announceOnce(battle.crew_b_id, battleId, 'STARTED', `${crewAName} 크루와의 ${metricLabel} 배틀이 시작되었어요. 1주일간 힘내봐요!`);
+      await notifyBattleStarted(battle, crewAName, crewBName, metricLabel);
     } else {
       await pool.query(`UPDATE crew.crew_battles SET status = 'DECLINED', resolved_at = now(), expires_at = NULL WHERE battle_id = $1`, [
         battleId
       ]);
       await announceOnce(battle.crew_b_id, battleId, 'DECLINED_BY_US', `${crewAName} 크루의 배틀 제안을 거절했어요.`);
-      await announceOnce(battle.crew_a_id, battleId, 'DECLINED_BY_OPPONENT', `😔 ${crewBName} 크루가 이번 배틀 제안을 거절했어요. 다른 크루에게 다시 도전해봐요!`);
+      await announceOnce(battle.crew_a_id, battleId, 'DECLINED_BY_OPPONENT', `${crewBName} 크루가 이번 배틀 제안을 거절했어요. 다른 크루에게 다시 도전해봐요!`);
       await notifyBattleDeclined(battle, crewBName);
     }
   }
@@ -290,6 +291,44 @@ async function notifyBattleDeclined(battle: { battle_id: string; crew_a_id: stri
     opponentCrewName,
     metricLabel
   });
+}
+
+async function getActiveMemberUserIds(crewId: string): Promise<string[]> {
+  const pool = getPool();
+  const { rows } = await pool.query(`SELECT user_id FROM crew.crew_members WHERE crew_id = $1 AND status = 'ACTIVE'`, [crewId]);
+  return rows.map((row) => row.user_id);
+}
+
+// 배틀이 ACTIVE로 전환된(=시작된) 양쪽 크루 전원에게 알림을 보낸다. 다른 알림 이벤트
+// (JoinRequestSubmitted, BattleDeclined 등)와 같은 "이벤트 1건 = 알림 대상 1명" 단위를 그대로
+// 따른다 — 크루원 수만큼 이벤트가 늘어나지만, 각 이벤트가 독립된 eventId를 가져야
+// notification.notifications의 source_event_id UNIQUE 제약과 자연스럽게 맞물려 멱등하게
+// 적재된다(이벤트 1건에 대상 여러 명을 배열로 담으면 컨슈머 쪽에서 같은 eventId로 여러 행을
+// 넣으려다 이 제약에 걸려 두 번째 사람부터 조용히 유실된다).
+async function notifyBattleStarted(
+  battle: { battle_id: string; crew_a_id: string; crew_b_id: string },
+  crewAName: string,
+  crewBName: string,
+  metricLabel: string
+) {
+  const [crewAMemberUserIds, crewBMemberUserIds] = await Promise.all([
+    getActiveMemberUserIds(battle.crew_a_id),
+    getActiveMemberUserIds(battle.crew_b_id)
+  ]);
+  const targets = [
+    ...crewAMemberUserIds.map((userId) => ({ userId, opponentCrewName: crewBName })),
+    ...crewBMemberUserIds.map((userId) => ({ userId, opponentCrewName: crewAName }))
+  ];
+  await Promise.all(
+    targets.map((target) =>
+      publishBattleStartedEvent({
+        battleId: battle.battle_id,
+        userId: target.userId,
+        opponentCrewName: target.opponentCrewName,
+        metricLabel
+      })
+    )
+  );
 }
 
 export type VoteTally = { agree: number; disagree: number; total: number };
@@ -600,10 +639,10 @@ export async function getBattleView(crewId: string, userId: string): Promise<Act
 
       const message =
         myResult === 'DRAW'
-          ? `📅 ${dateStr} 결과: ${opponentCrewName} 크루와 무승부예요!`
+          ? `${dateStr} 결과: ${opponentCrewName} 크루와 무승부예요!`
           : myResult === 'WIN'
-            ? `📅 ${dateStr} 결과: ${opponentCrewName} 크루와의 배틀에서 승리했어요! 🎉`
-            : `📅 ${dateStr} 결과: ${opponentCrewName} 크루와의 배틀에서 아쉽게 졌어요. 내일은 이겨봐요!`;
+            ? `${dateStr} 결과: ${opponentCrewName} 크루와의 배틀에서 승리했어요!`
+            : `${dateStr} 결과: ${opponentCrewName} 크루와의 배틀에서 아쉽게 졌어요. 내일은 이겨봐요!`;
       await announceOnce(myCrewId, battle.battle_id, `DAY_RESULT_${dateStr}`, message);
     }
 
@@ -633,7 +672,7 @@ export async function getBattleView(crewId: string, userId: string): Promise<Act
       battle.battle_id,
       'FINISHED',
       finalResult === 'WIN'
-        ? `🏆 ${opponentCrewName} 크루와의 배틀에서 승리했습니다!!!`
+        ? `${opponentCrewName} 크루와의 배틀에서 승리했습니다!!!`
         : finalResult === 'DRAW'
           ? `${opponentCrewName} 크루와 무승부로 마무리됐어요! 다음엔 승부를 가려봐요.`
           : `${opponentCrewName} 크루와의 배틀, 더 성장해서 다음 기회에 이겨봅시다!`
@@ -691,36 +730,36 @@ export type BattleHistoryEntry = {
   createdAt: string;
 };
 
-// "크루 배틀" 탭에서 지금 배틀 중이 아닐 때 기간을 정해 지난 배틀 이력을 검색한다.
-// 시작만 됐다가 끝난(COMPLETED) 것뿐 아니라, 상대가 거절했거나(DECLINED) 크루장이 취소한
-// (CANCELLED) 제안도 함께 보여준다 — "이전 배틀 기록"을 좁게 완주 이력으로만 보면 실제로 있었던
-// 시도들이 누락된다.
-export async function getBattleHistory(crewId: string, fromDate: string | null, toDate: string | null): Promise<BattleHistoryEntry[]> {
+const BATTLE_HISTORY_PAGE_SIZE = 10;
+
+// "크루 배틀" 탭의 "이전 배틀기록 조회" 버튼 — 10건씩 "더보기"로 이어서 불러온다(날짜 검색 UI는
+// 없앴다). 시작만 됐다가 끝난(COMPLETED) 것뿐 아니라, 상대가 거절했거나(DECLINED) 크루장이
+// 취소한(CANCELLED) 제안도 함께 보여준다 — "이전 배틀 기록"을 좁게 완주 이력으로만 보면 실제로
+// 있었던 시도들이 누락된다.
+export async function getBattleHistory(
+  crewId: string,
+  offset: number
+): Promise<{ entries: BattleHistoryEntry[]; hasMore: boolean }> {
   const pool = getPool();
-  const conditions = [`(crew_a_id = $1 OR crew_b_id = $1)`, `status IN ('COMPLETED', 'DECLINED', 'CANCELLED')`];
-  const params: unknown[] = [crewId];
-  if (fromDate) {
-    params.push(fromDate);
-    conditions.push(`created_at >= $${params.length}::date`);
-  }
-  if (toDate) {
-    params.push(toDate);
-    conditions.push(`created_at < ($${params.length}::date + 1)`);
-  }
-
+  // 다음 페이지 존재 여부를 별도 COUNT 쿼리 없이 알기 위해 페이지 크기보다 1건 더 가져온다.
   const { rows } = await pool.query(
-    `SELECT * FROM crew.crew_battles WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC LIMIT 100`,
-    params
+    `SELECT * FROM crew.crew_battles
+      WHERE (crew_a_id = $1 OR crew_b_id = $1) AND status IN ('COMPLETED', 'DECLINED', 'CANCELLED')
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3`,
+    [crewId, BATTLE_HISTORY_PAGE_SIZE + 1, offset]
   );
+  const hasMore = rows.length > BATTLE_HISTORY_PAGE_SIZE;
+  const pageRows = hasMore ? rows.slice(0, BATTLE_HISTORY_PAGE_SIZE) : rows;
 
-  const crewIds = Array.from(new Set(rows.flatMap((r) => [r.crew_a_id, r.crew_b_id])));
+  const crewIds = Array.from(new Set(pageRows.flatMap((r) => [r.crew_a_id, r.crew_b_id])));
   const nameMap = new Map<string, string>();
   if (crewIds.length > 0) {
     const { rows: nameRows } = await pool.query(`SELECT crew_id, crew_name FROM crew.crews WHERE crew_id = ANY($1::uuid[])`, [crewIds]);
     for (const row of nameRows) nameMap.set(row.crew_id, row.crew_name);
   }
 
-  return rows.map((row) => {
+  const entries = pageRows.map((row) => {
     const isA = row.crew_a_id === crewId;
     const opponentCrewId = isA ? row.crew_b_id : row.crew_a_id;
     let result: 'WIN' | 'LOSE' | 'DRAW' | null = null;
@@ -738,6 +777,8 @@ export async function getBattleHistory(crewId: string, fromDate: string | null, 
       createdAt: row.created_at
     };
   });
+
+  return { entries, hasMore };
 }
 
 // 크루 단위로 진행 중인 배틀에서 빠져나온다(크루장만 가능).

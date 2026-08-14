@@ -93,15 +93,16 @@ a { color: inherit; text-decoration: none; }
 .location-permission-btn {
   margin-top: 14px; background: var(--ice); border: 1px solid var(--line); color: var(--navy);
   border-radius: 999px; padding: 10px 18px; font-weight: 800; font-size: 13px; box-shadow: var(--soft-shadow);
+  display: inline-flex; align-items: center; gap: 8px;
 }
 .location-permission-btn:disabled { opacity: .6; }
-.hero-content h1 { font-size: 38px; line-height: 1.22; letter-spacing: -0.06em; margin: 0 0 20px; }
+.hero-content h1 { font-size: 38px; line-height: 1.22; letter-spacing: -0.06em; margin: 0 0 20px; word-break: keep-all; }
 .ai-avatar-small { width: 44px; height: 44px; border-radius: 50%; background: #74BDEB; display: grid; place-items: center; overflow: hidden; flex-shrink: 0; }
 .ai-avatar-small img { width: 40px; height: 40px; object-fit: contain; }
 .feature-banner { position: relative; height: 56px; border-radius: 12px; overflow: hidden; margin-bottom: 22px; box-shadow: var(--soft-shadow); }
-.feature-slide { position: absolute; inset: 0; background-size: cover; background-position: center; display: flex; align-items: center; opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+.feature-slide { position: absolute; inset: 0; display: flex; align-items: center; opacity: 0; transition: opacity .6s ease; pointer-events: none; }
 .feature-slide.active { opacity: 1; pointer-events: auto; }
-.feature-slide-overlay { position: relative; z-index: 1; width: 100%; padding: 0 20px; background: linear-gradient(90deg, rgba(0,0,0,.86) 0%, rgba(0,0,0,.5) 60%, rgba(0,0,0,.2) 100%); color: white; display: flex; align-items: center; gap: 10px; height: 100%; }
+.feature-slide-overlay { position: relative; z-index: 1; width: 100%; padding: 0 20px; color: white; display: flex; align-items: center; gap: 10px; height: 100%; }
 .feature-slide-eyebrow { font-size: 11px; font-weight: 900; letter-spacing: .1em; opacity: .8; }
 .feature-slide-overlay strong { font-size: 14px; letter-spacing: -0.02em; flex-shrink: 0; }
 .feature-slide-overlay p { margin: 0; font-size: 12px; color: rgba(255,255,255,.75); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -144,6 +145,8 @@ a { color: inherit; text-decoration: none; }
 .home-chat-close { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; background: white; color: #000000; font-weight: 900; }
 .crew-chat-leave { margin-left: auto; background: white; color: #000000; font-weight: 800; font-size: 12px; padding: 6px 12px; border-radius: 999px; }
 .crew-chat-leave:hover { background: rgba(255,90,120,.14); color: #ff8a95; }
+.crew-chat-pin { background: white; color: #000000; font-weight: 800; font-size: 12px; padding: 6px 12px; border-radius: 999px; }
+.crew-chat-pin.active { background: #74BDEB; color: #3C6E71; }
 /* 크루 채팅 위젯은 AI 러닝 비서 위젯과 겹치지 않도록 왼쪽으로 한 칸 띄운다. right 기준점이
    바뀌었으니 닫힌 상태의 translateX도 그만큼 더 밀어줘야 화면 밖으로 완전히 나간다(안 그러면
    AI 패널 자리만큼만 밀리다 말아서 닫아도 화면에 걸쳐 보이는 버그가 생김). */
@@ -177,7 +180,7 @@ a { color: inherit; text-decoration: none; }
 .crew-vs-column { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .crew-vs-column strong { font-size: 15px; color: #3C6E71; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crew-vs-column:last-child { text-align: right; }
-.crew-vs-flame { font-size: 26px; flex-shrink: 0; }
+.crew-vs-divider { font-size: 15px; font-weight: 900; color: var(--muted); flex-shrink: 0; }
 
 .crew-battle-scoreboard { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 14px 0; }
 .crew-battle-score { font-size: 40px; font-weight: 900; line-height: 1; }
@@ -192,9 +195,8 @@ a { color: inherit; text-decoration: none; }
 .crew-member-info { display: flex; align-items: center; gap: 8px; }
 .crew-member-stats { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; font-size: 13px; }
 
-.battle-history-filters { display: flex; align-items: flex-end; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
-.battle-history-filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 700; }
-.battle-history-list { display: flex; flex-direction: column; gap: 8px; }
+.battle-history-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.battle-history-search-btn { display: inline-flex; align-items: center; gap: 8px; }
 .battle-history-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: white; border-radius: 12px; flex-wrap: wrap; }
 
 .my-crew-card { margin-bottom: 20px; }
@@ -350,6 +352,8 @@ a { color: inherit; text-decoration: none; }
   color: var(--muted); white-space: nowrap;
 }
 .radius-slider-dot.active .radius-slider-label { color: #3C6E71; }
+/* 전체보기/검색 중에는 서식(자리)은 그대로 두고 회색 비활성화 상태로만 바꾼다(DOM에서 없애지 않음). */
+.radius-slider.disabled { opacity: .4; pointer-events: none; }
 
 .switch-toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 800; color: #000000; user-select: none; }
 .switch-toggle input { display: none; }
@@ -429,6 +433,26 @@ a { color: inherit; text-decoration: none; }
 .ai-reco-panel { background: white; color: var(--text); border: 1px solid var(--line); width: 100%; margin-bottom: 22px; }
 .ai-reco-panel p { color: var(--muted); }
 .ai-reco-panel .card-head span { background: rgba(116,189,235,.14); color: var(--blue); }
+.ai-reco-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ai-reco-mark { background: rgba(116,189,235,.14); color: var(--blue); border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 900; }
+/* 위치 확인 버튼은 헤더 액션 중 가장 오른쪽에 붙는다(검색 버튼 자리처럼). */
+.ai-reco-header-actions .ai-reco-location-slot { display: flex; margin-left: auto; }
+.ai-reco-inline-filters { display: flex; flex-wrap: wrap; gap: 16px; margin: -6px 0 14px; }
+.ai-reco-inline-filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ai-reco-filter-group-label { font-size: 12px; font-weight: 800; color: var(--muted); flex-shrink: 0; }
+.ai-reco-inline-filter-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.ai-reco-inline-filter-buttons button {
+  background: white; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px;
+  font-size: 12px; font-weight: 800; color: #3C6E71;
+}
+.ai-reco-inline-filter-buttons button.active { background: #74BDEB; border-color: #3C6E71; }
+/* 거리 설정/추천기준 필터 우측에 검색 버튼처럼 붙는 "AI 추천 다시 받기". */
+.ai-reco-refresh-btn {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  background: #74BDEB; border: 1px solid #3C6E71; border-radius: 999px; padding: 7px 14px;
+  font-size: 12px; font-weight: 900; color: #3C6E71;
+}
+.ai-reco-refresh-btn:disabled { opacity: .6; }
 .ai-reco-default-notice {
   display: flex;
   align-items: center;
@@ -460,9 +484,9 @@ a { color: inherit; text-decoration: none; }
   padding: 4px 10px; border-radius: 999px; letter-spacing: -0.01em;
 }
 /* 홈페이지 위치 확인 버튼을 지도 바로 위에 띄우는 슬롯 — 히어로 문단용 여백(margin-top:14px)은
-   여기선 필요 없어서 지운다. */
+   여기선 필요 없어서 지운다. 버튼 자체도 지도 위 좁은 슬롯에 맞게 작게 줄인다. */
 .ai-reco-location-slot { display: flex; }
-.ai-reco-location-slot .location-permission-btn { margin-top: 0; width: 100%; }
+.ai-reco-location-slot .location-permission-btn { margin-top: 0; width: auto; padding: 8px 12px; font-size: 12px; }
 
 .ai-reco-result { display: flex; flex-direction: column; gap: 10px; }
 .ai-reco-reason { background: white; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: #000000; font-weight: 600; }
@@ -484,16 +508,23 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* 코스 탐색 사이드바(330px)에 들어갈 때: 가로 배치(지도|본문)가 그대로면 폭이 부족해
-   깨지므로 세로로 쌓고, 좌우 화살표도 모바일처럼 작은 원형 버튼으로 축소한다. */
+   깨지므로 세로로 쌓는다. 좌우 화살표는 카드 위에 겹쳐 띄우는 대신, CSS Grid로 media/content
+   아래 한 줄에 나란히 배치한다(DOM 순서는 prev-media-content-next 그대로 두고 grid-area로만
+   재배치 — 코스탐색 페이지에서만 적용, 홈페이지는 기존 좌우 오버레이 배치 유지). */
 .side-column .ai-reco-panel { margin-bottom: 0; }
-.side-column .ai-reco-inner { flex-direction: column; padding: 14px; position: relative; }
-.side-column .ai-reco-media { flex-basis: auto; width: 100%; }
-.side-column .ai-reco-map .course-route-map { min-height: 180px; }
-.side-column .ai-reco-edge-arrow {
-  position: absolute; top: 14px; align-self: unset; width: 30px; height: 30px; padding: 0; font-size: 15px; border-radius: 50%; z-index: 2;
+.side-column .ai-reco-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "media media" "content content" "prev next";
+  gap: 10px;
+  padding: 14px;
 }
-.side-column .ai-reco-edge-prev { left: 14px; }
-.side-column .ai-reco-edge-next { right: 14px; }
+.side-column .ai-reco-media { grid-area: media; flex-basis: auto; width: 100%; }
+.side-column .ai-reco-content { grid-area: content; }
+.side-column .ai-reco-map .course-route-map { min-height: 180px; }
+.side-column .ai-reco-edge-arrow { align-self: unset; width: 100%; padding: 10px 0; font-size: 16px; border-radius: 10px; }
+.side-column .ai-reco-edge-prev { grid-area: prev; }
+.side-column .ai-reco-edge-next { grid-area: next; }
 
 .three-stats { display:flex; justify-content:space-between; margin-top:24px; flex-wrap: wrap; gap: 10px; }
 .three-stats span { font-size: 12px; font-weight: 700; color: var(--muted); }
@@ -514,6 +545,9 @@ a { color: inherit; text-decoration: none; }
 .crew-list-head p { margin: 6px 0 0; font-size: 13px; }
 .crew-filter-toggle { display: flex; align-items: center; gap: 8px; background: white; border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; font-weight: 800; color: #3C6E71; cursor: pointer; white-space: nowrap; }
 .crew-filter-toggle input { width: 16px; height: 16px; accent-color: #3C6E71; }
+.crew-search-filters { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+.crew-search-filters input[type='text'] { flex: 1; min-width: 180px; height: 42px; border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; font-size: 13px; }
+.crew-search-filters select { height: 42px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font-size: 13px; background: white; color: #3C6E71; font-weight: 700; }
 .crew-entry { display: flex; flex-direction: column; gap: 12px; }
 .crew-entry-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .crew-entry-title { display: flex; align-items: center; gap: 8px; background: transparent; font-size: 19px; font-weight: 900; color: #3C6E71; letter-spacing: -0.03em; }
@@ -527,6 +561,7 @@ a { color: inherit; text-decoration: none; }
 .crew-detail-stats span { display: block; color: var(--muted); font-size: 12px; font-weight: 700; }
 .crew-detail-stats strong { display: block; margin-top: 4px; font-size: 17px; color: #3C6E71; }
 .crew-empty { text-align: center; color: var(--muted); font-weight: 700; padding: 40px 0; }
+.crew-no-my-crew { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; color: var(--muted); font-weight: 700; padding: 40px 0; }
 .crew-side-col { display: flex; flex-direction: column; gap: 20px; }
 .crew-ranking-list { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
 .crew-rank-row { display: flex; align-items: center; gap: 8px; padding: 9px 2px; border-bottom: 1px solid var(--line); }
@@ -553,7 +588,6 @@ a { color: inherit; text-decoration: none; }
 .battle-bar i { display: block; height: 100%; background: linear-gradient(90deg, #74BDEB, #57c98a); border-radius: inherit; }
 .crew-chat-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1500; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .run-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.run-countdown-location { margin-top: 12px; font-size: 15px; font-weight: 700; color: #000000; text-align: center; }
 .run-location-warning { text-align: center; font-size: 13px; font-weight: 700; color: #b7791f; background: rgba(255,183,77,.14); border-radius: 10px; padding: 8px 12px; margin: 0; }
 .crew-chat-modal { width: 420px; max-width: 100%; max-height: 640px; background: white; border-radius: 20px; box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; }
 .crew-detail-modal { width: 480px; max-width: 100%; max-height: 85vh; overflow-y: auto; background: white; border-radius: 20px; box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; gap: 16px; }
@@ -566,7 +600,8 @@ a { color: inherit; text-decoration: none; }
 .chat-list { height:230px; overflow:hidden; display:flex; flex-direction:column; gap:14px; margin:18px 0; }
 .chat-line { display:flex; align-items:center; gap:12px; }
 .chat-line.mine { flex-direction: row-reverse; }
-.avatar-dot { min-width:42px; width:42px; height:42px; border-radius:50%; background:rgba(116,189,235,.14); display:grid; place-items:center; font-weight:900; }
+.avatar-dot { min-width:42px; width:42px; height:42px; border-radius:50%; background:rgba(116,189,235,.14); display:grid; place-items:center; font-weight:900; overflow: hidden; }
+.avatar-dot img { width: 26px; height: 26px; object-fit: contain; }
 .chat-line p { background:white; border-radius:14px; padding:12px 16px; margin:0; }
 .chat-line.mine p { background: #74BDEB; color: #3C6E71; margin-left: auto; }
 .chat-input { display:flex; gap:10px; }
@@ -834,7 +869,6 @@ a { color: inherit; text-decoration: none; }
 .month-select { border:1px solid var(--line); border-radius:12px; padding:12px 18px; font-weight:800; }
 .profile-summary { display:flex; align-items:flex-start; gap:24px; margin-bottom:18px; flex-wrap:wrap; }
 .profile-left { flex: 0 0 280px; display:flex; gap:18px; align-items:center; border-right:1px solid var(--line); padding-right:22px; }
-.profile-left img { width:96px; height:96px; border-radius:50%; object-fit:cover; }
 .profile-left h2 span { background:#3C6E71; color:white; border-radius:999px; padding:4px 8px; font-size:12px; }
 .profile-left p { margin:6px 0; color:var(--muted); }
 .profile-stats-grid { flex:1; min-width:280px; display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:14px; }
@@ -1398,7 +1432,6 @@ a { color: inherit; text-decoration: none; }
   background: linear-gradient(160deg, rgba(116,189,235,.16), rgba(183,211,194,.35));
   border-color: rgba(116,189,235,.4);
 }
-.home-page .home-feature-icon { font-size: 30px; }
 .home-page .home-feature-tile strong { font-size: 17px; color: #3C6E71; letter-spacing: -0.02em; }
 .home-page .home-feature-tile p { margin: 0; font-size: 13px; line-height: 1.55; color: rgba(0,0,0,.6); }
 @media (max-width: 900px) { .home-page .home-feature-grid { grid-template-columns: repeat(2, 1fr); } }

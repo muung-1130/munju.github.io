@@ -29,15 +29,13 @@ const MAX_PANEL_WIDTH = 920;
 const MIN_PANEL_HEIGHT = 420;
 const MAX_PANEL_HEIGHT_MARGIN = 40; // 뷰포트 상하 여백
 
+// 채팅 진입 버튼의 기본 가로 위치는 화면 우측 2/3 지점으로 둔다. 세로 위치만 네비게이션의
+// "마이페이지" 링크에 맞춰두고(아직 렌더되지 않았으면 상단 근처로 대체), 렌더가 지연되는
+// 흐름에서도 값이 흔들리지 않게 한다.
 function defaultIconPosition() {
-  // 기본 위치: 네비게이션의 "마이페이지" 링크 바로 오른쪽. 아직 렌더되지 않았거나 찾지 못하면
-  // 화면 우상단 근처로 대체한다.
   const navLink = document.querySelector('[data-nav-mypage]');
-  if (navLink) {
-    const rect = navLink.getBoundingClientRect();
-    return { top: rect.top + rect.height / 2 - ICON_SIZE / 2, left: rect.right + 14 };
-  }
-  return { top: 20, left: Math.max(20, window.innerWidth - 260) };
+  const top = navLink ? navLink.getBoundingClientRect().top + navLink.getBoundingClientRect().height / 2 - ICON_SIZE / 2 : 20;
+  return { top, left: (window.innerWidth * 2) / 3 };
 }
 
 function clampPosition(pos: { top: number; left: number }) {
@@ -63,6 +61,14 @@ export function AssistantChatWidget() {
   const draggedRef = useRef(false);
   const draggingRef = useRef(false);
   const [panelSize, setPanelSize] = useState<{ width: number; height: number } | null>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
+
+  // 채팅창을 열 때와 새 메시지가 도착할 때 항상 맨 아래(최신 메시지)부터 보이게 한다.
+  useEffect(() => {
+    if (!open) return;
+    const el = chatListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [open, messages]);
   // 모바일에서는 헤더가 로고줄+네비게이션줄로 줄바꿈되어 높이가 유동적이라, 말풍선의 top을
   // CSS 고정값 대신 실제 헤더 높이를 측정해서 그 바로 아래에 뜨도록 한다.
   const [mobileBubbleTop, setMobileBubbleTop] = useState<number | null>(null);
@@ -316,10 +322,14 @@ export function AssistantChatWidget() {
           </div>
           <button className="home-chat-close" onClick={() => setOpen(false)} aria-label="채팅 닫기">✕</button>
         </div>
-        <div className="home-chat-list">
+        <div className="home-chat-list" ref={chatListRef}>
           {messages.map((message, index) => (
             <div key={index} className={`home-chat-line ${message.from}`}>
-              {message.from === 'ai' && <span className="avatar-dot">🐢</span>}
+              {message.from === 'ai' && (
+                <span className="avatar-dot">
+                  <img src="/assets/ai-bot-turtle.svg" alt="" />
+                </span>
+              )}
               <p>{message.text}</p>
             </div>
           ))}

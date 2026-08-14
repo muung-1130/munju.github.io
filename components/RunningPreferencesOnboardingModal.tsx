@@ -87,7 +87,12 @@ export function RunningPreferencesOnboardingModal() {
       const res = await fetch('/api/user-running-preferences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ runningGoal: goal, difficulty, preferredDistanceM: distanceM, preferredScenery: scenery })
+        body: JSON.stringify({
+          runningGoal: goal,
+          difficulty,
+          preferredDistanceM: distanceM,
+          preferredScenery: scenery
+        })
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
