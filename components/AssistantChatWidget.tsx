@@ -303,7 +303,7 @@ export function AssistantChatWidget() {
           onClick={handleIconClick}
           aria-label="AI 러닝 비서 채팅 열기 (드래그해서 위치를 옮길 수 있어요)"
         >
-          <img src="/assets/ai-bot-turtle.svg" alt="" />
+          <img src="/assets/ai-bot-mascot.png" alt="" />
         </button>
       )}
 
@@ -315,7 +315,7 @@ export function AssistantChatWidget() {
       >
         <div className="home-chat-resize-handle" onMouseDown={handleResizeMouseDown} aria-hidden="true" />
         <div className="home-chat-header">
-          <span className="ai-avatar-small"><img src="/assets/ai-bot-turtle.svg" alt="" /></span>
+          <span className="ai-avatar-small"><img src="/assets/ai-bot-mascot.png" alt="" /></span>
           <div>
             <strong>AI 러닝 비서</strong>
             <small>언제든 편하게 물어보세요</small>
@@ -327,10 +327,10 @@ export function AssistantChatWidget() {
             <div key={index} className={`home-chat-line ${message.from}`}>
               {message.from === 'ai' && (
                 <span className="avatar-dot">
-                  <img src="/assets/ai-bot-turtle.svg" alt="" />
+                  <img src="/assets/ai-bot-mascot.png" alt="" />
                 </span>
               )}
-              <p style={{ whiteSpace: 'pre-wrap' }}>{message.text}</p>
+              <p>{message.text}</p>
             </div>
           ))}
         </div>

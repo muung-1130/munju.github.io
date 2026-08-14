@@ -46,7 +46,6 @@ export function LocationPermissionButton() {
       () => {
         setChecking(false);
         setState('granted');
-        addMessage({ from: 'ai', text: '위치 확인 완료! 이제 내 주변 코스를 정확하게 찾아드릴 수 있어요.' });
       },
       (error) => {
         setChecking(false);
