@@ -87,6 +87,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   function addMessage(message: ChatMessage) {
     setMessages((prev) => {
+      // 원인은 못 찾았지만 실제로 같은 응답이 연달아 두 번 붙는 증상이 있어서, 바로 직전
+      // 메시지와 from/text가 완전히 같으면 추가하지 않는다 — 방어적 처리.
+      const last = prev[prev.length - 1];
+      if (last && last.from === message.from && last.text === message.text) {
+        return prev;
+      }
       const next = [...prev, message].slice(-MAX_STORED_MESSAGES);
       try {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
