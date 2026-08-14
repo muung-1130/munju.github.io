@@ -106,8 +106,8 @@ def build_shoe_answer(db: Session, user_id: str) -> str:
             details.append(f"교체 확률 {float(probability):g}%")
         lines.append(f"{label} — " + ", ".join(details))
     return (
-        "등록된 러닝화를 확인했어요. " + "; ".join(lines) +
-        " 러닝화별 교체 시점이나 용도도 확인해드릴까요?"
+        "등록된 러닝화를 확인했어요.\n" + "\n".join(f"- {line}" for line in lines) +
+        "\n러닝화별 교체 시점이나 용도도 확인해드릴까요?"
     )
 
 
@@ -128,8 +128,8 @@ def build_challenge_answer(db: Session, user_id: str) -> str:
             )
         )
     return (
-        "현재 참여 중인 챌린지를 확인했어요. " + "; ".join(lines) +
-        f" 총 {len(challenges)}개가 진행 중입니다. "
+        "현재 참여 중인 챌린지를 확인했어요.\n" + "\n".join(f"- {line}" for line in lines) +
+        f"\n총 {len(challenges)}개가 진행 중입니다. "
         "목표 달성을 위한 러닝 계획도 추천해드릴까요?"
     )
 
@@ -173,8 +173,9 @@ def build_marathon_answer(db: Session, question: str) -> str:
         )
     count = len(grouped)
     return (
-        f"{year}년 {month}월 {region}에서 열리는 마라톤 대회를 찾아봤어요. " + "; ".join(lines) +
-        f" 총 {count}개의 대회가 있습니다. 거리별로 다시 골라드릴까요?"
+        f"{year}년 {month}월 {region}에서 열리는 마라톤 대회를 찾아봤어요.\n" +
+        "\n".join(f"- {line}" for line in lines) +
+        f"\n총 {count}개의 대회가 있습니다. 거리별로 다시 골라드릴까요?"
     )
 
 
@@ -238,8 +239,9 @@ def build_course_answer(
             )
         )
     return (
-        f"{location_label}에서 5km 이내의 러닝 코스를 찾아봤어요. " + "; ".join(lines) +
-        f" 총 {len(selected_courses)}개를 {selection_label}로 보여드렸어요. "
+        f"{location_label}에서 5km 이내의 러닝 코스를 찾아봤어요.\n" +
+        "\n".join(f"- {line}" for line in lines) +
+        f"\n총 {len(selected_courses)}개를 {selection_label}로 보여드렸어요. "
         + followup
     )
 
@@ -285,7 +287,7 @@ def build_user_data_answer(db: Session, user_id: str, question: str) -> str | No
             facts.append(f"가입일: {profile["created_at"][:10]}")
         if not facts:
             return "현재 등록된 러닝 프로필 상세 정보가 없습니다."
-        return "내 러닝 프로필을 확인했어요. " + ", ".join(facts)
+        return "내 러닝 프로필을 확인했어요.\n" + "\n".join(f"- {fact}" for fact in facts)
 
     return None
 
@@ -324,7 +326,7 @@ def build_weather_answer(db: Session, user_id: str) -> str | None:
         f"{forecast_time[:2]}시 기준" if forecast_time and len(forecast_time) >= 2
         else "현재 예보"
     )
-    return f"{time_label} 날씨는 {', '.join(facts)}이에요. {guidance}"
+    return f"{time_label} 날씨는 {', '.join(facts)}이에요.\n{guidance}"
 
 
 # 현재 프로세스에서 Bedrock이 실제 발급한 세션만 후속 대화로 인정한다.

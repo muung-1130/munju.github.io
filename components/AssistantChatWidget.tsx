@@ -330,7 +330,7 @@ export function AssistantChatWidget() {
                   <img src="/assets/ai-bot-turtle.svg" alt="" />
                 </span>
               )}
-              <p>{message.text}</p>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{message.text}</p>
             </div>
           ))}
         </div>
