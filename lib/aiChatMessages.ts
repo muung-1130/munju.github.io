@@ -149,6 +149,7 @@ export async function getNewAssistantMessages(userId: string, sinceIso: string |
        FROM ai_assistant.chat_messages m
        JOIN ai_assistant.chat_sessions s ON s.session_id = m.session_id
       WHERE s.user_id = $1 AND m.role = 'ASSISTANT'
+        AND m.source_event_id IS NOT NULL
         AND ($2::timestamptz IS NULL OR m.created_at > $2::timestamptz)
       ORDER BY m.created_at ASC
       LIMIT 20`,

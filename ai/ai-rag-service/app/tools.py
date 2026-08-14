@@ -177,6 +177,7 @@ def search_nearby_courses(db: Session, latitude: float, longitude: float, radius
             )
             AND c.deleted_at IS NULL
             AND c.status = 'ACTIVE'
+            AND c.course_id NOT LIKE 'WG_RY_%'
             ORDER BY distance_to_user_m ASC
             LIMIT 10
             """),
