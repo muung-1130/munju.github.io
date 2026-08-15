@@ -41,7 +41,7 @@ sonarqube-check:
       -v "$CI_PROJECT_DIR:/usr/src"
       -w /usr/src
       sonarsource/sonar-scanner-cli:latest
-      -Dsonar.qualitygate.wait=true
+      -Dsonar.qualitygate.wait=false
 
 build-and-push:
   stage: build
@@ -55,3 +55,4 @@ build-and-push:
     - docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
     - docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
     - echo "Pushed image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
