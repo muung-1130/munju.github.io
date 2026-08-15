@@ -34,11 +34,30 @@ def SERVICES = [
             'CVE-2026-57433',  // Perl Storable, integer overflow
         ],
     ],
-    // ai-course-recommendation / ai-shoe-life are temporarily excluded:
-    // dai-run-gitops has no Deployment manifests for them yet (deferred for
-    // cluster CPU headroom; add back once capacity allows). ai-rag-service
-    // was in the same boat but worker1 has confirmed headroom (~2.2 cores
-    // free against its 150m request) so it's back in.
+    // Same python:3.12-slim base and same pure-Python (no perl) rationale
+    // as ai-rag-service above.
+    [
+        id: 'ai-course-recommendation',
+        dockerfile: 'ai/ai-course-recommendation/Dockerfile',
+        context: 'ai/ai-course-recommendation',
+        ignoreCves: [
+            'CVE-2026-13221',  // Perl regex engine, integer overflow
+            'CVE-2026-8376',   // Perl regex engine, heap buffer overflow
+            'CVE-2026-42496',  // Perl Archive::Tar, symlink extraction
+            'CVE-2026-57433',  // Perl Storable, integer overflow
+        ],
+    ],
+    [
+        id: 'ai-shoe-life',
+        dockerfile: 'ai/ai-shoe-life/Dockerfile',
+        context: 'ai/ai-shoe-life',
+        ignoreCves: [
+            'CVE-2026-13221',  // Perl regex engine, integer overflow
+            'CVE-2026-8376',   // Perl regex engine, heap buffer overflow
+            'CVE-2026-42496',  // Perl Archive::Tar, symlink extraction
+            'CVE-2026-57433',  // Perl Storable, integer overflow
+        ],
+    ],
 ]
 
 // Maps a SERVICES `id` to the dai-run-gitops production Deployment
