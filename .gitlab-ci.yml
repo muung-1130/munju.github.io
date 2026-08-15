@@ -1,6 +1,13 @@
 ﻿stages:
   - test
   - quality
+  - build
+
+variables:
+  AWS_DEFAULT_REGION: ap-northeast-2
+  ECR_REGISTRY: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_REPOSITORY: dairun/application
+  IMAGE_TAG: "$CI_COMMIT_SHORT_SHA-$CI_PIPELINE_IID"
 
 runner-test:
   stage: test
@@ -34,3 +41,16 @@ sonarqube-check:
       -w /usr/src
       sonarsource/sonar-scanner-cli:latest
       -Dsonar.qualitygate.wait=true
+
+build-and-push:
+  stage: build
+  tags:
+    - aws
+    - eks
+    - dairun
+  script:
+    - aws sts get-caller-identity
+    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+    - docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+    - docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+    - echo "Pushed image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
