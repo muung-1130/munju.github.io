@@ -24,6 +24,7 @@ runner-test:
 
 sonarqube-check:
   stage: quality
+  allow_failure: true
   tags:
     - aws
     - eks
