@@ -1,0 +1,19 @@
+﻿stages:
+  - test
+
+runner-test:
+  stage: test
+  tags:
+    - aws
+    - eks
+    - dairun
+  script:
+    - echo "DAI RUN GitLab Runner connected"
+    - echo "Runner host:"
+    - hostname
+    - echo "Execution user:"
+    - whoami
+    - echo "Docker version:"
+    - docker --version
+    - echo "AWS CLI version:"
+    - aws --version
