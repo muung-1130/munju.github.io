@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dai-run-coaching-service
+  labels:
+    app.kubernetes.io/name: dai-run-coaching-service
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: coaching-service
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dai-run-coaching-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dai-run-coaching-service
+        app.kubernetes.io/part-of: dai-run
+        app.kubernetes.io/component: coaching-service
+        dairun.io/track: blue
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-dai-run-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: coaching-service
+          image: harbor.dai-run.internal/dai-run/coaching-service@sha256:9e8b0ae85a695bdb23bafedc0827401bccd8715241a94237283c2db4769eeca0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8106"
+          ports:
+            - name: http
+              containerPort: 8106
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

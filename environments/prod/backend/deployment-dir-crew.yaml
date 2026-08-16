@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/name: dir-crew
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/availability: standard
+    dairun.io/workload-class: app
+  name: dir-crew
+  namespace: dir-backend-ns
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dir-crew
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: '2026-08-07T16:35:18+09:00'
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/name: dir-crew
+        app.kubernetes.io/part-of: dai-run
+        dairun.io/availability: standard
+        dairun.io/workload-class: app
+    spec:
+      nodeSelector:
+        workload: app
+      containers:
+      - env:
+        - name: PORT
+          value: '8104'
+        - name: OTEL_SERVICE_NAME
+          value: dir-crew
+        envFrom:
+        - configMapRef:
+            name: dir-crew-config
+        - secretRef:
+            name: dir-crew-secret
+        - secretRef:
+            name: dir-crew-db-secret
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-service@sha256:6a4bdab303fa5964afcc3702c1cffab3d284a7f5deef385e65b3d1d26d31904e
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: dir-crew
+        ports:
+        - containerPort: 8104
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 512Mi
+          requests:
+            cpu: 40m
+            ephemeral-storage: 128Mi
+            memory: 192Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: false
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: dir-crew-sa
+      serviceAccountName: dir-crew-sa
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: crew-service
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: crew-service
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+      volumes:
+      - emptyDir:
+          sizeLimit: 64Mi
+        name: tmp

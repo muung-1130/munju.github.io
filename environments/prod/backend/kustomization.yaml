@@ -1,0 +1,50 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dir-backend-ns
+resources:
+  - namespace.yaml
+  - deployment-dir-auth-user.yaml
+  - service-dir-auth-user-svc.yaml
+  - deployment-dir-auth-web.yaml
+  - service-dir-auth-web-svc.yaml
+  - deployment-dir-challenge.yaml
+  - service-dir-challenge-svc.yaml
+  - deployment-dir-challenge-consumer.yaml
+  - deployment-dir-challenge-weekly-scheduler.yaml
+  - deployment-dir-coaching.yaml
+  - service-dir-coaching-svc.yaml
+  - deployment-dir-course.yaml
+  - service-dir-course-svc.yaml
+  - deployment-dir-course-stats-consumer.yaml
+  - deployment-dir-crew.yaml
+  - service-dir-crew-svc.yaml
+  - deployment-dir-crew-consumer.yaml
+  - deployment-dir-crew-notification-consumer.yaml
+  - deployment-dir-crew-stats-scheduler.yaml
+  - deployment-dir-marathon.yaml
+  - service-dir-marathon-svc.yaml
+  - deployment-dir-media.yaml
+  - service-dir-media-svc.yaml
+  - deployment-dir-notification.yaml
+  - service-dir-notification-svc.yaml
+  - deployment-dir-notification-consumer.yaml
+  - deployment-dir-running-record.yaml
+  - service-dir-running-record-svc.yaml
+  - deployment-dir-running-record-outbox-publisher.yaml
+  - deployment-dir-shoe.yaml
+  - service-dir-shoe-svc.yaml
+  - hpa-dir-auth-user-hpa.yaml
+  - hpa-dir-challenge-hpa.yaml
+  - hpa-dir-coaching-hpa.yaml
+  - hpa-dir-course-hpa.yaml
+  - hpa-dir-crew-hpa.yaml
+  - hpa-dir-marathon-hpa.yaml
+  - hpa-dir-media-hpa.yaml
+  - hpa-dir-notification-hpa.yaml
+  - hpa-dir-running-record-hpa.yaml
+  - hpa-dir-shoe-hpa.yaml
+  - keda-dir-challenge-consumer-scaledobject.yaml
+  - keda-dir-course-stats-consumer-scaledobject.yaml
+  - keda-dir-crew-consumer-scaledobject.yaml
+  - keda-dir-crew-notification-consumer-scaledobject.yaml
+  - keda-dir-notification-consumer-scaledobject.yaml

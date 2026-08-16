@@ -1,0 +1,893 @@
+{
+  "apiVersion": "v1",
+  "items": [
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-assistant-consumer-kafka-egress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 9092,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-kafka-ns"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-kafka"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-ai-assistant-consumer"
+          }
+        },
+        "policyTypes": [
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-assistant-from-dir-ai-assistant-service",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-ai-assistant-service"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8000,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-ai-assistant"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-assistant-from-frontend",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-frontend-ns"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-frontend"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8202,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-ai-assistant"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-assistant-service-from-frontend",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-frontend-ns"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-frontend"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8202,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-ai-assistant-service"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-assistant-service-gateway-ingress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-istio-ingress"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8202,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-ai-assistant-service"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-assistant-service-to-dir-ai-assistant",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 8000,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-ai-assistant"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-ai-assistant-service"
+          }
+        },
+        "policyTypes": [
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-baseline",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 53,
+                "protocol": "UDP"
+              },
+              {
+                "port": 53,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "169.254.25.10/32"
+                }
+              }
+            ]
+          },
+          {
+            "ports": [
+              {
+                "port": 4317,
+                "protocol": "TCP"
+              },
+              {
+                "port": 4318,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-obsv-ns"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "ingress": [
+          {
+            "from": [
+              {
+                "ipBlock": {
+                  "cidr": "169.254.7.127/32"
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchExpressions": [
+            {
+              "key": "app.kubernetes.io/name",
+              "operator": "In",
+              "values": [
+                "dir-ai-assistant",
+                "dir-ai-assistant-consumer",
+                "dir-ai-assistant-service",
+                "dir-course-recommendation",
+                "dir-course-recommendation-service",
+                "dir-shoe-life-ai"
+              ]
+            }
+          ]
+        },
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-external-egress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 443,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "0.0.0.0/0",
+                  "except": [
+                    "10.0.0.0/8",
+                    "172.16.0.0/12",
+                    "192.168.0.0/16",
+                    "169.254.0.0/16"
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchExpressions": [
+            {
+              "key": "app.kubernetes.io/name",
+              "operator": "In",
+              "values": [
+                "dir-ai-assistant",
+                "dir-course-recommendation",
+                "dir-shoe-life-ai"
+              ]
+            }
+          ]
+        },
+        "policyTypes": [
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-postgresql-egress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 5432,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-db-ns"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "cnpg.io/cluster": "dairun-postgresql"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchExpressions": [
+            {
+              "key": "app.kubernetes.io/name",
+              "operator": "In",
+              "values": [
+                "dir-ai-assistant-consumer",
+                "dir-ai-assistant-service",
+                "dir-course-recommendation",
+                "dir-course-recommendation-service",
+                "dir-ai-assistant"
+              ]
+            }
+          ]
+        },
+        "policyTypes": [
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-waypoint-allow-app-ingress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-frontend-ns"
+                  }
+                }
+              },
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-backend-ns"
+                  }
+                }
+              },
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-ai-ns"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "gateway.networking.k8s.io/gateway-name": "dir-ai-waypoint"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-waypoint-allow-backend-egress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 8000,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-course-recommendation"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "gateway.networking.k8s.io/gateway-name": "dir-ai-waypoint"
+          }
+        },
+        "policyTypes": [
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-ai-waypoint-allow-istiod-egress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 15012,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "istio-system"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "ports": [
+              {
+                "port": 53,
+                "protocol": "UDP"
+              },
+              {
+                "port": 53,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "ipBlock": {
+                  "cidr": "169.254.25.10/32"
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "gateway.networking.k8s.io/gateway-class-name": "istio-waypoint"
+          }
+        },
+        "policyTypes": [
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-course-recommendation-from-dir-course-recommendation-service",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-course-recommendation-service"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8000,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          },
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-frontend-ns"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8000,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-course-recommendation"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-course-recommendation-service-from-frontend",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-frontend-ns"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-frontend"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8201,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-course-recommendation-service"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-course-recommendation-service-gateway-ingress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-istio-ingress"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8201,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-course-recommendation-service"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-course-recommendation-service-to-dir-course-recommendation",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 8000,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-course-recommendation"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-course-recommendation-service"
+          }
+        },
+        "policyTypes": [
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-shoe-life-ai-from-shoe",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "ingress": [
+          {
+            "from": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-backend-ns"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-shoe"
+                  }
+                }
+              }
+            ],
+            "ports": [
+              {
+                "port": 8000,
+                "protocol": "TCP"
+              },
+              {
+                "port": 15008,
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-shoe-life-ai"
+          }
+        },
+        "policyTypes": [
+          "Ingress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "dir-shoe-life-ai-minio-egress",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "egress": [
+          {
+            "ports": [
+              {
+                "port": 9000,
+                "protocol": "TCP"
+              }
+            ],
+            "to": [
+              {
+                "namespaceSelector": {
+                  "matchLabels": {
+                    "kubernetes.io/metadata.name": "dir-storage-ns"
+                  }
+                },
+                "podSelector": {
+                  "matchLabels": {
+                    "app.kubernetes.io/name": "dir-minio"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "podSelector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "dir-shoe-life-ai"
+          }
+        },
+        "policyTypes": [
+          "Egress"
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": {
+        "name": "namespace-default-deny-all",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "podSelector": {},
+        "policyTypes": [
+          "Ingress",
+          "Egress"
+        ]
+      }
+    }
+  ],
+  "kind": "List",
+  "metadata": {}
+}

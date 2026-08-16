@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: dir-challenge
+    app.kubernetes.io/part-of: dai-run
+  name: dir-challenge-svc
+  namespace: dir-backend-ns
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: http
+    port: 8108
+    protocol: TCP
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: dir-challenge
+  sessionAffinity: None
+  type: ClusterIP

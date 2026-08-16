@@ -1,0 +1,36 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: dai-run-prod
+  namespace: dir-argocd-ns
+spec:
+  description: DAI-RUN production workloads on EKS (dairun.site)
+  sourceRepos:
+    - http://10.20.0.253/dai-run/gitops.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: dir-frontend-ns
+    - server: https://kubernetes.default.svc
+      namespace: dir-backend-ns
+    - server: https://kubernetes.default.svc
+      namespace: dir-ai-ns
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: apps
+      kind: Deployment
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: keda.sh
+      kind: ScaledObject
+
+

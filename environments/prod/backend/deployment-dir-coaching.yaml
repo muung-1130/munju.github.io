@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/name: dir-coaching
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/availability: standard
+    dairun.io/workload-class: app
+  name: dir-coaching
+  namespace: dir-backend-ns
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dir-coaching
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: '2026-08-07T16:35:18+09:00'
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/name: dir-coaching
+        app.kubernetes.io/part-of: dai-run
+        dairun.io/availability: standard
+        dairun.io/workload-class: app
+    spec:
+      nodeSelector:
+        workload: app
+      containers:
+      - env:
+        - name: PORT
+          value: '8106'
+        - name: OTEL_SERVICE_NAME
+          value: dir-coaching
+        envFrom:
+        - configMapRef:
+            name: dir-coaching-config
+        - secretRef:
+            name: dir-coaching-secret
+        - secretRef:
+            name: dir-coaching-db-secret
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/coaching-service@sha256:9e8b0ae85a695bdb23bafedc0827401bccd8715241a94237283c2db4769eeca0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: dir-coaching
+        ports:
+        - containerPort: 8106
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 512Mi
+          requests:
+            cpu: 40m
+            ephemeral-storage: 128Mi
+            memory: 176Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: false
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: dir-coaching-sa
+      serviceAccountName: dir-coaching-sa
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir:
+          sizeLimit: 64Mi
+        name: tmp

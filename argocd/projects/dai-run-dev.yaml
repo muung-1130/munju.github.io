@@ -1,0 +1,27 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: dai-run-dev
+  namespace: dir-argocd-ns
+spec:
+  description: DAI-RUN development workloads
+  sourceRepos:
+    - http://10.20.0.253/dai-run/gitops.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: dir-gitops-test-ns
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+      name: dir-gitops-test-ns
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+
+

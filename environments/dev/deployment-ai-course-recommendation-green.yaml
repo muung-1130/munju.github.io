@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dai-run-ai-course-recommendation-green
+  labels:
+    app.kubernetes.io/name: dai-run-ai-course-recommendation-green
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: ai-course-recommendation
+    dairun.io/track: green
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dai-run-ai-course-recommendation-green
+      dairun.io/track: green
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dai-run-ai-course-recommendation-green
+        app.kubernetes.io/part-of: dai-run
+        app.kubernetes.io/component: ai-course-recommendation
+        dairun.io/track: green
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-dai-run-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ai-course-recommendation
+          image: harbor.dai-run.internal/dai-run/ai-course-recommendation@sha256:b93233919b1ed1edc9e8d939d33987d8a475ca78f588e751fc052348659a8581
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: dai-run-ai-course-recommendation-config
+            - secretRef:
+                name: dai-run-ai-course-recommendation-db
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 300m
+              memory: 512Mi
+            limits:
+              cpu: 1500m
+              memory: 1536Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

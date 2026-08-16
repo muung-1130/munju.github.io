@@ -1,0 +1,36 @@
+{
+  "apiVersion": "keda.sh/v1alpha1",
+  "kind": "ScaledObject",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/name": "dir-notification-consumer",
+      "app.kubernetes.io/part-of": "dai-run",
+      "scaledobject.keda.sh/name": "dir-notification-consumer-scaledobject"
+    },
+    "name": "dir-notification-consumer-scaledobject",
+    "namespace": "dir-backend-ns"
+  },
+  "spec": {
+    "cooldownPeriod": 300,
+    "maxReplicaCount": 5,
+    "minReplicaCount": 0,
+    "pollingInterval": 30,
+    "scaleTargetRef": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "dir-notification-consumer"
+    },
+    "triggers": [
+      {
+        "metadata": {
+          "allowIdleConsumers": "false",
+          "bootstrapServers": "dir-kafka-bootstrap.dir-kafka-ns.svc.dir-cluster:9092",
+          "consumerGroup": "dir-notification-consumer",
+          "lagThreshold": "100",
+          "topic": "challenge.challenge-completed-events"
+        },
+        "type": "kafka"
+      }
+    ]
+  }
+}

@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dai-run-notification-service-green
+  labels:
+    app.kubernetes.io/name: dai-run-notification-service-green
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: notification-service
+    dairun.io/track: green
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dai-run-notification-service-green
+      dairun.io/track: green
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dai-run-notification-service-green
+        app.kubernetes.io/part-of: dai-run
+        app.kubernetes.io/component: notification-service
+        dairun.io/track: green
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-dai-run-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: notification-service
+          image: harbor.dai-run.internal/dai-run/notification-service@sha256:a5c718b95eb1d2f34af37754d34429fe60845a549f98083520890330c50e6b9c
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8112"
+          ports:
+            - name: http
+              containerPort: 8112
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

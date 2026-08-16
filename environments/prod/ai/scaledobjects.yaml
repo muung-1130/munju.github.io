@@ -1,0 +1,43 @@
+{
+  "apiVersion": "v1",
+  "items": [
+    {
+      "apiVersion": "keda.sh/v1alpha1",
+      "kind": "ScaledObject",
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/name": "dir-ai-assistant-consumer",
+          "app.kubernetes.io/part-of": "dai-run",
+          "scaledobject.keda.sh/name": "dir-ai-assistant-consumer-scaledobject"
+        },
+        "name": "dir-ai-assistant-consumer-scaledobject",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "cooldownPeriod": 300,
+        "maxReplicaCount": 8,
+        "minReplicaCount": 0,
+        "pollingInterval": 30,
+        "scaleTargetRef": {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "name": "dir-ai-assistant-consumer"
+        },
+        "triggers": [
+          {
+            "metadata": {
+              "allowIdleConsumers": "false",
+              "bootstrapServers": "dir-kafka-bootstrap.dir-kafka-ns.svc.dir-cluster:9092",
+              "consumerGroup": "dir-ai-assistant-consumer",
+              "lagThreshold": "5",
+              "topic": "running.run-completed-events"
+            },
+            "type": "kafka"
+          }
+        ]
+      }
+    }
+  ],
+  "kind": "List",
+  "metadata": {}
+}

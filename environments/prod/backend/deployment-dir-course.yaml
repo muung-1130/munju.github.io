@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/name: dir-course
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/availability: standard
+    dairun.io/workload-class: app
+  name: dir-course
+  namespace: dir-backend-ns
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dir-course
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: '2026-08-07T16:35:18+09:00'
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/name: dir-course
+        app.kubernetes.io/part-of: dai-run
+        dairun.io/availability: standard
+        dairun.io/workload-class: app
+    spec:
+      nodeSelector:
+        workload: app
+      containers:
+      - env:
+        - name: PORT
+          value: '8102'
+        - name: OTEL_SERVICE_NAME
+          value: dir-course
+        envFrom:
+        - configMapRef:
+            name: dir-course-config
+        - secretRef:
+            name: dir-course-secret
+        - secretRef:
+            name: dir-course-db-secret
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-service@sha256:64d4a4a581105a732e2a75dcff2cf7aa48b496e1d47db591dda0138e835607bf
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: dir-course
+        ports:
+        - containerPort: 8102
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 750m
+            ephemeral-storage: 1Gi
+            memory: 768Mi
+          requests:
+            cpu: 40m
+            ephemeral-storage: 128Mi
+            memory: 176Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: false
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: dir-course-sa
+      serviceAccountName: dir-course-sa
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: course-service
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: course-service
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+      volumes:
+      - emptyDir:
+          sizeLimit: 64Mi
+        name: tmp

@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/name: dir-running-record
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/availability: critical
+    dairun.io/workload-class: app
+  name: dir-running-record
+  namespace: dir-backend-ns
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dir-running-record
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: '2026-08-07T16:35:19+09:00'
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/name: dir-running-record
+        app.kubernetes.io/part-of: dai-run
+        dairun.io/availability: critical
+        dairun.io/workload-class: app
+    spec:
+      nodeSelector:
+        workload: app
+      containers:
+      - env:
+        - name: PORT
+          value: '8103'
+        - name: OTEL_SERVICE_NAME
+          value: dir-running-record
+        envFrom:
+        - configMapRef:
+            name: dir-running-record-config
+        - secretRef:
+            name: dir-running-record-secret
+        - secretRef:
+            name: dir-running-record-db-secret
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/running-record-service@sha256:b9a4ef30df79ba8afcaa07f6567f92f7be369267f2317dc10fbeca8e7e8af817
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: dir-running-record
+        ports:
+        - containerPort: 8103
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: '1'
+            ephemeral-storage: 1Gi
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            ephemeral-storage: 128Mi
+            memory: 384Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: false
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: dir-running-record-sa
+      serviceAccountName: dir-running-record-sa
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: dir-running-record
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: dir-running-record
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+      volumes:
+      - emptyDir:
+          sizeLimit: 64Mi
+        name: tmp

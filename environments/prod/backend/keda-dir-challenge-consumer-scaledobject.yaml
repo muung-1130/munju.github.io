@@ -1,0 +1,46 @@
+{
+  "apiVersion": "keda.sh/v1alpha1",
+  "kind": "ScaledObject",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/name": "dir-challenge-consumer",
+      "app.kubernetes.io/part-of": "dai-run",
+      "scaledobject.keda.sh/name": "dir-challenge-consumer-scaledobject"
+    },
+    "name": "dir-challenge-consumer-scaledobject",
+    "namespace": "dir-backend-ns"
+  },
+  "spec": {
+    "advanced": {
+      "horizontalPodAutoscalerConfig": {
+        "behavior": {
+          "scaleUp": {
+            "stabilizationWindowSeconds": 0
+          }
+        }
+      },
+      "scalingModifiers": {}
+    },
+    "cooldownPeriod": 300,
+    "maxReplicaCount": 8,
+    "minReplicaCount": 0,
+    "pollingInterval": 30,
+    "scaleTargetRef": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "dir-challenge-consumer"
+    },
+    "triggers": [
+      {
+        "metadata": {
+          "allowIdleConsumers": "false",
+          "bootstrapServers": "dir-kafka-bootstrap.dir-kafka-ns.svc.dir-cluster:9092",
+          "consumerGroup": "dir-challenge-consumer",
+          "lagThreshold": "20",
+          "topic": "running.run-completed-events"
+        },
+        "type": "kafka"
+      }
+    ]
+  }
+}
