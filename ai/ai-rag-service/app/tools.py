@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.exercise_rules import compute_air_quality_guidance, compute_weather_guidance
+
 
 def get_user_profile(db: Session, user_id: str) -> dict:
     """사용자 프로필과 러닝 선호도 조회"""
@@ -307,20 +309,43 @@ def format_tool_results(user_profile: dict, recent_runs: dict, weather: dict,
             f"평균 페이스 {recent_runs.get('avg_pace')}"
         )
 
-    if "error" not in weather and weather.get("temperature_c"):
-        text_parts.append(
-            f"현재 날씨: 기온 {weather.get('temperature_c')}°C, "
-            f"습도 {weather.get('humidity_pct')}%, "
-            f"강수 {weather.get('precipitation_amount') or '없음'}, "
-            f"풍속 {weather.get('wind_speed_ms')}m/s"
-        )
+    if weather:
+        if "error" not in weather and weather.get("temperature_c") is not None:
+            temperature_c = float(weather["temperature_c"])
+            text_parts.append(
+                f"현재 날씨: 기온 {weather.get('temperature_c')}°C, "
+                f"습도 {weather.get('humidity_pct')}%, "
+                f"강수 {weather.get('precipitation_amount') or '없음'}, "
+                f"풍속 {weather.get('wind_speed_ms')}m/s"
+            )
+            text_parts.append(
+                f"권장 강도 판단(이 판단을 그대로 전달하고 직접 다시 판단하지 마세요): "
+                f"{compute_weather_guidance(temperature_c)}"
+            )
+        else:
+            text_parts.append(
+                "날씨 데이터 없음 — 기온·강도에 대한 구체적인 수치나 판단을 만들어내지 말고 "
+                "날씨 정보를 가져오지 못했다고 안내하세요."
+            )
 
-    if "error" not in air_quality and air_quality.get("pm10_ug_m3"):
-        text_parts.append(
-            f"대기질: PM10 {air_quality.get('pm10_ug_m3')}μg/m³, "
-            f"PM2.5 {air_quality.get('pm25_ug_m3')}μg/m³, "
-            f"상태: {air_quality.get('status')}"
-        )
+    if air_quality:
+        if "error" not in air_quality and air_quality.get("pm10_ug_m3"):
+            text_parts.append(
+                f"대기질: PM10 {air_quality.get('pm10_ug_m3')}μg/m³, "
+                f"PM2.5 {air_quality.get('pm25_ug_m3')}μg/m³, "
+                f"상태: {air_quality.get('status')}"
+            )
+            air_quality_guidance = compute_air_quality_guidance(air_quality.get("status"))
+            if air_quality_guidance:
+                text_parts.append(
+                    f"권장 대기질 대응(이 판단을 그대로 전달하고 직접 다시 판단하지 마세요): "
+                    f"{air_quality_guidance}"
+                )
+        else:
+            text_parts.append(
+                "대기질 데이터 없음 — 대기질 관련 구체적인 수치나 판단을 만들어내지 말고 "
+                "대기질 정보를 가져오지 못했다고 안내하세요."
+            )
 
     if "error" not in nearby_courses and nearby_courses.get("count", 0) > 0:
         courses_str = ", ".join([

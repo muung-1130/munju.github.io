@@ -21,6 +21,7 @@ from app.tools import (
     get_user_profile,
     search_nearby_courses,
 )
+from app.exercise_rules import compute_weather_guidance
 from app.guardrails import apply_aws_pii_guardrail, apply_input_guardrails
 from app.schemas import RagChatRequest, RagChatResponse, TodayCoachingRequest, TodayCoachingResponse
 from app.text_format import wrap_text_for_chat
@@ -313,16 +314,7 @@ def build_weather_answer(db: Session, user_id: str) -> str | None:
     if weather.get("wind_speed_ms") is not None:
         facts.append(f"풍속 {float(weather['wind_speed_ms']):g}m/s")
 
-    if temperature >= 30:
-        guidance = "더운 시간대를 피하고 강도를 낮춰 짧게 달리세요."
-    elif temperature >= 25:
-        guidance = "수분을 준비하고 평소보다 편안한 강도로 달리세요."
-    elif temperature <= 0:
-        guidance = "노면 결빙을 확인하고 충분히 몸을 푼 뒤 달리세요."
-    elif temperature <= 5:
-        guidance = "보온 가능한 복장으로 충분히 몸을 푼 뒤 시작하세요."
-    else:
-        guidance = "러닝하기 무난하지만 현재 컨디션에 맞춰 강도를 조절하세요."
+    guidance = compute_weather_guidance(temperature)
 
     forecast_time = weather.get("forecast_time")
     time_label = (
