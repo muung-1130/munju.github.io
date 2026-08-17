@@ -41,6 +41,8 @@ spec:
           value: sns-sqs
         - name: RUNNING_EVENTS_TOPIC_ARN
           value: arn:aws:sns:ap-northeast-2:970307871446:dir-prod-running-events
+        - name: PGHOST
+          value: dir-postgresql-rw.dir-db-ns.svc
         envFrom:
         - configMapRef:
             name: dir-running-record-outbox-publisher-config
