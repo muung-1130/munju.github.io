@@ -33,11 +33,13 @@ spec:
       - env:
         - name: OTEL_SERVICE_NAME
           value: dir-crew-stats-scheduler
+        - name: PGHOST
+          value: dir-postgresql-rw.dir-db-ns.svc
         envFrom:
         - configMapRef:
             name: dir-crew-stats-scheduler-config
         - secretRef:
-            name: dir-crew-stats-scheduler-secret
+            name: dir-crew-stats-scheduler-secret-eso-shadow-v1
         image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-stats-scheduler:src-58f82cb3e16a
         imagePullPolicy: IfNotPresent
         name: dir-crew-stats-scheduler

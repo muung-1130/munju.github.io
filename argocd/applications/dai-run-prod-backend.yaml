@@ -1,4 +1,4 @@
-﻿apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: dai-run-prod-backend
@@ -14,6 +14,83 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: dir-backend-ns
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: dir-auth-user
+      namespace: dir-backend-ns
+      jsonPointers: &replicas
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: dir-challenge
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-challenge-consumer
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-coaching
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-course
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-course-stats-consumer
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-crew
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-crew-consumer
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-crew-notification-consumer
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-marathon
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-media
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-notification
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-notification-consumer
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-running-record
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
+    - group: apps
+      kind: Deployment
+      name: dir-shoe
+      namespace: dir-backend-ns
+      jsonPointers: *replicas
   syncPolicy:
     automated:
       enabled: false
@@ -29,6 +106,4 @@ spec:
     syncOptions:
       - Validate=true
       - ApplyOutOfSyncOnly=true
-
-
-
+      - RespectIgnoreDifferences=true

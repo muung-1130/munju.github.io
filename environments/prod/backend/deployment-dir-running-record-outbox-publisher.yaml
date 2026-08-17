@@ -37,6 +37,10 @@ spec:
         env:
         - name: OTEL_SERVICE_NAME
           value: dir-running-record-outbox-publisher
+        - name: MESSAGING_PROVIDER
+          value: sns-sqs
+        - name: RUNNING_EVENTS_TOPIC_ARN
+          value: arn:aws:sns:ap-northeast-2:970307871446:dir-prod-running-events
         envFrom:
         - configMapRef:
             name: dir-running-record-outbox-publisher-config
@@ -44,7 +48,7 @@ spec:
             name: dir-running-record-outbox-publisher-secret
         - secretRef:
             name: dir-running-record-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/running-record-service@sha256:b9a4ef30df79ba8afcaa07f6567f92f7be369267f2317dc10fbeca8e7e8af817
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/running-record-service@sha256:c272e27464887bb561873c8503c750e4d6f2cf2323fb05f6db87f039077b0cee
         imagePullPolicy: IfNotPresent
         name: dir-running-record-outbox-publisher
         resources:

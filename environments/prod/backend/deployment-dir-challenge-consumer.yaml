@@ -37,6 +37,8 @@ spec:
         env:
         - name: OTEL_SERVICE_NAME
           value: dir-challenge-consumer
+        - name: MESSAGING_PROVIDER
+          value: sns-sqs
         envFrom:
         - configMapRef:
             name: dir-challenge-consumer-config
@@ -44,7 +46,7 @@ spec:
             name: dir-challenge-consumer-secret
         - secretRef:
             name: dir-challenge-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-service@sha256:ff819f0bd0528c0b09af5543f000ed46d7baef776dbd84c26978c6d6394ccc3d
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-service@sha256:2c681feae617f0a83eab14292a01a21e3c6f0994ebf28b3bf429078aab40538a
         imagePullPolicy: IfNotPresent
         name: dir-challenge-consumer
         resources:

@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-backend-sqs-consumers-egress
+  namespace: dir-backend-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/change-scope: backend-sns-sqs
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - dir-challenge-consumer
+          - dir-course-stats-consumer
+          - dir-crew-consumer
+          - dir-crew-notification-consumer
+          - dir-notification-consumer
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 169.254.170.23/32
+      ports:
+        - protocol: TCP
+          port: 80
+    - to:
+        - ipBlock:
+            cidr: 10.10.2.9/32
+        - ipBlock:
+            cidr: 10.10.5.157/32
+      ports:
+        - protocol: TCP
+          port: 443

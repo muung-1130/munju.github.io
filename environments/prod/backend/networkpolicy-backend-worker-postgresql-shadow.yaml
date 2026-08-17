@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-backend-worker-postgresql-shadow-egress
+  namespace: dir-backend-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/change-scope: backend-db-shadow
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - dir-challenge-weekly-scheduler
+          - dir-course-stats-consumer
+          - dir-crew-notification-consumer
+          - dir-crew-stats-scheduler
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-db-ns
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: dir-postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 15008

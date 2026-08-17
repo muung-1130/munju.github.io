@@ -37,6 +37,8 @@ spec:
         env:
         - name: OTEL_SERVICE_NAME
           value: dir-crew-consumer
+        - name: MESSAGING_PROVIDER
+          value: sns-sqs
         envFrom:
         - configMapRef:
             name: dir-crew-consumer-config
@@ -44,7 +46,7 @@ spec:
             name: dir-crew-consumer-secret
         - secretRef:
             name: dir-crew-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-service@sha256:6a4bdab303fa5964afcc3702c1cffab3d284a7f5deef385e65b3d1d26d31904e
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-service@sha256:50571cd399eefef09128f984499a6cc2b32bd4a476df056f81879acef956ba01
         imagePullPolicy: IfNotPresent
         name: dir-crew-consumer
         resources:

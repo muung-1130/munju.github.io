@@ -37,6 +37,8 @@ spec:
         env:
         - name: OTEL_SERVICE_NAME
           value: dir-notification-consumer
+        - name: MESSAGING_PROVIDER
+          value: sns-sqs
         envFrom:
         - configMapRef:
             name: dir-notification-consumer-config
@@ -44,7 +46,7 @@ spec:
             name: dir-notification-consumer-secret
         - secretRef:
             name: dir-notification-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/notification-service@sha256:a5c718b95eb1d2f34af37754d34429fe60845a549f98083520890330c50e6b9c
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/notification-service@sha256:8e4d9246359a684d7896287a363f4b06ef9b2add261da5c799e1801ff4f52019
         imagePullPolicy: IfNotPresent
         name: dir-notification-consumer
         resources:

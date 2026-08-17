@@ -3,6 +3,12 @@ kind: Kustomization
 namespace: dir-backend-ns
 resources:
   - namespace.yaml
+  - secretstore-backend-worker-shadow.yaml
+  - externalsecrets-backend-worker-shadow.yaml
+  - networkpolicy-backend-worker-postgresql-shadow.yaml
+  - networkpolicy-backend-sqs-consumers.yaml
+  - networkpolicy-backend-sns-producers.yaml
+  - triggerauthentication-backend-consumers-aws.yaml
   - deployment-dir-auth-user.yaml
   - service-dir-auth-user-svc.yaml
   - deployment-dir-auth-web.yaml
