@@ -40,6 +40,8 @@ spec:
           value: '8102'
         - name: OTEL_SERVICE_NAME
           value: dir-course
+        - name: MESSAGING_PROVIDER
+          value: sns-sqs
         envFrom:
         - configMapRef:
             name: dir-course-config
@@ -47,7 +49,7 @@ spec:
             name: dir-course-secret
         - secretRef:
             name: dir-course-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-service@sha256:64d4a4a581105a732e2a75dcff2cf7aa48b496e1d47db591dda0138e835607bf
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-service@sha256:66c4b7aad5bb475c0e881ecab8f2b93fba14e52e5a1e768ea8c7a8c78bc25746
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

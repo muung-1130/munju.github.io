@@ -22,14 +22,18 @@
     },
     "triggers": [
       {
-        "metadata": {
-          "allowIdleConsumers": "false",
-          "bootstrapServers": "dir-kafka-bootstrap.dir-kafka-ns.svc.dir-cluster:9092",
-          "consumerGroup": "dir-notification-consumer",
-          "lagThreshold": "100",
-          "topic": "challenge.challenge-completed-events"
+        "authenticationRef": {
+          "name": "dir-backend-consumers-aws"
         },
-        "type": "kafka"
+        "metadata": {
+          "activationQueueLength": "0",
+          "awsRegion": "ap-northeast-2",
+          "queueLength": "1",
+          "queueURL": "https://sqs.ap-northeast-2.amazonaws.com/970307871446/dir-prod-notification-challenge-completed-q",
+          "scaleOnDelayed": "false",
+          "scaleOnInFlight": "true"
+        },
+        "type": "aws-sqs-queue"
       }
     ]
   }

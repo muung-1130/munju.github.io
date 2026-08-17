@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-backend-sns-producers-egress
+  namespace: dir-backend-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/change-scope: backend-sns-sqs
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - dir-challenge-consumer
+          - dir-course
+          - dir-crew
+          - dir-running-record-outbox-publisher
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 169.254.170.23/32
+      ports:
+        - protocol: TCP
+          port: 80
+    - to:
+        - ipBlock:
+            cidr: 10.10.3.63/32
+        - ipBlock:
+            cidr: 10.10.4.242/32
+      ports:
+        - protocol: TCP
+          port: 443

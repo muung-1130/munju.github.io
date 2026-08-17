@@ -1,0 +1,14 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: dir-backend-consumers-aws
+  namespace: dir-backend-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/change-scope: backend-sns-sqs
+spec:
+  podIdentity:
+    provider: aws
+    identityOwner: keda
