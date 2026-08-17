@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-course-recommendation-postgresql-shadow-egress
+  namespace: dir-ai-ns
+  labels:
+    app.kubernetes.io/name: dir-course-recommendation
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/change-scope: db-shadow-canary
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-course-recommendation
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-db-ns
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: dir-postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 15008
