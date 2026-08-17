@@ -229,6 +229,14 @@
                   {
                     "name": "OTEL_SERVICE_NAME",
                     "value": "dir-ai-assistant-consumer"
+                  },
+                  {
+                    "name": "MESSAGING_PROVIDER",
+                    "value": "sqs"
+                  },
+                  {
+                    "name": "RUN_COMPLETED_QUEUE_URL",
+                    "value": "https://sqs.ap-northeast-2.amazonaws.com/970307871446/dir-prod-ai-assistant-run-completed-q"
                   }
                 ],
                 "envFrom": [
@@ -248,7 +256,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service:src-58f82cb3e16a",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service:sqs-canary-25479040-9",
                 "imagePullPolicy": "IfNotPresent",
                 "name": "dir-ai-assistant-consumer",
                 "resources": {
