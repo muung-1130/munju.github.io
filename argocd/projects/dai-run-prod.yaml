@@ -32,6 +32,8 @@ spec:
       kind: NetworkPolicy
     - group: keda.sh
       kind: ScaledObject
+    - group: keda.sh
+      kind: TriggerAuthentication
     - group: external-secrets.io
       kind: SecretStore
     - group: external-secrets.io
