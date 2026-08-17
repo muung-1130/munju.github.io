@@ -1,13 +1,14 @@
 stages:
+  - validate
   - test
   - quality
-  - build
+  - deploy
 
 variables:
   AWS_DEFAULT_REGION: ap-northeast-2
   ECR_REGISTRY: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com
-  ECR_REPOSITORY: dairun/application
-  IMAGE_TAG: "$CI_COMMIT_SHORT_SHA-$CI_PIPELINE_IID"
+  GITOPS_REPOSITORY_URL: http://10.20.0.253/dai-run/gitops.git
+  GIT_DEPTH: "0"
 
 default:
   tags:
@@ -15,35 +16,44 @@ default:
     - eks
     - dairun
 
-runner-test:
-  stage: test
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+runner-check:
+  stage: validate
   script:
     - echo "DAI RUN GitLab Runner connected"
-    - hostname
-    - whoami
     - docker --version
     - aws --version
+    - git --version
 
-backend-sqs-unit-test:
-  stage: test
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "review/backend-sqs-consumers-20260817"'
-  parallel:
-    matrix:
-      - SERVICE_PATH:
-          - services-msa/challenge-service
-          - services-msa/crew-service
-          - services-msa/notification-service
-          - services/course-stats-consumer
-          - services/crew-notification-consumer
+detect-changed-services:
+  stage: validate
   script:
-    - docker build --pull --target test -t "dairun-backend-sqs-test:${CI_JOB_ID}" "$SERVICE_PATH"
+    - ./ci/detect-changed-services.sh
+  artifacts:
+    when: always
+    expire_in: 1 day
+    paths:
+      - ci-output/changed-files.txt
+      - ci-output/changed-services.tsv
+
+unit-test-changed-services:
+  stage: test
+  needs:
+    - job: detect-changed-services
+      artifacts: true
+  script:
+    - ./ci/test-changed-services.sh
 
 sonarqube-check:
   stage: quality
   allow_failure: true
-  variables:
-    GIT_DEPTH: "0"
   script:
     - >
       docker run --rm
@@ -56,47 +66,16 @@ sonarqube-check:
       sonarsource/sonar-scanner-cli:latest
       -Dsonar.qualitygate.wait=false
 
-build-and-push:
-  stage: build
-  script:
-    - aws sts get-caller-identity
-    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-    - docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
-    - docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-    - echo "Pushed image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-
-backend-sns-sqs-build-and-push:
-  stage: build
+build-push-and-update-gitops:
+  stage: deploy
+  needs:
+    - job: detect-changed-services
+      artifacts: true
+    - job: unit-test-changed-services
   rules:
-    - if: '$CI_COMMIT_BRANCH == "review/backend-sqs-consumers-20260817"'
-  variables:
-    BACKEND_IMAGE_TAG: "backend-sns-sqs-${CI_COMMIT_SHORT_SHA}-${CI_PIPELINE_IID}"
-  parallel:
-    matrix:
-      - SERVICE_PATH: services-msa/challenge-service
-        ECR_REPOSITORY: dai-run/challenge-service
-      - SERVICE_PATH: services-msa/crew-service
-        ECR_REPOSITORY: dai-run/crew-service
-      - SERVICE_PATH: services-msa/notification-service
-        ECR_REPOSITORY: dai-run/notification-service
-      - SERVICE_PATH: services-msa/running-record-service
-        ECR_REPOSITORY: dai-run/running-record-service
-      - SERVICE_PATH: services-msa/course-service
-        ECR_REPOSITORY: dai-run/course-service
-      - SERVICE_PATH: services/course-stats-consumer
-        ECR_REPOSITORY: dai-run/course-stats-consumer
-      - SERVICE_PATH: services/crew-notification-consumer
-        ECR_REPOSITORY: dai-run/crew-notification-consumer
-  before_script:
-    - install -d -m 700 "$CI_PROJECT_DIR/.docker-auth"
-    - export DOCKER_CONFIG="$CI_PROJECT_DIR/.docker-auth"
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  resource_group: production-gitops
+  interruptible: false
+  timeout: 2h
   script:
-    - aws sts get-caller-identity
-    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-    - docker build --pull -t "$ECR_REGISTRY/$ECR_REPOSITORY:$BACKEND_IMAGE_TAG" "$SERVICE_PATH"
-    - docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$BACKEND_IMAGE_TAG"
-    - echo "Pushed image $ECR_REGISTRY/$ECR_REPOSITORY:$BACKEND_IMAGE_TAG"
-  after_script:
-    - DOCKER_CONFIG="$CI_PROJECT_DIR/.docker-auth" docker logout "$ECR_REGISTRY" >/dev/null 2>&1 || true
-    - rm -f "$CI_PROJECT_DIR/.docker-auth/config.json"
-    - rmdir "$CI_PROJECT_DIR/.docker-auth" 2>/dev/null || true
+    - ./ci/build-push-and-update-gitops.sh
