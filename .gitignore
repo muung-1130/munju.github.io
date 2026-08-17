@@ -1,0 +1,53 @@
+# Claude Code 개인별 프로젝트 설정
+CLAUDE.local.md
+.claude/settings.local.json
+
+# 환경 변수와 비밀정보
+.env
+.env.*
+!.env.example
+ENV_INVENTORY.md
+
+# TLS 인증서/개인키 (자체서명 포함, 커밋 금지)
+nginx/certs/
+
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Gradle
+.gradle/
+**/build/
+.DS_Store
+
+# Figma용 디자인 페이지 스크린샷 내보내기
+design-export/
+
+# Next.js
+.next/
+out/
+
+# .bak
+*.bak

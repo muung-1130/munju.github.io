@@ -1,4 +1,4 @@
-﻿stages:
+stages:
   - test
   - quality
   - build
@@ -9,12 +9,14 @@ variables:
   ECR_REPOSITORY: dairun/application
   IMAGE_TAG: "$CI_COMMIT_SHORT_SHA-$CI_PIPELINE_IID"
 
-runner-test:
-  stage: test
+default:
   tags:
     - aws
     - eks
     - dairun
+
+runner-test:
+  stage: test
   script:
     - echo "DAI RUN GitLab Runner connected"
     - hostname
@@ -22,13 +24,24 @@ runner-test:
     - docker --version
     - aws --version
 
+backend-sqs-unit-test:
+  stage: test
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "review/backend-sqs-consumers-20260817"'
+  parallel:
+    matrix:
+      - SERVICE_PATH:
+          - services-msa/challenge-service
+          - services-msa/crew-service
+          - services-msa/notification-service
+          - services/course-stats-consumer
+          - services/crew-notification-consumer
+  script:
+    - docker build --pull --target test -t "dairun-backend-sqs-test:${CI_JOB_ID}" "$SERVICE_PATH"
+
 sonarqube-check:
   stage: quality
   allow_failure: true
-  tags:
-    - aws
-    - eks
-    - dairun
   variables:
     GIT_DEPTH: "0"
   script:
@@ -45,10 +58,6 @@ sonarqube-check:
 
 build-and-push:
   stage: build
-  tags:
-    - aws
-    - eks
-    - dairun
   script:
     - aws sts get-caller-identity
     - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
@@ -56,3 +65,38 @@ build-and-push:
     - docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
     - echo "Pushed image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
+backend-sns-sqs-build-and-push:
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "review/backend-sqs-consumers-20260817"'
+  variables:
+    BACKEND_IMAGE_TAG: "backend-sns-sqs-${CI_COMMIT_SHORT_SHA}-${CI_PIPELINE_IID}"
+  parallel:
+    matrix:
+      - SERVICE_PATH: services-msa/challenge-service
+        ECR_REPOSITORY: dai-run/challenge-service
+      - SERVICE_PATH: services-msa/crew-service
+        ECR_REPOSITORY: dai-run/crew-service
+      - SERVICE_PATH: services-msa/notification-service
+        ECR_REPOSITORY: dai-run/notification-service
+      - SERVICE_PATH: services-msa/running-record-service
+        ECR_REPOSITORY: dai-run/running-record-service
+      - SERVICE_PATH: services-msa/course-service
+        ECR_REPOSITORY: dai-run/course-service
+      - SERVICE_PATH: services/course-stats-consumer
+        ECR_REPOSITORY: dai-run/course-stats-consumer
+      - SERVICE_PATH: services/crew-notification-consumer
+        ECR_REPOSITORY: dai-run/crew-notification-consumer
+  before_script:
+    - install -d -m 700 "$CI_PROJECT_DIR/.docker-auth"
+    - export DOCKER_CONFIG="$CI_PROJECT_DIR/.docker-auth"
+  script:
+    - aws sts get-caller-identity
+    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+    - docker build --pull -t "$ECR_REGISTRY/$ECR_REPOSITORY:$BACKEND_IMAGE_TAG" "$SERVICE_PATH"
+    - docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$BACKEND_IMAGE_TAG"
+    - echo "Pushed image $ECR_REGISTRY/$ECR_REPOSITORY:$BACKEND_IMAGE_TAG"
+  after_script:
+    - DOCKER_CONFIG="$CI_PROJECT_DIR/.docker-auth" docker logout "$ECR_REGISTRY" >/dev/null 2>&1 || true
+    - rm -f "$CI_PROJECT_DIR/.docker-auth/config.json"
+    - rmdir "$CI_PROJECT_DIR/.docker-auth" 2>/dev/null || true
