@@ -14,7 +14,6 @@ spec:
       - key: app.kubernetes.io/name
         operator: In
         values:
-          - dir-challenge-consumer
           - dir-course-stats-consumer
           - dir-crew-consumer
           - dir-crew-notification-consumer
