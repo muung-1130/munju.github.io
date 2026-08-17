@@ -11,7 +11,7 @@ const messagingProvider = (process.env.MESSAGING_PROVIDER ?? 'kafka').trim().toL
 async function refreshLikeCount(client, courseId) {
   await client.query(
     `INSERT INTO course.course_statistics (course_id, like_count)
-     SELECT $1, COUNT(*)::integer FROM course.course_likes WHERE course_id = $1
+     SELECT $1::varchar, COUNT(*)::integer FROM course.course_likes WHERE course_id = $1::varchar
      ON CONFLICT (course_id) DO UPDATE
        SET like_count = EXCLUDED.like_count, updated_at = now()`,
     [courseId]
