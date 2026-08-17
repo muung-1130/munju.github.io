@@ -1,0 +1,17 @@
+Dockerfile
+FastAPI AI Server를 Docker 이미지로 빌드하는 파일
+
+docker-compose.example.yml
+팀 Docker Compose에 ai-server로 붙일 때 참고할 예시
+
+scripts\test_ai_server.ps1
+health, RAG 질문, 가드레일 차단 테스트를 한 번에 돌리는 스크립트
+
+demo-chat.html
+Next.js 연결 전에도 브라우저에서 챗봇을 시연할 수 있는 임시 화면
+
+NEXTJS_INTEGRATION.md
+백엔드/프론트 담당자에게 넘길 API 연동 문서
+
+README.md
+실행, 테스트, Docker, 전달 방법 정리

@@ -1,0 +1,69 @@
+{
+  "owner_user_id": "93d738ca-c62d-4e2f-a400-c362e405ec39",
+  "location": {
+    "latitude": 37.5704,
+    "longitude": 126.9827,
+    "address": "서울 종로구 모동"
+  },
+  "preference": {
+    "search_radius_km": 5.0,
+    "preferred_distance_km": 5.0,
+    "difficulty": 1,
+    "preferred_environment": "도심",
+    "recommendation_type": "popular_based"
+  },
+  "candidate_routes": [
+    {
+      "candidate_id": "SEOUL_C013",
+      "name": "서울숲 식빵런",
+      "distance_m": 1450,
+      "difficulty": 1,
+      "region": "서울",
+      "description": "서울숲 인근의 짧고 접근성이 좋은 초보자 친화 코스",
+      "view_count": 2,
+      "like_count": 1,
+      "review_count": 1,
+      "review_average": 4.5,
+      "route_coordinates": []
+    },
+    {
+      "candidate_id": "SEOUL_C017",
+      "name": "목요일20km코스",
+      "distance_m": 16217,
+      "difficulty": 1,
+      "region": "서울",
+      "description": "장거리 러닝에 적합한 20km급 코스",
+      "view_count": 5,
+      "like_count": 1,
+      "review_count": 1,
+      "review_average": 2.0,
+      "route_coordinates": []
+    },
+    {
+      "candidate_id": "SEOUL_C007",
+      "name": "청계천",
+      "distance_m": 3116,
+      "difficulty": 1,
+      "region": "서울",
+      "description": "도심 하천변을 따라 달릴 수 있는 접근성 좋은 코스",
+      "view_count": 2,
+      "like_count": 0,
+      "review_count": 0,
+      "review_average": 0.0,
+      "route_coordinates": []
+    },
+    {
+      "candidate_id": "SEOUL_C023",
+      "name": "남산 북측 순환로(트레일런)",
+      "distance_m": 3408,
+      "difficulty": 2,
+      "region": "서울",
+      "description": "남산 인근의 트레일 성격이 있는 순환형 코스",
+      "view_count": 0,
+      "like_count": 0,
+      "review_count": 0,
+      "review_average": 0.0,
+      "route_coordinates": []
+    }
+  ]
+}

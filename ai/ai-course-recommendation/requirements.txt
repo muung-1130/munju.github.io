@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+boto3
+botocore
+asyncpg
+pydantic
+pydantic-settings
+python-dotenv
