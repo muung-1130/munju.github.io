@@ -1,0 +1,22 @@
+# service_id|watch_paths(comma-separated; directory paths end with /)|dockerfile|context|ecr_repository
+frontend|app/,components/,lib/,public/,types/,db/,instrumentation.ts,middleware.ts,next-env.d.ts,next.config.mjs,package.json,package-lock.json,tsconfig.json,.dockerignore,Dockerfile.frontend|Dockerfile.frontend|.|dai-run/frontend
+auth-web|app/,components/,lib/,public/,types/,db/,instrumentation.ts,middleware.ts,next-env.d.ts,next.config.mjs,package.json,package-lock.json,tsconfig.json,.dockerignore,Dockerfile.auth-web|Dockerfile.auth-web|.|dai-run/auth-web
+auth-service|services-msa/auth-service/|services-msa/auth-service/Dockerfile|services-msa/auth-service|dai-run/auth-service
+challenge-service|services-msa/challenge-service/|services-msa/challenge-service/Dockerfile|services-msa/challenge-service|dai-run/challenge-service
+challenge-weekly-scheduler|services/challenge-weekly-scheduler/|services/challenge-weekly-scheduler/Dockerfile|services/challenge-weekly-scheduler|dai-run/challenge-weekly-scheduler
+coaching-service|services-msa/coaching-service/|services-msa/coaching-service/Dockerfile|services-msa/coaching-service|dai-run/coaching-service
+course-service|services-msa/course-service/|services-msa/course-service/Dockerfile|services-msa/course-service|dai-run/course-service
+course-stats-consumer|services/course-stats-consumer/|services/course-stats-consumer/Dockerfile|services/course-stats-consumer|dai-run/course-stats-consumer
+crew-notification-consumer|services/crew-notification-consumer/|services/crew-notification-consumer/Dockerfile|services/crew-notification-consumer|dai-run/crew-notification-consumer
+crew-service|services-msa/crew-service/|services-msa/crew-service/Dockerfile|services-msa/crew-service|dai-run/crew-service
+crew-stats-scheduler|services/crew-stats-scheduler/|services/crew-stats-scheduler/Dockerfile|services/crew-stats-scheduler|dai-run/crew-stats-scheduler
+marathon-service|services-msa/marathon-service/|services-msa/marathon-service/Dockerfile|services-msa/marathon-service|dai-run/marathon-service
+media-service|services-msa/media-service/|services-msa/media-service/Dockerfile|services-msa/media-service|dai-run/media-service
+notification-service|services-msa/notification-service/|services-msa/notification-service/Dockerfile|services-msa/notification-service|dai-run/notification-service
+running-record-service|services-msa/running-record-service/|services-msa/running-record-service/Dockerfile|services-msa/running-record-service|dai-run/running-record-service
+shoe-service|services-msa/shoe-service/|services-msa/shoe-service/Dockerfile|services-msa/shoe-service|dai-run/shoe-service
+ai-assistant-service|services-msa/ai-assistant-service/|services-msa/ai-assistant-service/Dockerfile|services-msa/ai-assistant-service|dai-run/ai-assistant-service
+ai-rag-service|ai/ai-rag-service/|ai/ai-rag-service/Dockerfile|ai/ai-rag-service|dai-run/ai-rag-service
+ai-course-recommendation|ai/ai-course-recommendation/|ai/ai-course-recommendation/Dockerfile|ai/ai-course-recommendation|dai-run/ai-course-recommendation
+course-recommendation-service|services-msa/course-recommendation-service/|services-msa/course-recommendation-service/Dockerfile|services-msa/course-recommendation-service|dai-run/course-recommendation-service
+ai-shoe-life|ai/ai-shoe-life/|ai/ai-shoe-life/Dockerfile|ai/ai-shoe-life|dai-run/ai-shoe-life
