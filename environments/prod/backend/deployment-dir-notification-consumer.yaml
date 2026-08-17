@@ -39,6 +39,8 @@ spec:
           value: dir-notification-consumer
         - name: MESSAGING_PROVIDER
           value: sns-sqs
+        - name: PGHOST
+          value: dir-postgresql-rw.dir-db-ns.svc
         envFrom:
         - configMapRef:
             name: dir-notification-consumer-config
