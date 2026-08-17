@@ -42,7 +42,7 @@ spec:
             name: dir-course-stats-consumer-config
         - secretRef:
             name: dir-course-stats-consumer-secret-eso-shadow-v1
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-stats-consumer@sha256:fac9b5c98d65a9ff94a32ea0cc25a9e95ce5463808a709c2c4f7f4fd7b1e10ca
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-stats-consumer@sha256:7816d9f0a991408a1ff07729229fd77dba233362b77ef4323f694d879d31c33d
         imagePullPolicy: IfNotPresent
         name: dir-course-stats-consumer
         resources:
