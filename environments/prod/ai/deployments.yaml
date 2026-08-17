@@ -237,6 +237,10 @@
                   {
                     "name": "RUN_COMPLETED_QUEUE_URL",
                     "value": "https://sqs.ap-northeast-2.amazonaws.com/970307871446/dir-prod-ai-assistant-run-completed-q"
+                  },
+                  {
+                    "name": "PGHOST",
+                    "value": "dir-postgresql-rw.dir-db-ns.svc"
                   }
                 ],
                 "envFrom": [
