@@ -1,36 +1,50 @@
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: dir-backend-sns-producers-egress
-  namespace: dir-backend-ns
-  annotations:
-    argocd.argoproj.io/sync-wave: "-1"
-  labels:
-    app.kubernetes.io/part-of: dai-run
-    dairun.io/change-scope: backend-sns-sqs
-spec:
-  podSelector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values:
-          - dir-course
-          - dir-crew
-          - dir-running-record-outbox-publisher
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 169.254.170.23/32
-      ports:
-        - protocol: TCP
-          port: 80
-    - to:
-        - ipBlock:
-            cidr: 10.10.3.63/32
-        - ipBlock:
-            cidr: 10.10.4.242/32
-      ports:
-        - protocol: TCP
-          port: 443
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: dir-course-sns-egress
+      namespace: dir-backend-ns
+      labels: &labels
+        app.kubernetes.io/part-of: dai-run
+        dairun.io/change-scope: backend-sns-sqs
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: dir-course
+      policyTypes: [Egress]
+      egress: &snsEgress
+        - to:
+            - ipBlock: {cidr: 169.254.170.23/32}
+          ports:
+            - {protocol: TCP, port: 80}
+        - to:
+            - ipBlock: {cidr: 10.10.3.63/32}
+            - ipBlock: {cidr: 10.10.4.242/32}
+          ports:
+            - {protocol: TCP, port: 443}
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: dir-crew-sns-egress
+      namespace: dir-backend-ns
+      labels: *labels
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: dir-crew
+      policyTypes: [Egress]
+      egress: *snsEgress
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: dir-running-record-outbox-publisher-sns-egress
+      namespace: dir-backend-ns
+      labels: *labels
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: dir-running-record-outbox-publisher
+      policyTypes: [Egress]
+      egress: *snsEgress
