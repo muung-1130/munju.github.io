@@ -1,0 +1,14 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: dir-ai-assistant-consumer-aws
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  namespace: dir-ai-ns
+  labels:
+    app.kubernetes.io/name: dir-ai-assistant-consumer
+    app.kubernetes.io/part-of: dai-run
+spec:
+  podIdentity:
+    provider: aws
+    identityOwner: keda
