@@ -14,12 +14,19 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: dir-ai-ns
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: dir-ai-assistant-consumer
+      namespace: dir-ai-ns
+      jsonPointers:
+        - /spec/replicas
   syncPolicy:
     automated: {enabled: false, prune: false, selfHeal: false, allowEmpty: false}
     retry:
       limit: 5
       backoff: {duration: 5s, factor: 2, maxDuration: 3m}
-    syncOptions: [Validate=true, ApplyOutOfSyncOnly=true]
+    syncOptions: [Validate=true, ApplyOutOfSyncOnly=true, RespectIgnoreDifferences=true]
 
 
 
