@@ -34,6 +34,8 @@ build-and-push-sqs-canary:
   needs:
     - sqs-unit-test
   script:
+    - install -d -m 700 "$CI_PROJECT_DIR/.docker-auth"
+    - export DOCKER_CONFIG="$CI_PROJECT_DIR/.docker-auth"
     - aws sts get-caller-identity
     - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
     - >-
@@ -43,6 +45,10 @@ build-and-push-sqs-canary:
       services-msa/ai-assistant-service
     - docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
     - echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" | tee build.env
+  after_script:
+    - DOCKER_CONFIG="$CI_PROJECT_DIR/.docker-auth" docker logout "$ECR_REGISTRY" >/dev/null 2>&1 || true
+    - rm -f "$CI_PROJECT_DIR/.docker-auth/config.json"
+    - rmdir "$CI_PROJECT_DIR/.docker-auth" 2>/dev/null || true
   artifacts:
     reports:
       dotenv: build.env
