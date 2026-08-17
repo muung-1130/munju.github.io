@@ -1,0 +1,44 @@
+name: dai-run-ai-services
+
+services:
+  ai-rag-service:
+    build:
+      context: ./ai-rag-service
+    container_name: dai-run-ai-rag-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./ai-rag-service/.env
+    environment:
+      AWS_PROFILE: dai-run-bedrock
+    volumes:
+      - ${HOME}/.aws:/root/.aws:ro
+
+  ai-shoe-life:
+    build:
+      context: ./ai-shoe-life
+    container_name: dai-run-ai-shoe-life
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./ai-shoe-life/.env
+    environment:
+      AWS_PROFILE: dai-run-bedrock
+    volumes:
+      - ${HOME}/.aws:/root/.aws:ro
+
+  ai-course-recommendation:
+    build:
+      context: ./ai-course-recommendation
+    container_name: dai-run-ai-course-recommendation
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./ai-course-recommendation/.env
+    environment:
+      AWS_PROFILE: dai-run-bedrock
+    volumes:
+      - ${HOME}/.aws:/root/.aws:ro
