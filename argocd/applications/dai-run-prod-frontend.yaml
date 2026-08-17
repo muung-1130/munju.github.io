@@ -14,9 +14,24 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: dir-frontend-ns
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: dir-frontend
+      namespace: dir-frontend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: Service
+      name: dir-frontend-svc
+      namespace: dir-frontend-ns
+      jsonPointers:
+        - /spec/type
+        - /spec/ports/0/nodePort
+        - /spec/externalTrafficPolicy
   syncPolicy:
     automated:
-      enabled: false
+      enabled: true
       prune: false
       selfHeal: false
       allowEmpty: false
@@ -29,6 +44,7 @@ spec:
     syncOptions:
       - Validate=true
       - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
 
 
 
