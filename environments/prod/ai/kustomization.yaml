@@ -9,3 +9,6 @@ resources:
   - hpas.yaml
   - scaledobjects.yaml
   - networkpolicys.yaml
+  - secretstore-dir-course-recommendation-shadow.yaml
+  - externalsecret-dir-course-recommendation-shadow.yaml
+  - networkpolicy-dir-course-recommendation-db-shadow.yaml
