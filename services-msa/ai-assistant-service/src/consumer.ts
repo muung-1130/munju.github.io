@@ -8,15 +8,26 @@
 // 만들 가치는 없다고 판단했다) — 그래서 완주 챌린지 목록은 항상 빈 배열로 넘긴다. 챌린지 달성
 // 알림 자체는 notification-service가 ChallengeCompleted 이벤트로 별도 처리한다.
 import { createRunCompletedConsumer } from './lib/kafka.js';
+import { createRunCompletedSqsConsumer } from './lib/sqs.js';
 import { sendRunCongratsMessage } from './lib/aiChatMessages.js';
 
-const consumer = createRunCompletedConsumer(async (eventId, payload) => {
+const messagingProvider = (process.env.MESSAGING_PROVIDER ?? 'kafka').trim().toLowerCase();
+const onRunCompleted = async (eventId: string, payload: Parameters<typeof sendRunCongratsMessage>[2]) => {
   await sendRunCongratsMessage(eventId, payload.userId, payload, []);
-});
+};
 
+const consumer =
+  messagingProvider === 'sqs'
+    ? createRunCompletedSqsConsumer(onRunCompleted)
+    : messagingProvider === 'kafka'
+      ? createRunCompletedConsumer(onRunCompleted)
+      : (() => {
+          throw new Error(`지원하지 않는 MESSAGING_PROVIDER: ${messagingProvider}`);
+        })();
+
+console.log(`ai-assistant-service consumer starting (provider=${messagingProvider})`);
 consumer
   .start()
-  .then(() => console.log('ai-assistant-service consumer started'))
   .catch((err) => {
     console.error('ai-assistant-service consumer 시작 실패:', err);
     process.exit(1);

@@ -1,0 +1,50 @@
+stages:
+  - test
+  - build
+
+variables:
+  AWS_DEFAULT_REGION: ap-northeast-2
+  ECR_REGISTRY: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_REPOSITORY: dai-run/ai-assistant-service
+  IMAGE_TAG: "sqs-canary-${CI_COMMIT_SHORT_SHA}-${CI_PIPELINE_IID}"
+  DOCKER_BUILDKIT: "1"
+
+default:
+  tags:
+    - aws
+    - eks
+    - dairun
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "review/ai-assistant-sqs-canary-20260817"'
+    - when: never
+
+sqs-unit-test:
+  stage: test
+  script:
+    - >-
+      docker build
+      --pull
+      --target test
+      -t "dai-run-ai-assistant-sqs-test:${CI_COMMIT_SHORT_SHA}"
+      services-msa/ai-assistant-service
+
+build-and-push-sqs-canary:
+  stage: build
+  needs:
+    - sqs-unit-test
+  script:
+    - aws sts get-caller-identity
+    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+    - >-
+      docker build
+      --pull
+      -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+      services-msa/ai-assistant-service
+    - docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+    - echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" | tee build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+    expire_in: 1 day
