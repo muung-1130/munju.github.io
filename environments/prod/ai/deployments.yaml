@@ -571,7 +571,7 @@
                   },
                   {
                     "secretRef": {
-                      "name": "dir-course-recommendation-secret"
+                      "name": "dir-course-recommendation-secret-eso-shadow-v1"
                     }
                   }
                 ],
