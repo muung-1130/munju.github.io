@@ -7,7 +7,6 @@ variables:
   ECR_REGISTRY: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com
   ECR_REPOSITORY: dai-run/ai-assistant-service
   IMAGE_TAG: "sqs-canary-${CI_COMMIT_SHORT_SHA}-${CI_PIPELINE_IID}"
-  DOCKER_BUILDKIT: "1"
 
 default:
   tags:
