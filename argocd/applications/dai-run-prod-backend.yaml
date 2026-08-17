@@ -23,6 +23,12 @@ spec:
         - /spec/replicas
     - group: apps
       kind: Deployment
+      name: dir-course
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
       name: dir-course-stats-consumer
       namespace: dir-backend-ns
       jsonPointers:
