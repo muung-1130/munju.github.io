@@ -14,7 +14,6 @@ spec:
       - key: app.kubernetes.io/name
         operator: In
         values:
-          - dir-challenge-consumer
           - dir-course
           - dir-crew
           - dir-running-record-outbox-publisher

@@ -8,6 +8,7 @@ resources:
   - networkpolicy-backend-worker-postgresql-shadow.yaml
   - networkpolicy-backend-sqs-consumers.yaml
   - networkpolicy-backend-sns-producers.yaml
+  - networkpolicy-dir-challenge-consumer-sqs-canary.yaml
   - triggerauthentication-backend-consumers-aws.yaml
   - deployment-dir-auth-user.yaml
   - service-dir-auth-user-svc.yaml

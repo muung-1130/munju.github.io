@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-challenge-consumer-sqs-canary-egress
+  namespace: dir-backend-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    app.kubernetes.io/name: dir-challenge-consumer
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/change-scope: backend-sqs-canary
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-challenge-consumer
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 169.254.170.23/32
+      ports:
+        - protocol: TCP
+          port: 80
+    - to:
+        - ipBlock:
+            cidr: 10.10.2.9/32
+        - ipBlock:
+            cidr: 10.10.5.157/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 10.10.3.63/32
+        - ipBlock:
+            cidr: 10.10.4.242/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-db-ns
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: dir-postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 15008
