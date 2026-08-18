@@ -32,7 +32,7 @@ spec:
         workload: app
       containers:
         - name: dir-ai-dashboard
-          image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-dashboard:pending-first-build
+          image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-dashboard@sha256:06cfa1cdaea0236df8ee5bf529a822d0da2960f28a921c2be2d3fa0af17f797e
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
