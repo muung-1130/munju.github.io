@@ -24,6 +24,7 @@ resources:
   - configmap-dir-running-record-outbox-publisher-config.yaml
   - configmap-dir-shoe-config.yaml
   - networkpolicy-backend-postgresql-egress.yaml
+  - networkpolicy-dir-environment-dynamodb-consumer-egress.yaml
   - namespace.yaml
   - secretstore-backend-worker-shadow.yaml
   - externalsecrets-backend-worker-shadow.yaml
