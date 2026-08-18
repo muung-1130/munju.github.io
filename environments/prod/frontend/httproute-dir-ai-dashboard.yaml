@@ -10,7 +10,7 @@ spec:
   parentRefs:
     - name: dir-public-gateway
       namespace: dir-istio-ingress
-      sectionName: https-root
+      sectionName: https-wildcard
   hostnames:
     - dashboard.dairun.site
   rules:
