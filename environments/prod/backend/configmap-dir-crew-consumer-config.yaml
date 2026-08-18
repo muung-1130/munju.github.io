@@ -1,0 +1,27 @@
+apiVersion: v1
+data:
+  AI_RAG_SERVICE_URL: http://dir-ai-assistant-svc.dir-ai-ns.svc.cluster.local:8202
+  AI_RECOMMENDATION_SERVICE_URL: http://dir-course-recommendation-svc.dir-ai-ns.svc.cluster.local:8201
+  AWS_REGION: ap-northeast-2
+  COURSE_RECOMMENDATION_SERVICE_URL: http://dir-course-recommendation-service-svc.dir-ai-ns.svc.cluster.local:8201
+  COURSE_SERVICE_URL: http://dir-course-svc.dir-backend-ns.svc.cluster.local:8102
+  HOSTNAME: 0.0.0.0
+  MEDIA_SERVICE_URL: http://dir-media-svc.dir-backend-ns.svc.cluster.local:8113
+  NEXTAUTH_URL: https://dai-run.internal
+  NEXT_TELEMETRY_DISABLED: '1'
+  NODE_ENV: production
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://dir-otel-gateway-svc.dir-obsv-ns.svc.cluster.local:4318
+  PGDATABASE: dai_run
+  PGHOST: dir-postgresql-rw.dir-db-ns.svc.cluster.local
+  PGPORT: '5432'
+  PGSSLMODE: no-verify
+  RUN_COMPLETED_QUEUE_URL: https://sqs.ap-northeast-2.amazonaws.com/970307871446/dir-prod-crew-run-completed-q
+  SHOE_LIFE_AI_SERVICE_URL: http://dir-shoe-life-ai-svc.dir-ai-ns.svc.cluster.local:8204
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: dir-crew-consumer
+    app.kubernetes.io/part-of: dai-run
+  name: dir-crew-consumer-config
+  namespace: dir-backend-ns
+

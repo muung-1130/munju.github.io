@@ -2,6 +2,26 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: dir-backend-ns
 resources:
+  - configmap-dir-auth-user-config.yaml
+  - configmap-dir-auth-web-config.yaml
+  - configmap-dir-challenge-config.yaml
+  - configmap-dir-challenge-consumer-config.yaml
+  - configmap-dir-challenge-weekly-scheduler-config.yaml
+  - configmap-dir-coaching-config.yaml
+  - configmap-dir-course-config.yaml
+  - configmap-dir-course-stats-consumer-config.yaml
+  - configmap-dir-crew-config.yaml
+  - configmap-dir-crew-consumer-config.yaml
+  - configmap-dir-crew-notification-consumer-config.yaml
+  - configmap-dir-crew-stats-scheduler-config.yaml
+  - configmap-dir-marathon-config.yaml
+  - configmap-dir-media-config.yaml
+  - configmap-dir-notification-config.yaml
+  - configmap-dir-notification-consumer-config.yaml
+  - configmap-dir-running-record-config.yaml
+  - configmap-dir-running-record-outbox-publisher-config.yaml
+  - configmap-dir-shoe-config.yaml
+  - networkpolicy-backend-postgresql-egress.yaml
   - namespace.yaml
   - secretstore-backend-worker-shadow.yaml
   - externalsecrets-backend-worker-shadow.yaml
