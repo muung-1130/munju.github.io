@@ -1,6 +1,14 @@
 import { getPool } from './db.js';
 
-const AI_SERVICE_URL = process.env.AI_RECOMMENDATION_SERVICE_URL ?? 'http://192.168.0.212:8001';
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+// 온프레미스 사설 IP 기본값은 EKS 등 다른 네트워크에서는 도달 불가능해서 조용히 타임아웃나는
+// 함정이 된다 — env var 누락을 기동 시점에 바로 드러내도록 fail-fast.
+const AI_SERVICE_URL = requireEnv('AI_RECOMMENDATION_SERVICE_URL');
 const DAILY_CUTOFF_HOUR = 3; // FastAPI 쪽 repository.py의 _todays_recommendation_cutoff와 동일 기준 (KST 03:00)
 const AI_SERVICE_TIMEOUT_MS = 6000; // Bedrock 호출 예산(운영 실측 평균 4~5초 기준 여유를 둔 상한)
 
