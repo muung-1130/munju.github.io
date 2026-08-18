@@ -33,6 +33,11 @@ Application 파이프라인은 다음 순서로 동작한다.
 차단한다. 이전 파이프라인에서는 SonarQube Job 실패 이력이 있으므로 이 변경을
 병합하기 전에 review 브랜치 파이프라인이 성공하는지 먼저 확인해야 한다.
 
+`ai-service/`는 Bedrock 호출을 검증하던 비운영 Spring Boot 실험 코드이며 현재
+서비스 빌드·ECR·GitOps 대상이 아니다. 컴파일 산출물이 없는 이 디렉터리가 전체
+분석을 중단하지 않도록 `sonar.exclusions`에 명시하고, 실제 운영 Node.js·Python
+서비스와 나머지 소스는 계속 분석한다.
+
 ## 컨테이너 이미지 게이트
 
 운영 서비스 이미지마다 Docker build 직후, ECR Push 전에 Trivy를 실행한다.
