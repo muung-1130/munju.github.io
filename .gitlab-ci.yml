@@ -9,6 +9,9 @@ variables:
   ECR_REGISTRY: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com
   GITOPS_REPOSITORY_URL: http://10.20.0.253/dai-run/gitops.git
   GIT_DEPTH: "0"
+  # Pinned release tag. Mirror and digest-pin this image in ECR after the first validated run.
+  TRIVY_IMAGE: public.ecr.aws/aquasecurity/trivy:0.72.0
+  TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.trivy-cache"
 
 default:
   tags:
@@ -53,7 +56,7 @@ unit-test-changed-services:
 
 sonarqube-check:
   stage: quality
-  allow_failure: true
+  allow_failure: false
   script:
     - >
       docker run --rm
@@ -64,7 +67,8 @@ sonarqube-check:
       -v "$CI_PROJECT_DIR:/usr/src"
       -w /usr/src
       sonarsource/sonar-scanner-cli:latest
-      -Dsonar.qualitygate.wait=false
+      -Dsonar.qualitygate.wait=true
+      -Dsonar.qualitygate.timeout=600
 
 build-push-and-update-gitops:
   stage: deploy
@@ -72,10 +76,21 @@ build-push-and-update-gitops:
     - job: detect-changed-services
       artifacts: true
     - job: unit-test-changed-services
+    - job: sonarqube-check
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   resource_group: production-gitops
   interruptible: false
   timeout: 2h
+  cache:
+    key: trivy-db-v1
+    paths:
+      - .trivy-cache/
+    policy: pull-push
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - ci-output/trivy/
   script:
     - ./ci/build-push-and-update-gitops.sh
