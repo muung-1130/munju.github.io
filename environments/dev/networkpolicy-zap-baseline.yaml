@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dai-run-zap-baseline-egress
+  labels:
+    app.kubernetes.io/name: dai-run-zap-baseline
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: security-testing
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dai-run-zap-baseline
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: dai-run-frontend
+              dairun.io/track: blue
+      ports:
+        - protocol: TCP
+          port: 3000

@@ -23,5 +23,9 @@ spec:
       kind: Deployment
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
+    - group: batch
+      kind: CronJob
+    - group: networking.k8s.io
+      kind: NetworkPolicy
 
 
