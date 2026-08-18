@@ -5,6 +5,9 @@ project_dir="${CI_PROJECT_DIR:-.}"
 services_file="$project_dir/ci-output/changed-services.tsv"
 updates_file="$project_dir/ci-output/image-updates.tsv"
 registry="${ECR_REGISTRY:?ECR_REGISTRY is required}"
+trivy_image="${TRIVY_IMAGE:?TRIVY_IMAGE is required}"
+trivy_cache_dir="${TRIVY_CACHE_DIR:-$project_dir/.trivy-cache}"
+trivy_reports_dir="$project_dir/ci-output/trivy"
 
 if [ ! -s "$services_file" ]; then
   echo "No production service changed; ECR and GitOps update skipped."
@@ -26,6 +29,8 @@ trap cleanup EXIT HUP INT TERM
 
 export DOCKER_CONFIG="$docker_config"
 : >"$updates_file"
+mkdir -p "$trivy_cache_dir" "$trivy_reports_dir"
+docker pull "$trivy_image"
 
 aws sts get-caller-identity --query Account --output text
 aws ecr get-login-password --region "$AWS_DEFAULT_REGION" \
@@ -37,6 +42,32 @@ while IFS='|' read -r service_id _watch_paths dockerfile context repository; do
   image="$registry/$repository:$image_tag"
   echo "Building $service_id -> $image"
   docker build --pull --file "$dockerfile" --tag "$image" "$context"
+
+  echo "Recording HIGH and CRITICAL vulnerability findings for $service_id"
+  docker run --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$trivy_cache_dir:/root/.cache/" \
+    -v "$trivy_reports_dir:/reports" \
+    "$trivy_image" image \
+    --scanners vuln \
+    --severity HIGH,CRITICAL \
+    --format json \
+    --output "/reports/$service_id.json" \
+    "$image"
+
+  echo "Enforcing the fixed CRITICAL vulnerability gate for $service_id"
+  docker run --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$trivy_cache_dir:/root/.cache/" \
+    "$trivy_image" image \
+    --scanners vuln \
+    --severity CRITICAL \
+    --ignore-unfixed \
+    --exit-code 1 \
+    --format table \
+    "$image"
+
+  echo "Security gate passed; pushing $service_id to ECR"
   docker push "$image"
 
   digest=""
