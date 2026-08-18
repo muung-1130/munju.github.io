@@ -47,7 +47,7 @@ spec:
             name: dir-auth-user-secret
         - secretRef:
             name: dir-auth-user-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/auth-service@sha256:e8fea5b83daf0a6c04878829428df354e22e3a9095034a0db616909c05f614cd
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/auth-service@sha256:c7aac593e284d6a23906bf1b25afc9d0cfb38b16cc0f93f6a285b96288922665
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
