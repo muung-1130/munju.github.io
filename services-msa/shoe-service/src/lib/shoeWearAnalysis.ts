@@ -2,7 +2,15 @@ import { randomUUID } from 'crypto';
 import { getPool } from './db.js';
 import { createPendingMediaObject, discardMediaObject, markMediaObjectReady } from './media.js';
 
-const SHOE_LIFE_AI_URL = process.env.SHOE_LIFE_AI_SERVICE_URL ?? 'http://192.168.0.212:8002';
+export function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+// 온프레미스 사설 IP(192.168.0.212) 기본값은 EKS 등 다른 네트워크에서는 도달 불가능해서
+// 조용히 타임아웃나는 함정이 된다 — env var 누락을 기동 시점에 바로 드러내도록 fail-fast.
+const SHOE_LIFE_AI_URL = requireEnv('SHOE_LIFE_AI_SERVICE_URL');
 const SHOE_LIFE_MINIO_BUCKET = process.env.SHOE_LIFE_MINIO_BUCKET ?? 'runspot-shoe-life-images';
 
 export const WEAR_IMAGE_ROLES = ['left_outsole', 'right_outsole', 'heels', 'left_side', 'right_side'] as const;

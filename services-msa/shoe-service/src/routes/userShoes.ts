@@ -5,7 +5,8 @@ import {
   ShoeOwnershipError,
   WEAR_IMAGE_ROLES,
   type WearImageRole,
-  requestShoeWearAnalysis
+  requestShoeWearAnalysis,
+  requireEnv
 } from '../lib/shoeWearAnalysis.js';
 import { getLatestWearAnalysisResult, getWearAnalysisResult } from '../lib/shoes.js';
 import {
@@ -23,7 +24,9 @@ import { requireAuth } from '../middleware/session.js';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-const SHOE_LIFE_AI_URL = process.env.SHOE_LIFE_AI_SERVICE_URL ?? 'http://192.168.0.212:8002';
+// 온프레미스 사설 IP 기본값은 EKS 등 다른 네트워크에서는 도달 불가능해서 조용히 타임아웃나는
+// 함정이 된다 — env var 누락을 기동 시점에 바로 드러내도록 fail-fast.
+const SHOE_LIFE_AI_URL = requireEnv('SHOE_LIFE_AI_SERVICE_URL');
 const MEDIA_PROXY_SECRET = process.env.SHOE_LIFE_MEDIA_PROXY_SECRET ?? '';
 const ALLOWED_PHOTO_ROLES = new Set(['left_outsole', 'right_outsole', 'heels', 'left_side', 'right_side']);
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/webp']);

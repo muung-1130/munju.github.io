@@ -67,7 +67,16 @@ export async function sendRunCongratsMessage(
   await pool.query(`UPDATE ai_assistant.chat_sessions SET last_message_at = now() WHERE session_id = $1`, [sessionId]);
 }
 
-const AI_RAG_SERVICE_URL = process.env.AI_RAG_SERVICE_URL ?? 'http://192.168.0.201:8000';
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+// 온프레미스 사설 IP 기본값(다른 서비스의 동일 상수는 192.168.0.212였는데 여기만 .201로
+// 어긋나 있었다 — 복붙 과정에서 생긴 오타로 보인다)은 EKS 등 다른 네트워크에서는 도달
+// 불가능해서 조용히 타임아웃나는 함정이 된다 — env var 누락을 기동 시점에 바로 드러내도록 fail-fast.
+const AI_RAG_SERVICE_URL = requireEnv('AI_RAG_SERVICE_URL');
 
 type AskAssistantResult = { answer: string; sessionId: string | null; blocked: boolean };
 
