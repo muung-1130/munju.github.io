@@ -419,7 +419,7 @@
                 },
                 "podSelector": {
                   "matchLabels": {
-                    "cnpg.io/cluster": "dairun-postgresql"
+                    "cnpg.io/cluster": "dir-postgresql"
                   }
                 }
               }
