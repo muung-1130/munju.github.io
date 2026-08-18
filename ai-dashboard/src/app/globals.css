@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------- */
+/* DAI RUN AI Observability — design tokens                               */
+/* Structure follows the dataviz skill reference palette (palette.md).    */
+/* Swap these values to re-theme; nothing else in the app should change.  */
+/* ---------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  /* chart / page surfaces — "CryptoX" fork: light lavender-gray page,
+     pure-white cards floating on top (vs. the original's near-white-on-
+     near-white). Chart colors (series/seq/status below) are untouched —
+     those are already validated; only UI chrome changes here. */
+  --surface-1: #ffffff;
+  --surface-page: #f1f2f6;
+  --surface-raised: #ffffff;
+
+  /* ink */
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+
+  /* chart chrome */
+  --gridline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --success-text: #006300;
+  --border: rgba(16, 24, 40, 0.06);
+
+  /* brand chrome — buttons, active nav, links. Distinct from --series-1:
+     that token names a chart series' identity, this names UI chrome; they
+     happen to both be blue but must stay independently swappable. */
+  --brand: #4f46e5;
+  --brand-hover: #4338ca;
+  --brand-bg: color-mix(in oklab, var(--brand) 10%, white);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 20px rgba(16, 24, 40, 0.05);
+
+  /* categorical series — fixed order, never cycled */
+  --series-1: #2a78d6; /* blue */
+  --series-2: #eb6834; /* orange */
+  --series-3: #1baf7a; /* aqua */
+  --series-4: #eda100; /* yellow */
+  --series-5: #e87ba4; /* magenta */
+  --series-6: #008300; /* green */
+  --series-7: #4a3aa7; /* violet */
+  --series-8: #e34948; /* red */
+
+  /* sequential (blue) key steps */
+  --seq-100: #cde2fb;
+  --seq-250: #86b6ef;
+  --seq-450: #2a78d6;
+  --seq-600: #184f95;
+
+  /* status — fixed, never themed for series */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  --background: var(--surface-page);
+  --foreground: var(--text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+
+    --surface-1: #17171d;
+    --surface-page: #0a0a0f;
+    --surface-raised: #1d1d24;
+
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --success-text: #0ca30c;
+    --border: rgba(255, 255, 255, 0.08);
+
+    --brand: #6366f1;
+    --brand-hover: #818cf8;
+    --brand-bg: color-mix(in oklab, var(--brand) 18%, transparent);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.35);
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+
+    --seq-100: #184f95;
+    --seq-250: #1c5cab;
+    --seq-450: #3987e5;
+    --seq-600: #86b6ef;
+
+    --background: var(--surface-page);
+    --foreground: var(--text-primary);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-1: #17171d;
+  --surface-page: #0a0a0f;
+  --surface-raised: #1d1d24;
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+
+  --gridline: #2c2c2a;
+  --baseline: #383835;
+  --success-text: #0ca30c;
+  --border: rgba(255, 255, 255, 0.08);
+
+  --brand: #6366f1;
+  --brand-hover: #818cf8;
+  --brand-bg: color-mix(in oklab, var(--brand) 18%, transparent);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.35);
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  --seq-100: #184f95;
+  --seq-250: #1c5cab;
+  --seq-450: #3987e5;
+  --seq-600: #86b6ef;
+
+  --background: var(--surface-page);
+  --foreground: var(--text-primary);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface-1: var(--surface-1);
+  --color-surface-page: var(--surface-page);
+  --color-surface-raised: var(--surface-raised);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--series-1) 30%, transparent);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes dairun-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
