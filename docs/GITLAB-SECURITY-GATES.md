@@ -42,6 +42,27 @@ Sonar Job의 `after_script`는 마스킹된 기존 `SONAR_TOKEN`으로 프로젝
 조회하고 Gate 지표명·현재값·기준값만 로그에 출력한다. 토큰 값은 출력하거나
 저장하지 않으며, 진단 API 조회 실패도 원래 분석 결과를 성공으로 바꾸지 않는다.
 
+### 2026-08-18 MR !11 실제 검증
+
+- Pipeline #44: 비운영 `ai-service/` Java 컴파일 산출물 오류로 중단
+- Pipeline #45: Java 실험 코드 제외 후 전체 분석·보고서 업로드 성공, Quality Gate 실패
+- Pipeline #46, #47: Gate 실패 조건과 New Code 설정을 재현·확인
+
+확인된 실패 조건:
+
+| 지표 | 현재값 | 기준 |
+|---|---:|---:|
+| New Coverage | 0.0% | 80% 이상 |
+| New Duplicated Lines Density | 31.36582% | 3% 이하 |
+| New Security Hotspots Reviewed | 0.0% | 100% |
+| New Issues | 742 | 0 |
+
+현재 New Code 설정은 프로젝트별 기준선이 없는 상속형 `PREVIOUS_VERSION`이다.
+기존 저장소 전체가 New Code로 계산되는 상태이므로 Gate 수치를 낮추거나
+`allow_failure`를 되돌리지 않는다. SonarQube Project Admin User Token으로 승인된
+기준 분석의 revision을 확인하고 `SPECIFIC_ANALYSIS` 기준선을 1회 설정한 다음
+MR Pipeline을 다시 실행해야 한다.
+
 ## 컨테이너 이미지 게이트
 
 운영 서비스 이미지마다 Docker build 직후, ECR Push 전에 Trivy를 실행한다.

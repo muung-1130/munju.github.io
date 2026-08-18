@@ -22,11 +22,3 @@ if period_json="$(sonar_get "/api/new_code_periods/show?project=dai-run-applicat
 else
   echo "New Code period details were unavailable."
 fi
-
-if analyses_json="$(sonar_get "/api/project_analyses/search?project=dai-run-application&ps=20")"; then
-  echo "Recent SonarQube analyses:"
-  printf '%s\n' "$analyses_json" |
-    jq '.analyses | map({key, date, revision, events})'
-else
-  echo "Recent analysis details were unavailable."
-fi
