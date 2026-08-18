@@ -34,6 +34,7 @@ spec:
       - dir-crew-consumer
       - dir-crew-notification-consumer
       - dir-crew-stats-scheduler
+      - dir-environment-dynamodb-consumer
       - dir-marathon
       - dir-media
       - dir-notification

@@ -15,6 +15,7 @@ resources:
   - configmap-dir-crew-consumer-config.yaml
   - configmap-dir-crew-notification-consumer-config.yaml
   - configmap-dir-crew-stats-scheduler-config.yaml
+  - configmap-dir-environment-dynamodb-consumer-config.yaml
   - configmap-dir-marathon-config.yaml
   - configmap-dir-media-config.yaml
   - configmap-dir-notification-config.yaml
@@ -49,6 +50,7 @@ resources:
   - deployment-dir-crew-consumer.yaml
   - deployment-dir-crew-notification-consumer.yaml
   - deployment-dir-crew-stats-scheduler.yaml
+  - deployment-dir-environment-dynamodb-consumer.yaml
   - deployment-dir-marathon.yaml
   - service-dir-marathon-svc.yaml
   - deployment-dir-media.yaml
