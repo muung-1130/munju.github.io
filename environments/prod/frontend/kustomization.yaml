@@ -7,3 +7,6 @@ resources:
   - deployment-dir-frontend.yaml
   - service-dir-frontend-svc.yaml
   - hpa-dir-frontend-hpa.yaml
+  - deployment-dir-ai-dashboard.yaml
+  - service-dir-ai-dashboard-svc.yaml
+  - httproute-dir-ai-dashboard.yaml
