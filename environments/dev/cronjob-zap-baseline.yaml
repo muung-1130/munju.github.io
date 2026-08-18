@@ -1,0 +1,100 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dai-run-zap-baseline
+  labels:
+    app.kubernetes.io/name: dai-run-zap-baseline
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: security-testing
+  annotations:
+    dairun.io/rollout-stage: report-only
+    dairun.io/image-source-tag: weekly-20260811-amd64
+    dairun.io/image-platform: linux/amd64
+spec:
+  # Monday 03:00 KST. The schedule remains disabled during the first two runs.
+  schedule: "0 3 * * 1"
+  timeZone: Asia/Seoul
+  suspend: true
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: dai-run-zap-baseline
+            app.kubernetes.io/part-of: dai-run
+            app.kubernetes.io/component: security-testing
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: zap-baseline
+              # Pin the ECR image by digest so a later tag update cannot change the scanner.
+              image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dairun/owasp-zap@sha256:c922795adef068ec28f98bd8ccc7c90d026d40793c4c6b8061b8d03139ac71fb
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - configMapRef:
+                    name: dai-run-zap-baseline-config
+              command:
+                - /bin/bash
+                - -ec
+              args:
+                - |
+                  set +e
+                  /zap/zap-baseline.py \
+                    -t "${ZAP_TARGET_URL}" \
+                    -m "${ZAP_SPIDER_MINUTES}" \
+                    -J /zap/wrk/zap-report.json \
+                    -r /zap/wrk/zap-report.html
+                  zap_exit=$?
+                  set -e
+
+                  echo "ZAP_BASELINE_EXIT_CODE=${zap_exit}"
+                  if [[ -f /zap/wrk/zap-report.json ]]; then
+                    echo "ZAP_JSON_REPORT_BEGIN"
+                    cat /zap/wrk/zap-report.json
+                    echo "ZAP_JSON_REPORT_END"
+                  fi
+
+                  if [[ "${ZAP_REPORT_ONLY}" == "true" ]]; then
+                    echo "Report-only mode: findings do not fail this Job."
+                    exit 0
+                  fi
+
+                  exit "${zap_exit}"
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  cpu: "1"
+                  memory: 1536Mi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - name: zap-work
+                  mountPath: /zap/wrk
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: zap-work
+              emptyDir: {}
+            - name: tmp
+              emptyDir: {}

@@ -77,3 +77,6 @@ resources:
   - service-ai-shoe-life-green.yaml
   - httproute-canary.yaml
   - httproute-canary-2.yaml
+  - configmap-zap-baseline.yaml
+  - cronjob-zap-baseline.yaml
+  - networkpolicy-zap-baseline.yaml
