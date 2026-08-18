@@ -11,6 +11,9 @@ spec:
     - name: dir-public-gateway
       namespace: dir-istio-ingress
       sectionName: https-wildcard
+    - name: dir-public-gateway
+      namespace: dir-istio-ingress
+      sectionName: http
   hostnames:
     - dashboard.dairun.site
   rules:
