@@ -20,4 +20,5 @@ ai-rag-service|ai/ai-rag-service/|ai/ai-rag-service/Dockerfile|ai/ai-rag-service
 ai-course-recommendation|ai/ai-course-recommendation/|ai/ai-course-recommendation/Dockerfile|ai/ai-course-recommendation|dai-run/ai-course-recommendation
 course-recommendation-service|services-msa/course-recommendation-service/|services-msa/course-recommendation-service/Dockerfile|services-msa/course-recommendation-service|dai-run/course-recommendation-service
 ai-shoe-life|ai/ai-shoe-life/|ai/ai-shoe-life/Dockerfile|ai/ai-shoe-life|dai-run/ai-shoe-life
+environment-dynamodb-consumer|services/environment-dynamodb-consumer/|services/environment-dynamodb-consumer/Dockerfile|services/environment-dynamodb-consumer|dai-run/environment-dynamodb-consumer
 ai-dashboard|ai-dashboard/|ai-dashboard/Dockerfile|ai-dashboard|dai-run/ai-dashboard
