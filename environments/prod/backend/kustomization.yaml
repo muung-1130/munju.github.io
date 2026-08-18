@@ -2,6 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: dir-backend-ns
 resources:
+  - httproute-dir-backend-route.yaml
   - configmap-dir-auth-user-config.yaml
   - configmap-dir-auth-web-config.yaml
   - configmap-dir-challenge-config.yaml
