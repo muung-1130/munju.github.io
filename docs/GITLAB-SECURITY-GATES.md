@@ -57,11 +57,24 @@ Sonar Job의 `after_script`는 마스킹된 기존 `SONAR_TOKEN`으로 프로젝
 | New Security Hotspots Reviewed | 0.0% | 100% |
 | New Issues | 742 | 0 |
 
-현재 New Code 설정은 프로젝트별 기준선이 없는 상속형 `PREVIOUS_VERSION`이다.
-기존 저장소 전체가 New Code로 계산되는 상태이므로 Gate 수치를 낮추거나
-`allow_failure`를 되돌리지 않는다. SonarQube Project Admin User Token으로 승인된
-기준 분석의 revision을 확인하고 `SPECIFIC_ANALYSIS` 기준선을 1회 설정한 다음
-MR Pipeline을 다시 실행해야 한다.
+### 2026-08-19 기준선 적용 및 재검증
+
+기존 저장소 전체가 New Code로 계산되는 문제를 해결하기 위해 다음 분석을
+`SPECIFIC_ANALYSIS` 기준선으로 1회 지정했다.
+
+- 분석 UUID: `8902a01b-65b6-4988-9548-104ba7c24996`
+- Git revision: `cd7e0781ec914aef48b3fba7f90c958092c366a5`
+- 적용 전: 상속형 `PREVIOUS_VERSION`
+- 적용 후: 프로젝트별 `SPECIFIC_ANALYSIS`
+
+기준 분석과 승인된 `main`(`e24641e`) 사이에는 애플리케이션 소스 변경이 없고,
+CI 설정·검사 스크립트·문서·Sonar 제외 설정만 있다. 기존 742개 이슈는 Overall
+Code에 계속 남으며, Quality Gate 임계값은 낮추지 않았다.
+
+적용 후 Pipeline #47을 재시도해 성공했고, 최신 MR HEAD `12d0a9b`를 대상으로
+생성한 Pipeline #53도 `runner-check`, 변경 감지, 단위 테스트, SonarQube Gate가
+모두 성공했다. MR 단계에서는 ECR Push, GitOps 변경 및 운영 배포가 실행되지
+않았다.
 
 ## 컨테이너 이미지 게이트
 
