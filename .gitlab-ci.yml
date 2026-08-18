@@ -34,6 +34,8 @@ runner-check:
     - docker --version
     - aws --version
     - git --version
+    - curl --version
+    - jq --version
 
 detect-changed-services:
   stage: validate
@@ -69,6 +71,8 @@ sonarqube-check:
       sonarsource/sonar-scanner-cli:latest
       -Dsonar.qualitygate.wait=true
       -Dsonar.qualitygate.timeout=600
+  after_script:
+    - ./ci/report-sonarqube-gate.sh
 
 build-push-and-update-gitops:
   stage: deploy

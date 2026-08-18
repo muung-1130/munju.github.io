@@ -38,6 +38,10 @@ Application 파이프라인은 다음 순서로 동작한다.
 분석을 중단하지 않도록 `sonar.exclusions`에 명시하고, 실제 운영 Node.js·Python
 서비스와 나머지 소스는 계속 분석한다.
 
+Sonar Job의 `after_script`는 마스킹된 기존 `SONAR_TOKEN`으로 프로젝트 상태를
+조회하고 Gate 지표명·현재값·기준값만 로그에 출력한다. 토큰 값은 출력하거나
+저장하지 않으며, 진단 API 조회 실패도 원래 분석 결과를 성공으로 바꾸지 않는다.
+
 ## 컨테이너 이미지 게이트
 
 운영 서비스 이미지마다 Docker build 직후, ECR Push 전에 Trivy를 실행한다.
