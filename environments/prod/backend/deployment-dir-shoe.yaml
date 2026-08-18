@@ -47,7 +47,7 @@ spec:
             name: dir-shoe-secret
         - secretRef:
             name: dir-shoe-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/shoe-service@sha256:63ac42b8021c4612f3822ca1895216fc13639153911f8a5e66e42972ae2ed6dd
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/shoe-service@sha256:14f2d565a1786bd56e8902ce710394296c2089e651bcac57be0a139379e43274
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

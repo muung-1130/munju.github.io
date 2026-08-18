@@ -260,7 +260,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service:sqs-canary-25479040-9",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service@sha256:92089a27fc290f4cd521fc43b0ae9940a5be10ffd8d316dfe069896d849d8d42",
                 "imagePullPolicy": "IfNotPresent",
                 "name": "dir-ai-assistant-consumer",
                 "resources": {
@@ -400,7 +400,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service:src-58f82cb3e16a",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service@sha256:92089a27fc290f4cd521fc43b0ae9940a5be10ffd8d316dfe069896d849d8d42",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,
@@ -755,7 +755,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-recommendation-service:src-58f82cb3e16a",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-recommendation-service@sha256:b22dad432c30fae99fdd62a433fce66f052ca05894afb5cfc909e3d2cef2fc30",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,
