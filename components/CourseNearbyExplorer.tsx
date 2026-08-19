@@ -2,7 +2,6 @@
 
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 import { CourseMapView } from '@/components/CourseMapView';
 import type { CourseRoute } from '@/components/CourseMapView';
 import { DIFFICULTY_LABEL } from '@/lib/courseDifficulty';
@@ -10,8 +9,10 @@ import { truncateToOneDecimal } from '@/lib/format';
 import { useChat } from '@/components/ChatContext';
 
 const RADIUS_PRESETS_KM = [1, 3, 5, 10];
-// 위치 정보를 못 가져오고 로그인도 안 돼있을 때의 최종 폴백: 종로3가역(5번출구 인근).
-const JONGNO_3GA_EXIT5 = { lat: 37.5725, lng: 126.9903 };
+// 위치 정보를 못 가져올 때의 폴백 좌표. 예전엔 로그인 회원이면 등록한 동의 중심좌표를 외부
+// 지오코딩 API(juso.go.kr/nominatim)로 조회해 우선 사용했지만, 폐쇄망에서 그 API를 쓸 수 없어
+// 로그인 여부와 무관하게 이 고정 좌표로 통일했다(코스 데이터가 서울 위주라 실질 영향은 작다, §2.1).
+const DEFAULT_FALLBACK_LOCATION = { lat: 37.566488, lng: 126.981025 };
 const LOCATION_NOTICE_SHOWN_KEY = 'locationDeniedNoticeShown';
 // center가 주어졌을 때 최초 1회만 적용하는 기본 축척 — 대략 1:100,000에 해당.
 const DEFAULT_ZOOM = 14;
@@ -51,7 +52,6 @@ type NearbyCourse = {
 };
 
 export function CourseNearbyExplorer() {
-  const { data: session } = useSession();
   const { addMessage } = useChat();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
@@ -75,18 +75,22 @@ export function CourseNearbyExplorer() {
     setZoomDelta(0);
     setRecenterSignal((n) => n + 1);
     setLocationLabel(null);
-    try {
-      const res = await fetch(`/api/geo/reverse-dong?lat=${point.lat}&lng=${point.lng}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.label) setLocationLabel(data.label);
-      }
-    } catch {
-      // 라벨 표시는 부가 정보라 실패해도 지도 동작에는 영향 없음
-    }
+    // ⚠️ 죽은 코드 (2026-08-19): /api/geo/reverse-dong은 nominatim.openstreetmap.org 리버스
+    // 지오코딩을 쓰는 외부 API 호출이라 폐쇄망에서 항상 실패했다(호출부가 실패를 조용히 삼켜
+    // 지도 동작 자체는 안 깨졌지만, 매번 실패하는 외부 요청만 나가고 있었다). 백엔드 라우트도
+    // services-msa/course-service/src/routes/geo.ts에서 같은 날짜에 비활성화했다.
+    // try {
+    //   const res = await fetch(`/api/geo/reverse-dong?lat=${point.lat}&lng=${point.lng}`);
+    //   if (res.ok) {
+    //     const data = await res.json();
+    //     if (data.label) setLocationLabel(data.label);
+    //   }
+    // } catch {
+    //   // 라벨 표시는 부가 정보라 실패해도 지도 동작에는 영향 없음
+    // }
   }
 
-  // 우선순위: 브라우저 위치 정보 -> 로그인 계정의 동(auth_user.users.dong) -> 종로3가역 5번출구.
+  // 우선순위: 브라우저 위치 정보 -> 고정 폴백 좌표(DEFAULT_FALLBACK_LOCATION).
   // 예전엔 실패 이유를 그냥 삼키고 조용히 폴백만 했는데, "위치가 계속 실패한다"는 피드백이 있어서
   // 실제 원인(권한 거부/시간초과/기기에서 위치 확인 불가)을 AI 챗봇 말풍선으로 알려주게 바꿨다.
   async function locateMe() {
@@ -120,19 +124,7 @@ export function CourseNearbyExplorer() {
   }
 
   async function resolveFallbackLocation() {
-    if (session?.user?.dong) {
-      try {
-        const res = await fetch(`/api/geo/dong-center?address=${encodeURIComponent(session.user.dong)}`);
-        if (res.ok) {
-          const point = await res.json();
-          await applyLocation(point, true);
-          return;
-        }
-      } catch {
-        // 동 주소 지오코딩 실패 시 아래 최종 폴백으로 이어짐
-      }
-    }
-    await applyLocation(JONGNO_3GA_EXIT5, true);
+    await applyLocation(DEFAULT_FALLBACK_LOCATION, true);
   }
 
   function selectRadius(km: number) {
@@ -215,9 +207,11 @@ export function CourseNearbyExplorer() {
     <div className="course-nearby-layout">
       <div className="course-nearby-toolbar">
         <div className="course-nearby-location">
-          <span className="location-label">📍 {locationLabel ?? '위치 확인 중...'}</span>
+          {/* locationLabel은 항상 null이다 — /api/geo/reverse-dong 비활성화(2026-08-19)로 동
+              이름 라벨을 더는 계산하지 않는다. "내 위치"로 고정 표시한다. */}
+          <span className="location-label">📍 {locationLabel ?? '내 위치'}</span>
           {usingFallback && (
-            <span className="location-fallback-hint">위치 정보를 가져오지 못해 계정 정보로 표시했어요.</span>
+            <span className="location-fallback-hint">위치 정보를 가져오지 못해 기본 위치로 표시했어요.</span>
           )}
         </div>
         <form className="course-nearby-search" onSubmit={submitSearch}>
