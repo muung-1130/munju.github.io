@@ -45,7 +45,7 @@ spec:
             name: dir-frontend-config
         - secretRef:
             name: dir-frontend-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/frontend@sha256:6487148292c41b7560f078dfe28b4b0cf51868e447d1ee5bda6a188299c871e4
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/frontend@sha256:97c7d9c9cebf8e2fa625903e04e4019ba513cc2f44fa76e78f3c5fdd822ab441
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
