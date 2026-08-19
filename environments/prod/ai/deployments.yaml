@@ -73,7 +73,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-rag-service@sha256:5538c3a1c46f3a94f047f28e30e2f2bb8fe7fb22deb357a9c460dfb7ec01c78a",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-rag-service@sha256:3fa735f622a336407e46b5081403eb2983cb8dd96be194a1a7837d64e6970e12",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,
