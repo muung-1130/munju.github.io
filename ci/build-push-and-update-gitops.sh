@@ -62,7 +62,7 @@ while IFS='|' read -r service_id _watch_paths dockerfile context repository; do
     --output "/reports/$service_id.json" \
     "$image"
 
-  echo "Reporting the fixed CRITICAL vulnerability gate for $service_id"
+  echo "Enforcing the fixed CRITICAL vulnerability gate for $service_id"
   docker run --rm \
     --user "$runner_uid:$runner_gid" \
     --group-add "$docker_socket_gid" \
@@ -73,7 +73,7 @@ while IFS='|' read -r service_id _watch_paths dockerfile context repository; do
     --scanners vuln \
     --severity CRITICAL \
     --ignore-unfixed \
-    --exit-code 0 \
+    --exit-code 1 \
     --format table \
     "$image"
 
