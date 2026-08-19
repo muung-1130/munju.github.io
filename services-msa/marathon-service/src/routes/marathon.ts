@@ -93,7 +93,7 @@ router.post('/:raceId/apply', requireAuth, async (req, res) => {
     return;
   }
 
-  const { allowed, retryAfterMs } = checkRateLimit(`marathon-apply:${req.userId}`, APPLY_RATE_LIMIT, APPLY_RATE_WINDOW_MS);
+  const { allowed, retryAfterMs } = await checkRateLimit(`marathon-apply:${req.userId}`, APPLY_RATE_LIMIT, APPLY_RATE_WINDOW_MS);
   if (!allowed) {
     res.status(429).json({ error: `요청이 너무 잦아요. ${Math.ceil(retryAfterMs / 1000)}초 후 다시 시도해 주세요.` });
     return;

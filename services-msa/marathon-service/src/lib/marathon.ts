@@ -1,4 +1,5 @@
 import { getPool } from './db.js';
+import { getRedisClient } from './redis.js';
 
 export type MarathonRace = {
   raceId: number;
@@ -332,7 +333,25 @@ export type RaceCapacityStatus = {
 // 목록/상세 페이지가 신청 버튼을 누르기 전에도 "몇 명 신청했는지"를 가볍게 보여줄 수 있게
 // 별도 read-only 조회로 분리했다 — 이 조회는 락을 걸지 않으므로 대기 중인 사용자들이
 // 자리를 확인하려고 계속 눌러봐도 무거운 신청 트랜잭션에 영향을 주지 않는다.
+//
+// 정시 오픈 스파이크에는 이 read-only 조회 자체가 계속 눌러 새로고침하는 사용자들 때문에
+// 몰릴 수 있어 짧은 TTL로 Redis 캐시를 앞단에 둔다(redis-usage-guide §5). 실제 신청 처리는
+// applyToExclusiveMarathon의 행 잠금으로 별도로 보장되므로, 이 캐시가 몇 초 stale해도 정원
+// 초과 배정 같은 정합성 문제로 이어지지 않는다 — 그래서 신청/취소 시 별도 무효화도 하지 않고
+// TTL 만료만으로 충분하다.
 export async function getRaceCapacityStatus(raceId: number): Promise<RaceCapacityStatus> {
+  const cacheKey = `marathon:capacity:${raceId}`;
+  const redis = await getRedisClient();
+
+  if (redis) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch (err) {
+      console.error('[marathon] redis get failed, falling back to DB', err);
+    }
+  }
+
   const pool = getPool();
   const [{ rows: raceRows }, { rows: countRows }] = await Promise.all([
     pool.query(`SELECT capacity FROM marathon.marathon_race WHERE race_id = $1`, [raceId]),
@@ -344,11 +363,21 @@ export async function getRaceCapacityStatus(raceId: number): Promise<RaceCapacit
       [raceId]
     )
   ]);
-  return {
+  const status: RaceCapacityStatus = {
     capacity: raceRows[0]?.capacity !== null && raceRows[0]?.capacity !== undefined ? Number(raceRows[0].capacity) : null,
     confirmedCount: Number(countRows[0]?.confirmed_count ?? 0),
     waitingCount: Number(countRows[0]?.waiting_count ?? 0)
   };
+
+  if (redis) {
+    try {
+      await redis.set(cacheKey, JSON.stringify(status), { expiration: { type: 'EX', value: 5 } });
+    } catch (err) {
+      console.error('[marathon] redis set failed, continuing without cache', err);
+    }
+  }
+
+  return status;
 }
 
 async function buildApplicantSnapshot(userId: string) {

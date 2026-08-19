@@ -1,10 +1,15 @@
 import { Router } from 'express';
 import { FEEDBACK_TYPES, getAiRecoPanelCourses, recordRecommendationFeedback } from '../lib/aiRecommendation.js';
 import { DAILY_MANUAL_REFRESH_LIMIT, getManualRefreshCountToday } from '../lib/aiRecommendationOrchestrator.js';
+import { getRedisClient } from '../lib/redis.js';
 import { requireAuth } from '../middleware/session.js';
 
 const router = Router();
 const RECOMMENDATION_TYPES = ['location_based', 'distance_based', 'difficulty_based', 'popular_based'];
+// 추천 결과 자체는 하루 1회(KST 03:00 기준)만 재계산되므로(ensureTodaysRecommendation) 패널 응답을
+// 몇 분 캐시해도 오늘의 추천이 바뀌는 일은 없다 — DB/Bedrock 재계산이 아니라 "홈/코스탐색 페이지를
+// 새로고침할 때마다 반복되는 조회"만 줄이는 목적이다(redis-usage-guide 코스 추천 패널 TTL 권장 5~15분).
+const PANEL_CACHE_TTL_SECONDS = 300;
 
 // app/page.tsx, app/courses/page.tsx가 SSR 중에 직접 함수를 부르는 대신 이 엔드포인트를
 // fetch한다(Next.js가 세션 쿠키를 그대로 넘겨준다). SSR 시점엔 브라우저 GPS를 알 수 없어
@@ -31,12 +36,35 @@ router.get('/panel', async (req, res) => {
   const recommendationType =
     isLoggedIn && recommendationTypeRaw && RECOMMENDATION_TYPES.includes(recommendationTypeRaw) ? recommendationTypeRaw : undefined;
 
+  // forceRefresh나 반경/추천기준 필터는 그 자체가 "지금 이 값으로 다시 계산해줘"라는 명시적
+  // 요청이라 캐시를 건너뛴다 — 캐시는 어디까지나 같은 사용자가 반복해서 패널을 열어볼 때
+  // 매번 DB를 다시 훑는 걸 줄이기 위한 것이다(redis-usage-guide §5, §6). 하루 사용 횟수를
+  // 다 썼는지(remainingBefore)는 어차피 DB 조회가 필요해 아래에서 확정하므로, 여기서는 클라이언트가
+  // "요청은 했는지"만으로 캐시 read 여부를 정한다 — 결과적으로 서버가 거부할 forceRefresh 요청도
+  // 캐시를 안 타지만, 그 정도는 안전한 쪽으로 더 보수적일 뿐이다.
+  const forceRefreshRequested = req.query.forceRefresh === 'true' && isLoggedIn;
+  const hasInlineFilter = Boolean(searchRadiusKm || recommendationType);
+  const cacheKey = `course-recommendation:panel:${req.userId ?? 'guest'}`;
+  const redis = await getRedisClient();
+
+  if (redis && !forceRefreshRequested && !hasInlineFilter) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        res.json(JSON.parse(cached));
+        return;
+      }
+    } catch (err) {
+      console.error('[ai-recommendations] redis get failed, falling back to DB', err);
+    }
+  }
+
   const remainingBefore = isLoggedIn
     ? Math.max(0, DAILY_MANUAL_REFRESH_LIMIT - (await getManualRefreshCountToday(req.userId!)))
     : 0;
   // 하루 사용 횟수를 다 썼으면 forceRefresh 요청이 와도 서버에서 무시한다(버튼 비활성/팝업은
   // 프론트가 처리하지만, 직접 API를 호출하는 우회도 막기 위해 여기서도 한 번 더 막는다).
-  const forceRefresh = req.query.forceRefresh === 'true' && isLoggedIn && remainingBefore > 0;
+  const forceRefresh = forceRefreshRequested && remainingBefore > 0;
 
   const courses = await getAiRecoPanelCourses(req.userId ?? null, location, forceRefresh, {
     searchRadiusKm,
@@ -49,7 +77,23 @@ router.get('/panel', async (req, res) => {
       ? Math.max(0, DAILY_MANUAL_REFRESH_LIMIT - (await getManualRefreshCountToday(req.userId!)))
       : remainingBefore
     : null;
-  res.json({ courses, remainingRefreshes });
+  const responseBody = { courses, remainingRefreshes };
+
+  if (redis) {
+    try {
+      if (forceRefresh) {
+        // 방금 강제로 새 추천을 받았으니, 캐시에 이전 패널이 남아있으면 다음 일반 조회가 새
+        // 결과 대신 stale한 캐시를 돌려준다 — 즉시 지워서 다음 조회에서 새로 채우게 한다.
+        await redis.del(cacheKey);
+      } else if (!hasInlineFilter) {
+        await redis.set(cacheKey, JSON.stringify(responseBody), { expiration: { type: 'EX', value: PANEL_CACHE_TTL_SECONDS } });
+      }
+    } catch (err) {
+      console.error('[ai-recommendations] redis set failed, continuing without cache', err);
+    }
+  }
+
+  res.json(responseBody);
 });
 
 router.post('/feedback', requireAuth, async (req, res) => {
