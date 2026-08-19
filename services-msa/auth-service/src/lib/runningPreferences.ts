@@ -38,39 +38,47 @@ export async function getRunningPreferences(userId: string): Promise<RunningPref
   };
 }
 
+// undefined인 필드는 "이번 요청에서 건드리지 않음", null은 "명시적으로 지움"을 뜻한다 —
+// 선호도 설문 모달(러닝목표/숙련도/거리/환경 4개를 매번 전부 다시 제출)과 AI 추천 패널의
+// 반경/추천기준 필터(그 둘만 부분적으로 저장)가 같은 저장 함수를 안전하게 같이 쓸 수 있어야
+// 하기 때문 — 전에는 항상 6개 컬럼을 전부 덮어써서, 반경/추천기준만 저장하려 해도 나머지
+// 필드가 전부 null로 밀리거나, 반대로 설문 모달로 저장할 때마다 반경/추천기준이 null로
+// 사라지는 문제가 있었다.
 export type OnboardingPreferencesInput = {
-  runningGoal: 'HEALTH' | 'DIET' | 'ENDURANCE' | 'MARATHON' | null;
-  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | null;
-  preferredDistanceM: number | null;
-  preferredScenery: string | null;
-  searchRadiusM: number | null;
-  recommendationType: RecommendationType | null;
+  runningGoal?: 'HEALTH' | 'DIET' | 'ENDURANCE' | 'MARATHON' | null;
+  difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | null;
+  preferredDistanceM?: number | null;
+  preferredScenery?: string | null;
+  searchRadiusM?: number | null;
+  recommendationType?: RecommendationType | null;
 };
 
-// 코스탐색 온보딩 설문(버튼 클릭형) 저장 — 값이 없는 항목은 null로 남겨두고, 나머지 컬럼
-// (페이스/주간거리/노면/심박수 등)은 나중에 마이페이지 설정 등에서 채울 수 있게 비워둔다.
+const INPUT_TO_COLUMN: Record<keyof OnboardingPreferencesInput, string> = {
+  runningGoal: 'running_goal',
+  difficulty: 'difficulty',
+  preferredDistanceM: 'preferred_distance_m',
+  preferredScenery: 'preferred_scenery',
+  searchRadiusM: 'search_radius_m',
+  recommendationType: 'recommendation_type'
+};
+
 export async function saveOnboardingPreferences(userId: string, input: OnboardingPreferencesInput): Promise<void> {
   const pool = getPool();
+  const providedKeys = (Object.keys(INPUT_TO_COLUMN) as (keyof OnboardingPreferencesInput)[]).filter(
+    (key) => input[key] !== undefined
+  );
+
+  const columns = ['user_id', ...providedKeys.map((key) => INPUT_TO_COLUMN[key])];
+  const values: unknown[] = [userId, ...providedKeys.map((key) => input[key] ?? null)];
+  const placeholders = values.map((_, i) => `$${i + 1}`);
+  const updateSet =
+    (providedKeys.length > 0 ? providedKeys.map((key) => `${INPUT_TO_COLUMN[key]} = EXCLUDED.${INPUT_TO_COLUMN[key]}`).join(', ') + ', ' : '') +
+    'updated_at = now()';
+
   await pool.query(
-    `INSERT INTO auth_user.user_running_preferences
-       (user_id, running_goal, difficulty, preferred_distance_m, preferred_scenery, search_radius_m, recommendation_type)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (user_id) DO UPDATE SET
-       running_goal = EXCLUDED.running_goal,
-       difficulty = EXCLUDED.difficulty,
-       preferred_distance_m = EXCLUDED.preferred_distance_m,
-       preferred_scenery = EXCLUDED.preferred_scenery,
-       search_radius_m = EXCLUDED.search_radius_m,
-       recommendation_type = EXCLUDED.recommendation_type,
-       updated_at = now()`,
-    [
-      userId,
-      input.runningGoal,
-      input.difficulty,
-      input.preferredDistanceM,
-      input.preferredScenery,
-      input.searchRadiusM,
-      input.recommendationType
-    ]
+    `INSERT INTO auth_user.user_running_preferences (${columns.join(', ')})
+     VALUES (${placeholders.join(', ')})
+     ON CONFLICT (user_id) DO UPDATE SET ${updateSet}`,
+    values
   );
 }
