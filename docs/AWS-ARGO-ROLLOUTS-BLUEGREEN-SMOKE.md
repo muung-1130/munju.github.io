@@ -21,10 +21,10 @@ pins it by ECR digest. The active and preview Services are internal
 
 ## Blue/Green transition test
 
-After the initial revision is healthy, change only
+For a later repeat test, change only
 `spec.template.metadata.annotations.dairun.io/smoke-revision` from
-`baseline-1` to `baseline-2`. This creates a new preview ReplicaSet without
-changing the application binary.
+`baseline-2` to a new value such as `baseline-3`. This creates a new preview
+ReplicaSet without changing the application binary.
 
 Verify that:
 
@@ -34,6 +34,16 @@ Verify that:
 - the Rollout pauses before promotion;
 - promotion changes only the active Service selector;
 - the previous ReplicaSet scales down after the configured delay.
+
+## Verified result (2026-08-19)
+
+- Initial stable hash: `558d77bf7f`
+- Preview and promoted hash: `6bd4df7696`
+- Active and preview HTTP checks: `200`
+- Manual promotion: succeeded
+- Active Service selector changed only after promotion
+- Previous ReplicaSet scaled from 2 to 0 after the 30-second delay
+- Final Rollout state: `Healthy`, 2 Ready Pods, no Warning events
 
 ## Rollback
 
