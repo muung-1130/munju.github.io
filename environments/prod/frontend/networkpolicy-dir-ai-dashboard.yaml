@@ -187,3 +187,22 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-k8s-api-egress
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 172.20.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
