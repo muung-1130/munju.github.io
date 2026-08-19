@@ -12,7 +12,12 @@ while IFS='|' read -r service_id _watch_paths dockerfile context _repository; do
   case "$service_id" in
     ai-dashboard)
       echo "Running Docker test target for $service_id"
-      DOCKER_BUILDKIT=1 docker build --pull --target test --file "$dockerfile" --output type=local,dest="${CI_PROJECT_DIR:-.}/ci-output/ai-dashboard-test" "$context"
+      test_tag="dairun-test:${CI_JOB_ID:-local}-$service_id"
+      docker build --pull --target test --file "$dockerfile" --tag "$test_tag" "$context"
+      container_id=$(docker create "$test_tag")
+      mkdir -p "${CI_PROJECT_DIR:-.}/ci-output/ai-dashboard-test"
+      docker cp "$container_id:/app/coverage" "${CI_PROJECT_DIR:-.}/ci-output/ai-dashboard-test/coverage"
+      docker rm "$container_id" >/dev/null
       ;;
     ai-assistant-service|challenge-service|crew-service|notification-service|course-stats-consumer|crew-notification-consumer)
       echo "Running Docker test target for $service_id"
@@ -23,4 +28,3 @@ while IFS='|' read -r service_id _watch_paths dockerfile context _repository; do
       ;;
   esac
 done <"$services_file"
-
