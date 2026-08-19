@@ -130,37 +130,17 @@ git config user.email "gitlab-ci@dai-run.internal"
 git add environments/prod
 git commit -m "Deploy application ${CI_COMMIT_SHORT_SHA:-unknown} [skip ci]"
 git pull --rebase origin stg
-git push origin HEAD:stg
 
-echo "GitOps stg updated; requesting a stg -> main deploy merge request."
+# GitLab push options create the deploy MR with write_repository permission alone.
+# If stg already has an open MR, the push updates that branch instead of requiring
+# a second REST API token and a duplicate-MR lookup.
+git push \
+  -o merge_request.create \
+  -o merge_request.target=main \
+  -o "merge_request.title=Deploy application ${CI_COMMIT_SHORT_SHA:-unknown}" \
+  -o "merge_request.description=Application pipeline ${CI_PIPELINE_IID:-unknown} (commit ${CI_COMMIT_SHORT_SHA:-unknown}) passed its build and Trivy gate. Review the environments/prod digest changes before approving." \
+  origin HEAD:stg
 
-# Project access token above must additionally carry the `api` scope (write_repository alone
-# cannot call the REST API). Reused as PRIVATE-TOKEN here so no second CI variable is needed.
-gitlab_base="$(printf '%s' "$GITOPS_REPOSITORY_URL" | sed -E 's#^(https?://[^/]+)/.*#\1#')"
-gitlab_project_path_encoded="$(printf '%s' "$GITOPS_REPOSITORY_URL" \
-  | sed -E 's#^https?://[^/]+/##; s#\.git$##; s#/#%2F#g')"
-merge_requests_api="$gitlab_base/api/v4/projects/$gitlab_project_path_encoded/merge_requests"
-
-open_deploy_mr_count="$(curl --fail --silent --show-error \
-  --header "PRIVATE-TOKEN: $GITOPS_PUSH_TOKEN" \
-  --get \
-  --data-urlencode "state=opened" \
-  --data-urlencode "source_branch=stg" \
-  --data-urlencode "target_branch=main" \
-  "$merge_requests_api" | jq 'length')"
-
-if [ "$open_deploy_mr_count" -eq 0 ]; then
-  curl --fail --silent --show-error \
-    --header "PRIVATE-TOKEN: $GITOPS_PUSH_TOKEN" \
-    --data-urlencode "source_branch=stg" \
-    --data-urlencode "target_branch=main" \
-    --data-urlencode "title=Deploy application ${CI_COMMIT_SHORT_SHA:-unknown}" \
-    --data-urlencode "description=Automated GitOps deploy MR from Application pipeline ${CI_PIPELINE_IID:-unknown} (commit ${CI_COMMIT_SHORT_SHA:-unknown}). Review environments/prod digest changes and the Trivy report artifact on the source pipeline before approving." \
-    --data-urlencode "remove_source_branch=false" \
-    "$merge_requests_api" >/dev/null
-  echo "Opened new GitOps deploy merge request: stg -> main"
-else
-  echo "An open GitOps deploy merge request (stg -> main) already covers this push; no duplicate MR created."
-fi
+echo "GitOps stg updated and the stg -> main deploy merge request was requested."
 
 echo "Argo CD only syncs GitOps main; the deploy merge request above must be approved and merged first."
