@@ -2,9 +2,11 @@ import Link from "next/link";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
+import { LiveBadge } from "@/components/ui/LiveBadge";
 import { LineChart, type ChartPoint } from "@/components/charts/LineChart";
 import { formatTimeAgo } from "@/lib/format";
 import { SERVICES, buildServiceMelt, getCapacityGuard, getPrediction, getScaleTimeline } from "@/lib/mock";
+import { getLiveHpaStatus } from "@/lib/k8s";
 
 export default async function AutoscalingPage({
   searchParams,
@@ -18,6 +20,16 @@ export default async function AutoscalingPage({
   const prediction = getPrediction(serviceId);
   const scaleTimeline = getScaleTimeline(serviceId);
   const capacityGuard = getCapacityGuard(serviceId);
+
+  // "AI 권장 replica" stays simulated (no trained forecasting model yet — see
+  // docs/ai-diagnosis-integration-guide.md §7), but "현재 replica"는 HPA가 실제로
+  // 붙어있는 서비스라면 K8s에서 실측 가능하다. 매핑 없는 서비스(Community Feed,
+  // Payment Gateway)는 null이 와서 조용히 mock 값으로 폴백한다.
+  const [liveHpa, liveHpasForCluster] = await Promise.all([
+    getLiveHpaStatus(serviceId),
+    Promise.all(SERVICES.map((s) => getLiveHpaStatus(s.id))),
+  ]);
+  const currentReplicas = liveHpa?.currentReplicas ?? melt.service.currentReplicas;
 
   const rpsData: ChartPoint[] = prediction.points.map((p) => ({
     t: p.minute,
@@ -44,13 +56,14 @@ export default async function AutoscalingPage({
     (p) => p.actualRps !== null && p.predictedRps > p.actualRps * 1.15,
   ).length;
 
-  const gapPods = prediction.recommendedReplicas - melt.service.currentReplicas;
+  const gapPods = prediction.recommendedReplicas - currentReplicas;
   const capacityShort = gapPods > 0 && capacityGuard.deployablePods < gapPods;
 
-  const clusterView = SERVICES.map((s) => {
+  const clusterView = SERVICES.map((s, i) => {
     const p = getPrediction(s.id);
     const c = getCapacityGuard(s.id);
-    const gap = p.recommendedReplicas - p.currentReplicas;
+    const liveCurrentReplicas = liveHpasForCluster[i]?.currentReplicas ?? p.currentReplicas;
+    const gap = p.recommendedReplicas - liveCurrentReplicas;
     return { service: s, gap, guard: c, blocked: gap > 0 && c.deployablePods < gap };
   });
   const blockedServices = clusterView.filter((v) => v.blocked);
@@ -115,9 +128,17 @@ export default async function AutoscalingPage({
 
         {/* Replica Decision */}
         <section className="space-y-3">
-          <SectionHeading title="Replica Decision" subtitle="실제 replica · AI 권장 replica · Shadow Mode 근거" />
+          <div className="flex items-start justify-between gap-3">
+            <SectionHeading title="Replica Decision" subtitle="실제 replica · AI 권장 replica · Shadow Mode 근거" />
+            {liveHpa && <LiveBadge label="현재 replica · Kubernetes HPA" />}
+          </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile label="현재 / AI 권장 replica" value={`${melt.service.currentReplicas} → ${prediction.recommendedReplicas}`} />
+            <StatTile
+              label="현재 / AI 권장 replica"
+              value={`${currentReplicas} → ${prediction.recommendedReplicas}`}
+              delta={liveHpa ? "현재 replica: K8s HPA 실측" : "현재 replica: 시뮬레이션"}
+              deltaGood={liveHpa ? true : "neutral"}
+            />
             <StatTile
               label="다음 예상 Scale-out"
               value={prediction.nextScaleEtaMinutes ? `${prediction.nextScaleEtaMinutes}분 후` : "예정 없음"}
