@@ -1453,6 +1453,23 @@ Kubernetes로 옮길 때 위 자격 증명은 평문 manifest가 아니라 `dir-
 - 한 커밋에는 하나의 논리 변경을 담는다.
 - 같은 기능 영역을 여러 branch가 동시에 수정하는지 먼저 확인한다.
 
+### 19.6 GitLab 접속
+
+- 소스는 AWS 내부 GitLab(`dai-run/application`)에서 관리한다. 사내망/AWS VPC에 직접 연결된 경우 `http://10.20.0.253/dai-run/application`(`.git`)을 그대로 쓴다.
+- 외부에서는 AWS SSM 포트포워딩이 필요하다. 새 터미널에서:
+
+  ```bash
+  aws ssm start-session \
+    --profile dairun \
+    --region ap-northeast-2 \
+    --target i-011ea4856b3c2f4ce \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters "portNumber=80,localPortNumber=8081"
+  ```
+
+  `Port 8081 opened / Waiting for connections...`가 뜨면 연결된 것이고, 이 세션은 계속 열어둔 채로 `http://127.0.0.1:8081/dai-run/application`(`.git`)을 사용한다.
+- `Failed to connect to 127.0.0.1 port 8081`은 이 포트포워딩이 끊긴 상태다(터미널 종료, `Ctrl+C`, 절전/재부팅, 네트워크 변경, SSM 세션 종료 등으로 끊길 수 있다) — 위 명령을 다시 실행하면 된다. 자세한 절차와 GitLab 인증/토큰 안내는 `/home/kevin/cicd 현황.md` 참고(토큰 등 비밀값이 있으니 이 파일 자체를 커밋하거나 내용을 그대로 복사해 넣지 않는다).
+
 ---
 
 ## 20. 테스트와 검증
