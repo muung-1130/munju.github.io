@@ -83,7 +83,8 @@ export function AiRecoPanel({
   const { openAuthModal } = useAuthModal();
   const { openPreferencesModal } = usePreferencesModal();
   const [courses, setCourses] = useState(initialCourses);
-  const [likePending, setLikePending] = useState<string | null>(null);
+  const [index, setIndex] = useState(0);
+  const [likePending, setLikePending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // 반경/추천기준 버튼은 누르는 즉시 재조회하지 않는다 — 여기서는 선택 상태만 바꾸고,
   // 실제 재계산은 "AI 추천 다시 받기" 버튼을 눌렀을 때만 이 값을 함께 실어 보낸다.
@@ -132,6 +133,7 @@ export function AiRecoPanel({
           if (typeof data.remainingRefreshes === 'number') setRemainingRefreshes(data.remainingRefreshes);
           if (!data.courses?.length) return;
           setCourses(data.courses);
+          setIndex(0);
           const stillFallback = data.courses.every((c: AiRecoCourse) => c.recommendationId === null);
           if (stillFallback && allowRetry) {
             retryTimer = setTimeout(() => fetchPanel(coords, false), 6000);
@@ -188,6 +190,7 @@ export function AiRecoPanel({
         if (typeof data.remainingRefreshes === 'number') setRemainingRefreshes(data.remainingRefreshes);
         if (data.courses?.length) {
           setCourses(data.courses);
+          setIndex(0);
         }
       })
       .finally(() => setRefreshing(false));
@@ -201,16 +204,25 @@ export function AiRecoPanel({
     setFilterRecommendationType((prev) => (prev === value ? null : value));
   }
 
-  if (courses.length === 0) return null;
-  const firstCourse = courses[0];
+  const course = courses.length > 0 ? courses[index % courses.length] : null;
 
-  async function handleLikeClick(course: AiRecoCourse) {
+  if (!course) return null;
+
+  const route: CourseRoute = {
+    id: course.courseId,
+    name: course.name,
+    color: ROUTE_COLOR,
+    positions: course.positions
+  };
+
+  async function handleLikeClick() {
+    if (!course) return;
     if (!session?.user) {
       openAuthModal();
       return;
     }
     if (likePending) return;
-    setLikePending(course.courseId);
+    setLikePending(true);
     try {
       const res = await fetch(`/api/courses/${course.courseId}/like`, { method: 'POST' });
       if (res.ok) {
@@ -223,16 +235,16 @@ export function AiRecoPanel({
         }
       }
     } finally {
-      setLikePending(null);
+      setLikePending(false);
     }
   }
 
-  function handleDetailClick(course: AiRecoCourse) {
-    if (course.recommendationId) sendFeedback(course.recommendationId, course.courseId, 'CLICK');
+  function handleDetailClick() {
+    if (course?.recommendationId) sendFeedback(course.recommendationId, course.courseId, 'CLICK');
   }
 
-  function handleStartRunClick(course: AiRecoCourse) {
-    if (course.recommendationId) sendFeedback(course.recommendationId, course.courseId, 'START_RUN');
+  function handleStartRunClick() {
+    if (course?.recommendationId) sendFeedback(course.recommendationId, course.courseId, 'START_RUN');
   }
 
   function handleAddPreferencesClick() {
@@ -294,7 +306,7 @@ export function AiRecoPanel({
           {refreshing ? '다시 받는 중...' : `AI 추천 다시 받기${remainingRefreshes !== null ? ` (${remainingRefreshes})` : ''}`}
         </button>
       </div>
-      {firstCourse.isDefaultRecommendation && (
+      {course.isDefaultRecommendation && (
         <div className="ai-reco-default-notice">
           <span>사용자 선호 정보가 없어서 기본 추천 정보를 안내해요!</span>
           <button type="button" className="ghost-btn small" onClick={handleAddPreferencesClick}>
@@ -302,70 +314,72 @@ export function AiRecoPanel({
           </button>
         </div>
       )}
-      <div className="ai-reco-grid">
-        {courses.map((course) => {
-          const route: CourseRoute = {
-            id: course.courseId,
-            name: course.name,
-            color: ROUTE_COLOR,
-            positions: course.positions
-          };
-          return (
-            <div className="ai-reco-inner" key={course.courseId}>
-              <div className="ai-reco-media">
-                {course.recommendationId && course.slotLabel && <span className="ai-reco-slot-badge">{course.slotLabel}</span>}
-                {course.positions.length > 0 && (
-                  <div className="ai-reco-map">
-                    <CourseMapView routes={[route]} height={320} scrollWheelZoom />
-                  </div>
-                )}
-              </div>
+      <div className="ai-reco-inner">
+        <button
+          type="button"
+          className="ai-reco-edge-arrow ai-reco-edge-prev"
+          aria-label="이전 추천 코스"
+          onClick={() => setIndex((i) => (i - 1 + courses.length) % courses.length)}
+        >
+          ‹
+        </button>
 
-              <div className="ai-reco-content">
-                <strong>{course.name}</strong>
-                <span>
-                  {(course.distanceM / 1000).toFixed(1)}km · 예상 시간 {estimatedTimeLabel(course.distanceM)}
-                </span>
-
-                {course.recommendationId && (course.reason || course.createdAt) && (
-                  <div className="ai-reco-result">
-                    {course.reason && <p className="ai-reco-reason">{course.reason}</p>}
-                    {course.createdAt && (
-                      <p className="data-source-note">
-                        AI 추천 · {formatRecommendedAt(course.createdAt)} · {course.modelVersion ?? '모델 정보 없음'} 기준
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div className="ai-reco-primary-actions">
-                  {course.recommendationId && (
-                    <button
-                      type="button"
-                      className={`ai-reco-like-btn small ${course.likedByUser ? 'liked' : ''}`}
-                      onClick={() => handleLikeClick(course)}
-                      disabled={likePending === course.courseId}
-                      aria-label={course.likedByUser ? '찜 완료' : '찜하기'}
-                    >
-                      <span className="heart">{course.likedByUser ? '❤️' : '🤍'}</span>
-                      {course.likeCount ? course.likeCount : ''}
-                    </button>
-                  )}
-                  <a href={`/courses/${course.courseId}`} className="ai-reco-detail-link" onClick={() => handleDetailClick(course)}>
-                    코스 자세히 보기
-                  </a>
-                </div>
-                <a
-                  href={`/run/${course.courseId}`}
-                  className="primary-btn full-width ai-reco-start-link"
-                  onClick={() => handleStartRunClick(course)}
-                >
-                  추천 코스로 달리기 →
-                </a>
-              </div>
+        <div className="ai-reco-media">
+          {course.recommendationId && course.slotLabel && <span className="ai-reco-slot-badge">{course.slotLabel}</span>}
+          {course.positions.length > 0 && (
+            <div className="ai-reco-map">
+              <CourseMapView routes={[route]} height={320} scrollWheelZoom />
             </div>
-          );
-        })}
+          )}
+        </div>
+
+        <div className="ai-reco-content">
+          <strong>{course.name}</strong>
+          <span>
+            {(course.distanceM / 1000).toFixed(1)}km · 예상 시간 {estimatedTimeLabel(course.distanceM)}
+          </span>
+
+          {course.recommendationId && (course.reason || course.createdAt) && (
+            <div className="ai-reco-result">
+              {course.reason && <p className="ai-reco-reason">{course.reason}</p>}
+              {course.createdAt && (
+                <p className="data-source-note">
+                  AI 추천 · {formatRecommendedAt(course.createdAt)} · {course.modelVersion ?? '모델 정보 없음'} 기준
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="ai-reco-primary-actions">
+            {course.recommendationId && (
+              <button
+                type="button"
+                className={`ai-reco-like-btn small ${course.likedByUser ? 'liked' : ''}`}
+                onClick={handleLikeClick}
+                disabled={likePending}
+                aria-label={course.likedByUser ? '찜 완료' : '찜하기'}
+              >
+                <span className="heart">{course.likedByUser ? '❤️' : '🤍'}</span>
+                {course.likeCount ? course.likeCount : ''}
+              </button>
+            )}
+            <a href={`/courses/${course.courseId}`} className="ai-reco-detail-link" onClick={handleDetailClick}>
+              코스 자세히 보기
+            </a>
+          </div>
+          <a href={`/run/${course.courseId}`} className="primary-btn full-width ai-reco-start-link" onClick={handleStartRunClick}>
+            추천 코스로 달리기 →
+          </a>
+        </div>
+
+        <button
+          type="button"
+          className="ai-reco-edge-arrow ai-reco-edge-next"
+          aria-label="다음 추천 코스"
+          onClick={() => setIndex((i) => (i + 1) % courses.length)}
+        >
+          ›
+        </button>
       </div>
 
       {quotaExceededOpen && (
