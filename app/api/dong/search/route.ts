@@ -1,48 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPool } from '@/lib/db';
 
-type JusoItem = {
-  siNm: string;
-  sggNm: string;
-  emdNm: string;
-};
-
+// 주의(CLAUDE.md §3.1): nginx는 /api/dong/search를 course-service로 라우팅하므로 이 Route
+// Handler는 실제 배포에서는 도달 불가능한 죽은 코드다. 실제 서비스 대상 구현은
+// services-msa/course-service/src/routes/geo.ts에 있다. 여기는 `next dev`로 로컬 단독 실행할
+// 때도 juso.go.kr(외부 API)를 호출하지 않도록 동일한 로컬 DB 조회로 맞춰만 둔다.
 export async function GET(request: NextRequest) {
   const keyword = request.nextUrl.searchParams.get('keyword')?.trim() ?? '';
   if (keyword.length < 2) {
     return NextResponse.json({ results: [] });
   }
 
-  const confmKey = process.env.JUSO_API_KEY;
-  if (!confmKey) {
-    return NextResponse.json(
-      { results: [], error: '주소 검색 API 키(JUSO_API_KEY)가 설정되지 않았어요. juso.go.kr에서 발급받은 승인키를 .env에 넣어주세요.' },
-      { status: 501 }
-    );
-  }
-
-  const url = new URL('https://www.juso.go.kr/addrlink/addrLinkApi.do');
-  url.searchParams.set('confmKey', confmKey);
-  url.searchParams.set('currentPage', '1');
-  url.searchParams.set('countPerPage', '20');
-  url.searchParams.set('keyword', keyword);
-  url.searchParams.set('resultType', 'json');
+  const escapedKeyword = keyword.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 
   try {
-    const response = await fetch(url, { cache: 'no-store' });
-    const data = await response.json();
-    const items: JusoItem[] = data?.results?.juso ?? [];
+    const { rows } = await getPool().query(
+      `SELECT sido, sigungu, dong, full_name AS display
+       FROM course.legal_dong_codes
+       WHERE is_active = true AND dong IS NOT NULL AND full_name ILIKE '%' || $1 || '%' ESCAPE '\\'
+       ORDER BY length(full_name), full_name
+       LIMIT 20`,
+      [escapedKeyword]
+    );
 
-    const seen = new Set<string>();
-    const results = items
-      .filter((item) => item.emdNm)
-      .map((item) => ({ sido: item.siNm, sigungu: item.sggNm, dong: item.emdNm, display: `${item.siNm} ${item.sggNm} ${item.emdNm}` }))
-      .filter((item) => {
-        if (seen.has(item.display)) return false;
-        seen.add(item.display);
-        return true;
-      });
-
-    return NextResponse.json({ results });
+    return NextResponse.json({ results: rows });
   } catch {
     return NextResponse.json({ results: [], error: '주소 검색 중 오류가 발생했어요.' }, { status: 502 });
   }
