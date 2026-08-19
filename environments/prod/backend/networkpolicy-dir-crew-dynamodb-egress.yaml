@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-crew-dynamodb-egress
+  namespace: dir-backend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-crew
+  policyTypes:
+  - Egress
+  egress:
+  - ports:
+    - port: 443
+      protocol: TCP
+    to:
+    - ipBlock:
+        cidr: 35.71.109.0/24
+    - ipBlock:
+        cidr: 52.94.6.0/24

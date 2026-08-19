@@ -25,6 +25,7 @@ resources:
   - configmap-dir-shoe-config.yaml
   - networkpolicy-backend-baseline.yaml
   - networkpolicy-backend-postgresql-egress.yaml
+  - networkpolicy-dir-crew-dynamodb-egress.yaml
   - networkpolicy-dir-environment-dynamodb-consumer-egress.yaml
   - namespace.yaml
   - secretstore-backend-worker-shadow.yaml
