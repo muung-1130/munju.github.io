@@ -45,7 +45,7 @@ spec:
             name: dir-auth-web-config
         - secretRef:
             name: dir-auth-web-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/auth-web@sha256:64ba58b82f7586bea23639197a9fe6a51778ca6dbecd9e44b4233834c41097c6
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/auth-web@sha256:d7dfbec9edfab06ea688065f8fa8b195a316c78d78812b105f09dbe2d09fc3fa
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
