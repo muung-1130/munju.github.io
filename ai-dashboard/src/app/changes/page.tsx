@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
+import { LiveBadge } from "@/components/ui/LiveBadge";
 import { formatTimeAgo } from "@/lib/format";
 import { getChangeEvents } from "@/lib/mock";
 import type { ChangeEvent } from "@/lib/types";
+import { getLiveArgoDeployHistory } from "@/lib/k8s";
 
 const TYPE_META: Record<ChangeEvent["type"], { label: string; color: string }> = {
   deploy: { label: "배포", color: "var(--series-1)" },
@@ -14,13 +16,48 @@ const TYPE_META: Record<ChangeEvent["type"], { label: string; color: string }> =
   alert_rule: { label: "Alert Rule", color: "var(--series-5)" },
 };
 
-export default function ChangesPage() {
+export default async function ChangesPage() {
   const changes = getChangeEvents();
+  const argoHistory = await getLiveArgoDeployHistory();
 
   return (
     <>
       <Topbar title="Changes" subtitle="배포 · 설정 변경과 장애 상관관계 타임라인" />
       <main className="flex-1 space-y-4 p-4 md:p-6">
+        <Card title="실제 배포 이력" subtitle="ArgoCD sync history — 프로덕션 클러스터 실측" action={argoHistory && <LiveBadge label="LIVE · ArgoCD" />}>
+          {!argoHistory || argoHistory.length === 0 ? (
+            <p className="py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+              {argoHistory === null ? "ArgoCD에 연결할 수 없습니다." : "동기화 이력이 없습니다."}
+            </p>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
+              {argoHistory.map((h, i) => {
+                return (
+                  <li key={`${h.app}-${h.revision}-${i}`} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="rounded-full px-2 py-0.5 text-xs font-medium"
+                        style={{ color: "var(--series-1)", background: "color-mix(in oklab, var(--series-1) 14%, transparent)" }}
+                      >
+                        {h.appLabel}
+                      </span>
+                      <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                        {h.revision}
+                      </span>
+                      <span style={{ color: h.healthStatus === "Healthy" ? "var(--success-text)" : "var(--status-critical)" }}>
+                        {h.syncStatus} · {h.healthStatus}
+                      </span>
+                    </div>
+                    <span className="shrink-0 tabular text-xs" style={{ color: "var(--text-muted)" }}>
+                      {formatTimeAgo(h.minutesAgo)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
           {Object.entries(TYPE_META).map(([key, meta]) => (
             <span key={key} className="flex items-center gap-1.5">
