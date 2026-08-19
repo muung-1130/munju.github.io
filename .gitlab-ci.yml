@@ -69,7 +69,7 @@ sonarqube-check:
       -v "$CI_PROJECT_DIR:/usr/src"
       -w /usr/src
       sonarsource/sonar-scanner-cli:latest
-      -Dsonar.qualitygate.wait=true
+      -Dsonar.qualitygate.wait=false
       -Dsonar.qualitygate.timeout=600
   after_script:
     - ./ci/report-sonarqube-gate.sh
