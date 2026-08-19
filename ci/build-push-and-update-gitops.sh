@@ -8,6 +8,10 @@ registry="${ECR_REGISTRY:?ECR_REGISTRY is required}"
 trivy_image="${TRIVY_IMAGE:?TRIVY_IMAGE is required}"
 trivy_cache_dir="${TRIVY_CACHE_DIR:-$project_dir/.trivy-cache}"
 trivy_reports_dir="$project_dir/ci-output/trivy"
+runner_uid="$(id -u)"
+runner_gid="$(id -g)"
+docker_socket_gid="$(stat -c '%g' /var/run/docker.sock)"
+trivy_container_cache_dir="/tmp/trivy-cache"
 
 if [ ! -s "$services_file" ]; then
   echo "No production service changed; ECR and GitOps update skipped."
@@ -45,10 +49,13 @@ while IFS='|' read -r service_id _watch_paths dockerfile context repository; do
 
   echo "Recording HIGH and CRITICAL vulnerability findings for $service_id"
   docker run --rm \
+    --user "$runner_uid:$runner_gid" \
+    --group-add "$docker_socket_gid" \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$trivy_cache_dir:/root/.cache/" \
+    -v "$trivy_cache_dir:$trivy_container_cache_dir" \
     -v "$trivy_reports_dir:/reports" \
     "$trivy_image" image \
+    --cache-dir "$trivy_container_cache_dir" \
     --scanners vuln \
     --severity HIGH,CRITICAL \
     --format json \
@@ -57,9 +64,12 @@ while IFS='|' read -r service_id _watch_paths dockerfile context repository; do
 
   echo "Enforcing the fixed CRITICAL vulnerability gate for $service_id"
   docker run --rm \
+    --user "$runner_uid:$runner_gid" \
+    --group-add "$docker_socket_gid" \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$trivy_cache_dir:/root/.cache/" \
+    -v "$trivy_cache_dir:$trivy_container_cache_dir" \
     "$trivy_image" image \
+    --cache-dir "$trivy_container_cache_dir" \
     --scanners vuln \
     --severity CRITICAL \
     --ignore-unfixed \
