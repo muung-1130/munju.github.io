@@ -1,8 +1,11 @@
+import logging
 from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.exercise_rules import compute_air_quality_guidance, compute_weather_guidance
+
+logger = logging.getLogger(__name__)
 
 
 def get_user_profile(db: Session, user_id: str) -> dict:
@@ -26,7 +29,7 @@ def get_user_profile(db: Session, user_id: str) -> dict:
         row = result.fetchone()
 
         if not row:
-            return {"error": "사용자를 찾을 수 없습니다"}
+            return {"error": "사용자를 찾을 수 없습니다", "error_type": "not_found"}
 
         return {
             "user_id": row[0],
@@ -39,8 +42,11 @@ def get_user_profile(db: Session, user_id: str) -> dict:
             "target_pace_sec_per_km": row[7],
             "weekly_target_distance_m": row[8],
         }
-    except Exception as e:
-        return {"error": f"프로필 조회 실패: {str(e)}"}
+    except Exception:
+        # DB 연결/권한 오류의 원문(str(e))은 호출부까지 들고 가지 않는다 — 내부 예외를
+        # 사용자에게 노출하지 않는다는 원칙(§19.3)에 따라 서버 로그에만 남긴다.
+        logger.exception("프로필 조회 중 DB 오류 (user_id=%s)", user_id)
+        return {"error": "프로필 조회 실패", "error_type": "query_failed"}
 
 
 def get_recent_runs(db: Session, user_id: str, days: int = 30) -> dict:
