@@ -1353,6 +1353,15 @@ def persistence_enabled() -> bool:
     }
 
 
+def object_storage_bucket_name() -> str:
+    return (
+        os.getenv("OBJECT_STORAGE_BUCKET")
+        or os.getenv("S3_BUCKET")
+        or os.getenv("SHOE_LIFE_BUCKET_NAME")
+        or ""
+    ).strip()
+
+
 def object_storage_client():
     endpoint_url = os.getenv("MINIO_ENDPOINT", "").strip()
     if endpoint_url:
@@ -1377,12 +1386,7 @@ def upload_analysis_images(
     user_id: UUID | None,
     images: dict[str, tuple[bytes, str]],
 ) -> dict[str, str]:
-    bucket = (
-        os.getenv("OBJECT_STORAGE_BUCKET")
-        or os.getenv("S3_BUCKET")
-        or os.getenv("SHOE_LIFE_BUCKET_NAME")
-        or ""
-    ).strip()
+    bucket = object_storage_bucket_name()
     if not bucket:
         raise ValueError(
             "PERSIST_ANALYSIS_RESULTS=true이면 OBJECT_STORAGE_BUCKET(또는 S3_BUCKET, SHOE_LIFE_BUCKET_NAME)이 필요합니다."
@@ -1427,7 +1431,7 @@ def upload_analysis_images(
 
 
 def delete_analysis_images(image_keys: dict[str, str]) -> None:
-    bucket = os.getenv("OBJECT_STORAGE_BUCKET", os.getenv("S3_BUCKET", "")).strip()
+    bucket = object_storage_bucket_name()
     if not bucket or not image_keys:
         return
     client = object_storage_client()
@@ -1533,7 +1537,7 @@ def save_analysis_result(
     persisted_result = dict(response_payload)
     persisted_result["storage"] = {
         "provider": "minio" if os.getenv("MINIO_ENDPOINT") else "s3",
-        "bucket": os.getenv("OBJECT_STORAGE_BUCKET", os.getenv("S3_BUCKET", "")),
+        "bucket": object_storage_bucket_name(),
         "image_keys": image_keys,
         "purchase_date": purchase_date.isoformat(),
         "request_user_id": str(user_id) if user_id else None,
@@ -1626,9 +1630,7 @@ def health():
         "bedrock_model_configured": bool(os.getenv("BEDROCK_MODEL_ID")),
         "bedrock_guardrail_configured": bool(os.getenv("BEDROCK_GUARDRAIL_ID")),
         "persistence_enabled": persistence_enabled(),
-        "object_storage_configured": bool(
-            os.getenv("OBJECT_STORAGE_BUCKET") or os.getenv("S3_BUCKET")
-        ),
+        "object_storage_configured": bool(object_storage_bucket_name()),
         "result_db_configured": all(os.getenv(name) for name in ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")),
         "required_images": list(IMAGE_ROLES),
     }
@@ -1645,7 +1647,7 @@ def get_media_presigned_url(key: str, x_media_proxy_secret: str = Header(default
     prefix = os.getenv("S3_PREFIX", "shoe-life-analyses").strip().strip("/")
     if not key or not key.startswith(f"{prefix}/"):
         raise HTTPException(400, "허용되지 않은 key입니다.")
-    bucket = os.getenv("OBJECT_STORAGE_BUCKET", os.getenv("S3_BUCKET", "")).strip()
+    bucket = object_storage_bucket_name()
     if not bucket:
         raise HTTPException(500, "OBJECT_STORAGE_BUCKET이 설정되지 않았습니다.")
     client = object_storage_client()
@@ -1718,7 +1720,7 @@ async def analyze(
             response_payload["storage"] = {
                 "images_saved": True,
                 "result_saved": True,
-                "bucket": os.getenv("OBJECT_STORAGE_BUCKET", os.getenv("S3_BUCKET", "")),
+                "bucket": object_storage_bucket_name(),
                 "image_keys": image_keys,
             }
             try:
