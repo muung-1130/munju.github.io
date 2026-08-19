@@ -1,0 +1,82 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: dairun-application-rollout-smoke
+  labels:
+    app.kubernetes.io/name: dairun-application-rollout-smoke
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: rollout-smoke
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 300
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dairun-application-rollout-smoke
+  strategy:
+    blueGreen:
+      activeService: dairun-application-rollout-active
+      previewService: dairun-application-rollout-preview
+      previewReplicaCount: 1
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 30
+      abortScaleDownDelaySeconds: 30
+  template:
+    metadata:
+      annotations:
+        dairun.io/smoke-revision: baseline-1
+      labels:
+        app.kubernetes.io/name: dairun-application-rollout-smoke
+        app.kubernetes.io/part-of: dai-run
+        app.kubernetes.io/component: rollout-smoke
+        dairun.io/workload-class: app
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        workload: app
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: dairun-application-rollout-smoke
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: dairun-application-rollout-smoke
+      containers:
+        - name: application
+          image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dairun/application@sha256:87dec579edfffc3b3832d38fb04d8eb515147d7f63668e80d28031cff189b966
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
