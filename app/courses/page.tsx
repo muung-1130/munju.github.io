@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function CoursePage() {
   const recoCourses = await fetchAiRecoPanelCourses();
   const courseDemoBackground =
-    'linear-gradient(135deg, #EAF4FF 0%, #CFE9FF 100%)';
+    'linear-gradient(135deg, #FFE1EE 0%, #FF76AD 100%)';
 
   return (
     <div

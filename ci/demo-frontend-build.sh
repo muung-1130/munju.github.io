@@ -16,8 +16,8 @@ case "$mode" in
   *) echo "DEMO_CACHE_MODE must be cold or warm: $mode" >&2; exit 1 ;;
 esac
 case "$theme" in
-  blue|orange|green|purple|course) ;;
-  *) echo "DEMO_THEME must be blue, orange, green, purple, or course: $theme" >&2; exit 1 ;;
+  blue|orange|green|pink|purple|course) ;;
+  *) echo "DEMO_THEME must be blue, orange, green, pink, purple, or course: $theme" >&2; exit 1 ;;
 esac
 
 umask 077
