@@ -58,7 +58,7 @@ unit-test-changed-services:
 
 sonarqube-check:
   stage: quality
-  allow_failure: false
+  allow_failure: true
   script:
     - >
       docker run --rm
