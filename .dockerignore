@@ -21,6 +21,9 @@ yarn-debug.log*
 yarn-error.log*
 coverage
 
+# 별도 Dockerfile과 build context로 빌드하는 독립 Next.js 서비스
+ai-dashboard
+
 # 임시·백업·아카이브 파일
 tmp
 temp
