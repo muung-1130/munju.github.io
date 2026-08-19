@@ -4,6 +4,12 @@ node_modules
 .venv
 __pycache__
 *.pyc
+dist
+build
+
+# CI·스캔 산출물
+.trivy-cache
+ci-output
 
 # Git 정보
 .git
