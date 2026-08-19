@@ -930,7 +930,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-shoe-life@sha256:6a84f67633d954727e2e98ee082c8023dd0f7bbb62965cdb7c0a26c09ef121d6",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-shoe-life@sha256:dc06b02ea945d90059f0d7fd19a53c068031025350135a39a0b8a214d983438b",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,
