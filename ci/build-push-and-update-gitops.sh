@@ -98,7 +98,7 @@ done <"$services_file"
 export GIT_ASKPASS="$project_dir/ci/git-askpass.sh"
 export GIT_TERMINAL_PROMPT=0
 
-git clone --branch main --single-branch "$GITOPS_REPOSITORY_URL" "$gitops_dir"
+git clone --branch stg --single-branch "$GITOPS_REPOSITORY_URL" "$gitops_dir"
 "$project_dir/ci/update-gitops-images.sh" "$gitops_dir" "$updates_file"
 
 cd "$gitops_dir"
@@ -111,7 +111,7 @@ for environment in frontend backend ai; do
 done
 
 if git diff --quiet; then
-  echo "GitOps already contains the requested digests."
+  echo "GitOps stg already contains the requested digests."
   exit 0
 fi
 
@@ -119,7 +119,38 @@ git config user.name "DAI RUN GitLab CI"
 git config user.email "gitlab-ci@dai-run.internal"
 git add environments/prod
 git commit -m "Deploy application ${CI_COMMIT_SHORT_SHA:-unknown} [skip ci]"
-git pull --rebase origin main
-git push origin HEAD:main
+git pull --rebase origin stg
+git push origin HEAD:stg
 
-echo "GitOps main updated; Argo CD auto sync will deploy the new digests."
+echo "GitOps stg updated; requesting a stg -> main deploy merge request."
+
+# Project access token above must additionally carry the `api` scope (write_repository alone
+# cannot call the REST API). Reused as PRIVATE-TOKEN here so no second CI variable is needed.
+gitlab_base="$(printf '%s' "$GITOPS_REPOSITORY_URL" | sed -E 's#^(https?://[^/]+)/.*#\1#')"
+gitlab_project_path_encoded="$(printf '%s' "$GITOPS_REPOSITORY_URL" \
+  | sed -E 's#^https?://[^/]+/##; s#\.git$##; s#/#%2F#g')"
+merge_requests_api="$gitlab_base/api/v4/projects/$gitlab_project_path_encoded/merge_requests"
+
+open_deploy_mr_count="$(curl --fail --silent --show-error \
+  --header "PRIVATE-TOKEN: $GITOPS_PUSH_TOKEN" \
+  --get \
+  --data-urlencode "state=opened" \
+  --data-urlencode "source_branch=stg" \
+  --data-urlencode "target_branch=main" \
+  "$merge_requests_api" | jq 'length')"
+
+if [ "$open_deploy_mr_count" -eq 0 ]; then
+  curl --fail --silent --show-error \
+    --header "PRIVATE-TOKEN: $GITOPS_PUSH_TOKEN" \
+    --data-urlencode "source_branch=stg" \
+    --data-urlencode "target_branch=main" \
+    --data-urlencode "title=Deploy application ${CI_COMMIT_SHORT_SHA:-unknown}" \
+    --data-urlencode "description=Automated GitOps deploy MR from Application pipeline ${CI_PIPELINE_IID:-unknown} (commit ${CI_COMMIT_SHORT_SHA:-unknown}). Review environments/prod digest changes and the Trivy report artifact on the source pipeline before approving." \
+    --data-urlencode "remove_source_branch=false" \
+    "$merge_requests_api" >/dev/null
+  echo "Opened new GitOps deploy merge request: stg -> main"
+else
+  echo "An open GitOps deploy merge request (stg -> main) already covers this push; no duplicate MR created."
+fi
+
+echo "Argo CD only syncs GitOps main; the deploy merge request above must be approved and merged first."
