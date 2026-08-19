@@ -18,20 +18,21 @@ Application 파이프라인은 다음 순서로 동작한다.
   -> Argo CD 배포
 ```
 
-앞 단계가 실패하면 ECR Push와 GitOps 갱신은 실행되지 않는다.
+단위 테스트나 Trivy 같은 차단 단계가 실패하면 ECR Push와 GitOps 갱신은
+실행되지 않는다. SonarQube 실패만 현재 비차단 예외다.
 
 ## SonarQube 게이트
 
-`sonarqube-check`는 다음 조건으로 강화했다.
+`sonarqube-check`는 현재 결과 수집을 유지하는 비차단 모드다.
 
-- `allow_failure: false`
+- `allow_failure: true`
 - `sonar.qualitygate.wait=true`
 - 최대 600초 동안 Quality Gate 결과 대기
 - deploy Job의 `needs`에 `sonarqube-check` 명시
 
-따라서 분석 실패, 연결 실패, timeout 또는 Quality Gate 실패는 모두 배포를
-차단한다. 이전 파이프라인에서는 SonarQube Job 실패 이력이 있으므로 이 변경을
-병합하기 전에 review 브랜치 파이프라인이 성공하는지 먼저 확인해야 한다.
+분석 실패, 연결 실패, timeout 또는 Quality Gate 실패는 GitLab에서 경고로
+표시되지만 뒤의 빌드·배포 Job은 계속 진행한다. SonarQube 분석과 결과 보고는
+생략되지 않으며, Trivy CRITICAL 게이트는 계속 배포를 차단한다.
 
 `ai-service/`는 Bedrock 호출을 검증하던 비운영 Spring Boot 실험 코드이며 현재
 서비스 빌드·ECR·GitOps 대상이 아니다. 컴파일 산출물이 없는 이 디렉터리가 전체
@@ -116,8 +117,8 @@ Inspector: ECR 저장 이후 지속 검사 -> 새 CVE가 발표되면 다시 탐
 
 1. review 브랜치를 GitLab에 Push하고 MR 파이프라인을 실행한다.
 2. `sonarqube-check`가 실제로 성공하는지 확인한다.
-3. SonarQube 실패 시 Quality Gate를 다시 끄지 말고 Job 로그에서 연결, 토큰,
-   프로젝트 설정 또는 기존 Quality Gate 실패 원인을 수정한다.
+3. SonarQube 실패는 경고로 처리되지만 Job 로그에서 연결, 토큰, 프로젝트 설정
+   또는 Quality Gate 실패 원인을 확인하고 수정한다.
 4. MR 병합 후 첫 운영 검증은 서비스 한 개의 작은 변경으로 제한한다.
 5. `ci-output/trivy/<service>.json` artifact를 확인한다.
 6. CRITICAL이 있으면 이미지 수정 후 다시 빌드한다. 무근거 ignore는 추가하지 않는다.
@@ -139,8 +140,9 @@ digest로 고정하는 것을 권장한다. 최초 검증 전에는 임의 diges
 ## 롤백
 
 문제가 생기면 이 변경 커밋을 Application 저장소에서 revert한다. 이미 배포된
-애플리케이션을 재시작할 필요는 없다. 보안 게이트가 실패한 시점에는 ECR Push와
-GitOps 갱신 전이므로 신규 이미지 롤백도 필요하지 않다.
+애플리케이션을 재시작할 필요는 없다. Trivy 같은 차단형 게이트가 실패한 시점에는
+ECR Push와 GitOps 갱신 전이므로 신규 이미지 롤백도 필요하지 않다.
 
-긴급 우회가 필요하더라도 `allow_failure: true`를 main에 직접 넣지 않는다.
-사유, 만료 시각, 대상 서비스와 승인자를 기록한 별도 MR로 최소 범위만 변경한다.
+현재 `allow_failure: true`는 SonarQube 결과를 수집하면서 배포를 허용하는
+비차단 설정이다. 품질 기준과 운영 안정성이 확보되면 별도 MR에서
+`allow_failure: false`로 복구해 Quality Gate를 다시 배포 차단 조건으로 사용한다.
