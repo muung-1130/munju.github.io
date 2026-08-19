@@ -1377,9 +1377,16 @@ def upload_analysis_images(
     user_id: UUID | None,
     images: dict[str, tuple[bytes, str]],
 ) -> dict[str, str]:
-    bucket = os.getenv("OBJECT_STORAGE_BUCKET", os.getenv("S3_BUCKET", "")).strip()
+    bucket = (
+        os.getenv("OBJECT_STORAGE_BUCKET")
+        or os.getenv("S3_BUCKET")
+        or os.getenv("SHOE_LIFE_BUCKET_NAME")
+        or ""
+    ).strip()
     if not bucket:
-        raise ValueError("PERSIST_ANALYSIS_RESULTS=true이면 OBJECT_STORAGE_BUCKET이 필요합니다.")
+        raise ValueError(
+            "PERSIST_ANALYSIS_RESULTS=true이면 OBJECT_STORAGE_BUCKET(또는 S3_BUCKET, SHOE_LIFE_BUCKET_NAME)이 필요합니다."
+        )
     prefix = os.getenv("S3_PREFIX", "shoe-life-analyses").strip().strip("/")
     owner = str(user_id) if user_id else "anonymous"
     now = datetime.now(timezone.utc)
