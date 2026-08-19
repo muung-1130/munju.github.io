@@ -47,7 +47,7 @@ spec:
             name: dir-challenge-secret
         - secretRef:
             name: dir-challenge-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-service@sha256:ff819f0bd0528c0b09af5543f000ed46d7baef776dbd84c26978c6d6394ccc3d
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-service@sha256:2d4e0aa10eabaacc9fd52f5dcb2dc89b69238c9bcd05c0a3e26d0fb15584e6f6
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

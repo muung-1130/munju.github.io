@@ -40,7 +40,7 @@ spec:
             name: dir-crew-stats-scheduler-config
         - secretRef:
             name: dir-crew-stats-scheduler-secret-eso-shadow-v1
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-stats-scheduler:src-58f82cb3e16a
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-stats-scheduler@sha256:ff29a18b4c6d73b779bbb26594816d76099f80723baa02b5cc370833f500f22f
         imagePullPolicy: IfNotPresent
         name: dir-crew-stats-scheduler
         resources:

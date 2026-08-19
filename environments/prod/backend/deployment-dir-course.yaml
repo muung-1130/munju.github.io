@@ -51,7 +51,7 @@ spec:
             name: dir-course-secret
         - secretRef:
             name: dir-course-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-service@sha256:66c4b7aad5bb475c0e881ecab8f2b93fba14e52e5a1e768ea8c7a8c78bc25746
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-service@sha256:a2cba195ec274f3c7074ba22ea7347841d51e5ef2e1d38a171e28c2bc63d7c43
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

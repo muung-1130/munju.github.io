@@ -48,7 +48,7 @@ spec:
             name: dir-challenge-consumer-secret
         - secretRef:
             name: dir-challenge-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-service@sha256:2c681feae617f0a83eab14292a01a21e3c6f0994ebf28b3bf429078aab40538a
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-service@sha256:2d4e0aa10eabaacc9fd52f5dcb2dc89b69238c9bcd05c0a3e26d0fb15584e6f6
         imagePullPolicy: IfNotPresent
         name: dir-challenge-consumer
         resources:

@@ -48,7 +48,7 @@ spec:
             name: dir-notification-consumer-secret
         - secretRef:
             name: dir-notification-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/notification-service@sha256:8e4d9246359a684d7896287a363f4b06ef9b2add261da5c799e1801ff4f52019
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/notification-service@sha256:d488f9b14379571c45fd224e67c2077cdfa220a69375e80247e774116567453b
         imagePullPolicy: IfNotPresent
         name: dir-notification-consumer
         resources:
