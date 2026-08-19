@@ -1,4 +1,4 @@
-import { getRedisClient } from './redis.js';
+import { getRedisClient } from '../../../shared/redis.js';
 
 // 프로세스 메모리 기반 슬라이딩 윈도 fallback. Redis를 못 쓸 때(로컬 개발, Redis 장애)만 쓰인다.
 // 인스턴스가 여러 개면 이 카운터는 인스턴스별로 따로 논다는 한계가 있지만, Redis 장애 중에도

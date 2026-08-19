@@ -6,6 +6,11 @@ import { createClient, type RedisClientType } from 'redis';
 //
 // emptyDir 기반 단일 인스턴스라 재시작/장애가 흔하다는 전제로, 연결 실패 시 매 요청마다 다시
 // connect를 시도하며 지연을 만들지 않도록 짧은 쿨다운을 둔다.
+//
+// services-msa의 각 서비스는 독립된 Docker 이미지로 빌드되므로(각자 Dockerfile/context 보유),
+// 이 파일은 서비스별로 복사하지 않고 여기 한 곳에만 두고 각 서비스 Dockerfile이 빌드 시점에
+// 이미지 안으로 복사해 쓴다 — Redis를 쓰는 서비스가 늘어날 때마다 이 커넥션 관리 로직이
+// 서비스 수만큼 복제되는 걸 막기 위함.
 const RECONNECT_COOLDOWN_MS = 10_000;
 
 let client: RedisClientType | null = null;

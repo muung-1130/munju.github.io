@@ -38,7 +38,8 @@ services:
 
   course-recommendation-service:
     build:
-      context: ./course-recommendation-service
+      context: .
+      dockerfile: course-recommendation-service/Dockerfile
     container_name: dai-run-course-recommendation-service
     restart: unless-stopped
     ports:
@@ -237,7 +238,8 @@ services:
 
   marathon-service:
     build:
-      context: ./marathon-service
+      context: .
+      dockerfile: marathon-service/Dockerfile
     container_name: dai-run-marathon-service
     restart: unless-stopped
     ports:

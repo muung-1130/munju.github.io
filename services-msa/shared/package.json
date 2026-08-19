@@ -1,0 +1,9 @@
+{
+  "name": "dai-run-services-shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "redis": "^6.2.1"
+  }
+}

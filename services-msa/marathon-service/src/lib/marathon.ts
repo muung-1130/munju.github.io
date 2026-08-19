@@ -1,5 +1,5 @@
 import { getPool } from './db.js';
-import { getRedisClient } from './redis.js';
+import { getRedisClient } from '../../../shared/redis.js';
 
 export type MarathonRace = {
   raceId: number;
