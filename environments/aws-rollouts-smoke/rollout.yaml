@@ -24,7 +24,7 @@ spec:
   template:
     metadata:
       annotations:
-        dairun.io/smoke-revision: baseline-1
+        dairun.io/smoke-revision: baseline-2
       labels:
         app.kubernetes.io/name: dairun-application-rollout-smoke
         app.kubernetes.io/part-of: dai-run
