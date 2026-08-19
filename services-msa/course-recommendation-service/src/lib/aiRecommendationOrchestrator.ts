@@ -97,6 +97,45 @@ async function getDismissedCourseIds(userId: string): Promise<Set<string>> {
   return new Set(rows.map((row) => row.course_id));
 }
 
+// AI 서비스(FastAPI)의 dismiss_ignored_previous_ai_pick과 동일한 판단을 여기서도 먼저 해준다.
+// 예전엔 이 자동 dismiss가 FastAPI 쪽(candidate_routes를 이미 받은 뒤)에서만 일어났는데, 그때는
+// 이미 getDismissedCourseIds로 뽑은 dismissed 집합과 후보 목록이 Node에서 먼저 확정된 뒤였다 —
+// 그래서 방금 자동 dismiss된 "직전 1순위 코스"가 이번 candidate_routes에는 여전히 남아있었고,
+// Bedrock이 그 코스를 이번 순위에도 다시 고르는 경우가 있었다. 그 코스는 이번 추천 결과에
+// 저장은 되지만(recommendation_items), 화면에서는 "한 번이라도 dismiss된 course_id는 영구히
+// 숨긴다"는 규칙(getActiveRecommendationsForUser) 때문에 곧바로 걸러져, 실제 저장된 3개 중
+// 1개가 사라진 채로(2개만) 노출되는 버그가 있었다. 후보 목록을 만들기 전에 여기서 먼저
+// 자동 dismiss를 끝내두면 getDismissedCourseIds가 그 코스를 포함해서 돌려주므로, 애초에
+// candidate_routes에서 빠지고 다시 추천되지 않는다.
+async function dismissIgnoredPreviousPick(userId: string): Promise<void> {
+  const pool = getPool();
+  const { rows } = await pool.query<{ recommendation_id: string; course_id: string }>(
+    `SELECT i.recommendation_id, i.course_id
+       FROM course_recommendation.recommendation_items i
+       JOIN course_recommendation.recommendation_runs r ON r.recommendation_id = i.recommendation_id
+      WHERE r.user_id = $1 AND r.status = 'COMPLETED' AND i.rank_no = 1
+      ORDER BY r.created_at DESC
+      LIMIT 1`,
+    [userId]
+  );
+  const previousPick = rows[0];
+  if (!previousPick) return;
+
+  const { rows: feedbackRows } = await pool.query(
+    `SELECT 1 FROM course_recommendation.recommendation_feedback
+      WHERE recommendation_id = $1 AND course_id = $2 AND user_id = $3`,
+    [previousPick.recommendation_id, previousPick.course_id, userId]
+  );
+  if (feedbackRows.length > 0) return;
+
+  await pool.query(
+    `INSERT INTO course_recommendation.recommendation_feedback (recommendation_id, course_id, user_id, feedback_type)
+     VALUES ($1, $2, $3, 'DISMISS')
+     ON CONFLICT DO NOTHING`,
+    [previousPick.recommendation_id, previousPick.course_id, userId]
+  );
+}
+
 // user_running_preferences + recommendation_feedback로 실제 요청을 구성한다 (예전엔 request.json
 // 고정값을 그대로 썼음 — "popular_based"가 항상 뜨던 원인이 이거였다).
 async function buildPreference(userId: string): Promise<{
@@ -316,6 +355,7 @@ export function ensureTodaysRecommendation(
   return runRecommendationOnce(userId, async () => {
     if (!forceRefresh && (await hasTodaysRecommendation(userId))) return;
 
+    await dismissIgnoredPreviousPick(userId);
     const dismissed = await getDismissedCourseIds(userId);
     const preference = await buildPreference(userId);
     // 지도 필터처럼 즉시 적용하는 반경/추천기준은 저장된 선호도 값 위에 이번 요청에만 덮어쓴다
