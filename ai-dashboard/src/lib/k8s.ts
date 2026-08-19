@@ -140,3 +140,63 @@ export async function getArgoAppStatus(namespace: string, name: string): Promise
     return null;
   }
 }
+
+/**
+ * ArgoCD syncs a whole namespace's manifest bundle per Application, not one
+ * microservice at a time — so unlike the HPA replica count, this can't slot
+ * into the existing per-service ChangeEvent shape (which needs a specific
+ * before/after metric window for one service). It's surfaced as its own
+ * "real deploy history" list instead.
+ */
+export const LIVE_ARGO_APPS: { namespace: string; name: string; label: string }[] = [
+  { namespace: "dir-argocd-ns", name: "dai-run-prod-frontend", label: "Frontend" },
+  { namespace: "dir-argocd-ns", name: "dai-run-prod-backend", label: "Backend" },
+  { namespace: "dir-argocd-ns", name: "dai-run-prod-ai", label: "AI" },
+];
+
+export type ArgoDeployHistoryItem = {
+  app: string;
+  appLabel: string;
+  syncStatus: string;
+  healthStatus: string;
+  revision: string;
+  minutesAgo: number;
+};
+
+export async function getLiveArgoDeployHistory(limit = 10): Promise<ArgoDeployHistoryItem[] | null> {
+  const results = await Promise.all(LIVE_ARGO_APPS.map((a) => getArgoAppStatus(a.namespace, a.name)));
+  if (results.every((r) => r === null)) return null;
+
+  // Date.now() is read once here, at fetch time — not inside the page component's
+  // render body, which this app's lint rules (react-hooks/purity) forbid.
+  const now = Date.now();
+  const items: (ArgoDeployHistoryItem & { deployedAtMs: number })[] = [];
+  results.forEach((status, i) => {
+    if (!status) return;
+    const app = LIVE_ARGO_APPS[i];
+    for (const h of status.history) {
+      const deployedAtMs = new Date(h.deployedAt).getTime();
+      items.push({
+        app: app.name,
+        appLabel: app.label,
+        syncStatus: status.syncStatus,
+        healthStatus: status.healthStatus,
+        revision: h.revision.slice(0, 7),
+        minutesAgo: Math.max(0, Math.round((now - deployedAtMs) / 60000)),
+        deployedAtMs,
+      });
+    }
+  });
+
+  return items
+    .sort((a, b) => b.deployedAtMs - a.deployedAtMs)
+    .slice(0, limit)
+    .map((item) => ({
+      app: item.app,
+      appLabel: item.appLabel,
+      syncStatus: item.syncStatus,
+      healthStatus: item.healthStatus,
+      revision: item.revision,
+      minutesAgo: item.minutesAgo,
+    }));
+}
