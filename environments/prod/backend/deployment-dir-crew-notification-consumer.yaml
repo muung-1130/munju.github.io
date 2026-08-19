@@ -42,7 +42,7 @@ spec:
             name: dir-crew-notification-consumer-config
         - secretRef:
             name: dir-crew-notification-consumer-secret-eso-shadow-v1
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-notification-consumer@sha256:d787eda2e12afd4bc0076809b36e89b27873cad0f20c36d5d56fc68b3dbd933b
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-notification-consumer@sha256:73529f3d7845f6585e36db3af9c9538ab924114cfba0a311c5c36ca5fcb6f5aa
         imagePullPolicy: IfNotPresent
         name: dir-crew-notification-consumer
         resources:

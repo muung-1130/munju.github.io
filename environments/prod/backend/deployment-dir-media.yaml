@@ -47,7 +47,7 @@ spec:
             name: dir-media-secret
         - secretRef:
             name: dir-media-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/media-service@sha256:e3f1d07526e647b331fa4d0c7d4b385242d8da6e5517ce7a5325f99143390264
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/media-service@sha256:99f06b241bebaa6356155ffc159b5da65a2cc9d1cb060a90248ecacb8ba743f9
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

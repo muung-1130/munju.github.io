@@ -40,7 +40,7 @@ spec:
             name: dir-challenge-weekly-scheduler-config
         - secretRef:
             name: dir-challenge-weekly-scheduler-secret-eso-shadow-v1
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-weekly-scheduler:src-58f82cb3e16a
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-weekly-scheduler@sha256:a4afcc1009cf38ba1cb026985ecbc2df0cfafa02b5e3c37bf3a46fc5281516b5
         imagePullPolicy: IfNotPresent
         name: dir-challenge-weekly-scheduler
         resources:

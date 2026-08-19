@@ -47,7 +47,7 @@ spec:
             name: dir-marathon-secret
         - secretRef:
             name: dir-marathon-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/marathon-service@sha256:18e447edadeca9e1a7fe1572d76db826a7f3a9226d1050d948ef5914a5a8d002
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/marathon-service@sha256:b6a0915aaf0d176cb5d5f2701e89c3db18c96ade841492f2bd71c77d03070c96
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

@@ -73,7 +73,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-rag-service@sha256:4f0d138a28d1025fa2e80861347fe1ea5a019c6caa851119440fcad9bfb17c2b",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-rag-service@sha256:5538c3a1c46f3a94f047f28e30e2f2bb8fe7fb22deb357a9c460dfb7ec01c78a",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,
@@ -260,7 +260,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service@sha256:92089a27fc290f4cd521fc43b0ae9940a5be10ffd8d316dfe069896d849d8d42",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service@sha256:87f2ac0abdea03c85b00e18fc61370424dc635dfaa3bbf44d7f32faad767debf",
                 "imagePullPolicy": "IfNotPresent",
                 "name": "dir-ai-assistant-consumer",
                 "resources": {
@@ -400,7 +400,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service@sha256:92089a27fc290f4cd521fc43b0ae9940a5be10ffd8d316dfe069896d849d8d42",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-assistant-service@sha256:87f2ac0abdea03c85b00e18fc61370424dc635dfaa3bbf44d7f32faad767debf",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,
@@ -575,7 +575,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-course-recommendation:src-58f82cb3e16a",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-course-recommendation@sha256:74a7a3e657777215533b3e3f54c298942877dca966c9dcf992c5202d55e96610",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,
@@ -755,7 +755,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-recommendation-service@sha256:b22dad432c30fae99fdd62a433fce66f052ca05894afb5cfc909e3d2cef2fc30",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/course-recommendation-service@sha256:23466e0ec26eee5d6e96e581623f3485499a2855f38bc158235bad2bbe8408d3",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,
@@ -930,7 +930,7 @@
                     }
                   }
                 ],
-                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-shoe-life:src-58f82cb3e16a",
+                "image": "970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-shoe-life@sha256:6a84f67633d954727e2e98ee082c8023dd0f7bbb62965cdb7c0a26c09ef121d6",
                 "imagePullPolicy": "IfNotPresent",
                 "livenessProbe": {
                   "failureThreshold": 3,

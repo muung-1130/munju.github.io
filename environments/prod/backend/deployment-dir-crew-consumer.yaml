@@ -48,7 +48,7 @@ spec:
             name: dir-crew-consumer-secret
         - secretRef:
             name: dir-crew-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-service@sha256:50571cd399eefef09128f984499a6cc2b32bd4a476df056f81879acef956ba01
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/crew-service@sha256:bc215edcd130962c0c441497fb805f4939f5d8b2b97dc7758c907028cd9d9595
         imagePullPolicy: IfNotPresent
         name: dir-crew-consumer
         resources:

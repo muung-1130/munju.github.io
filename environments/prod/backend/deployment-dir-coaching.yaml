@@ -47,7 +47,7 @@ spec:
             name: dir-coaching-secret
         - secretRef:
             name: dir-coaching-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/coaching-service@sha256:9e8b0ae85a695bdb23bafedc0827401bccd8715241a94237283c2db4769eeca0
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/coaching-service@sha256:4b37275e993f8738dc74fa4290a693204dfeb1fdd7d2394f32d24cc657644175
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
