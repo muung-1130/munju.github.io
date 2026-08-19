@@ -102,7 +102,8 @@ services:
       - ../.env
     environment:
       OTEL_SERVICE_NAME: dai-run-crew-service
-      MONGO_URI: mongodb://mongo:27017
+      CHAT_TABLE_NAME: crew_chat_messages
+      CHAT_TABLE_REGION: ap-northeast-2
       KAFKA_BROKERS: 192.168.0.212:29092
       PGUSER: ${CREW_SVC_PGUSER}
       PGPASSWORD: ${CREW_SVC_PGPASSWORD}

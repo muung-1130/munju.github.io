@@ -1,4 +1,5 @@
-import { getChatDb, crewChatCollection } from './mongo.js';
+import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { dynamoDb, chatTableName, type CrewChatMessage } from './dynamodb.js';
 
 export type ChatMessageDto = {
   senderUserId: string;
@@ -26,52 +27,64 @@ function toKstLabels(date: Date): { dateLabel: string; timeLabel: string } {
   return { dateLabel: `${parts.year}.${parts.month}.${parts.day}`, timeLabel: `${parts.hour}:${parts.minute}` };
 }
 
-function toDto(doc: { sender_user_id: string; sender_name: string; message: string; created_at: Date }): ChatMessageDto {
-  const { dateLabel, timeLabel } = toKstLabels(doc.created_at);
+function toDto(item: CrewChatMessage): ChatMessageDto {
+  const createdAtDate = new Date(item.created_at);
+  const { dateLabel, timeLabel } = toKstLabels(createdAtDate);
   return {
-    senderUserId: doc.sender_user_id,
-    senderName: doc.sender_name,
-    message: doc.message,
-    createdAt: doc.created_at.toISOString(),
+    senderUserId: item.sender_user_id,
+    senderName: item.sender_name,
+    message: item.message,
+    createdAt: createdAtDate.toISOString(),
     dateLabel,
     timeLabel
   };
 }
 
-// room_id = crew_id로 매칭되는 채팅 내용을 MongoDB에 둔다. 처음 입장할 때 방이 비어 있으면
-// 크루장 환영 인사 등 몇 개의 시드 메시지를 만들어둔다.
+// room_id = crew_id로 매칭되는 채팅 내용을 DynamoDB(room_id HASH, created_at RANGE)에 둔다.
+// 처음 입장할 때 방이 비어 있으면 크루장 환영 인사 등 몇 개의 시드 메시지를 만들어둔다.
 export async function seedCrewChatIfEmpty(roomId: string, crewName: string, ownerName: string) {
-  const db = await getChatDb();
-  const collection = crewChatCollection(db);
-  const existing = await collection.countDocuments({ room_id: roomId });
-  if (existing > 0) return;
+  const existing = await dynamoDb.send(
+    new QueryCommand({
+      TableName: chatTableName(),
+      KeyConditionExpression: 'room_id = :roomId',
+      ExpressionAttributeValues: { ':roomId': roomId },
+      Limit: 1
+    })
+  );
+  if ((existing.Items?.length ?? 0) > 0) return;
 
   const now = Date.now();
-  await collection.insertMany([
+  const seedMessages: CrewChatMessage[] = [
     {
       room_id: roomId,
       sender_user_id: 'system',
       sender_name: ownerName,
       message: `${crewName}에 오신 걸 환영해요! 편하게 인사 나눠요 🏃`,
-      created_at: new Date(now - 1000 * 60 * 30)
+      created_at: new Date(now - 1000 * 60 * 30).toISOString()
     },
     {
       room_id: roomId,
       sender_user_id: 'system',
       sender_name: ownerName,
       message: '이번 주 모임 장소랑 시간은 공지에서 확인해주세요!',
-      created_at: new Date(now - 1000 * 60 * 20)
+      created_at: new Date(now - 1000 * 60 * 20).toISOString()
     }
-  ]);
+  ];
+  await Promise.all(
+    seedMessages.map((item) => dynamoDb.send(new PutCommand({ TableName: chatTableName(), Item: item })))
+  );
 }
 
 export async function getCrewChatMessages(roomId: string): Promise<ChatMessageDto[]> {
-  const db = await getChatDb();
-  const collection = crewChatCollection(db);
-  const docs = await collection.find({ room_id: roomId }).sort({ created_at: 1 }).toArray();
-  return docs.map((doc) =>
-    toDto({ sender_user_id: doc.sender_user_id, sender_name: doc.sender_name, message: doc.message, created_at: doc.created_at })
+  const result = await dynamoDb.send(
+    new QueryCommand({
+      TableName: chatTableName(),
+      KeyConditionExpression: 'room_id = :roomId',
+      ExpressionAttributeValues: { ':roomId': roomId },
+      ScanIndexForward: true // created_at 오름차순
+    })
   );
+  return (result.Items as CrewChatMessage[] | undefined ?? []).map(toDto);
 }
 
 export async function addCrewChatMessage(
@@ -80,15 +93,13 @@ export async function addCrewChatMessage(
   senderName: string,
   message: string
 ): Promise<ChatMessageDto> {
-  const db = await getChatDb();
-  const collection = crewChatCollection(db);
-  const createdAt = new Date();
-  await collection.insertOne({
+  const item: CrewChatMessage = {
     room_id: roomId,
     sender_user_id: senderUserId,
     sender_name: senderName,
     message,
-    created_at: createdAt
-  });
-  return toDto({ sender_user_id: senderUserId, sender_name: senderName, message, created_at: createdAt });
+    created_at: new Date().toISOString()
+  };
+  await dynamoDb.send(new PutCommand({ TableName: chatTableName(), Item: item }));
+  return toDto(item);
 }
