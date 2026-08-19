@@ -155,7 +155,71 @@ aws bedrock list-inference-profiles --profile dairun --region ap-northeast-2 --q
 
 ## 8. Bedrock VPC Endpoint (Terraform, §6·7과 함께 필요)
 
-IAM만 고쳐도 VPC에 Bedrock Endpoint가 없으면 나갈 길이 없다. `~/dai-run-bedrock-vpc-endpoint/`(별도 폴더, README 포함)에 최소 Terraform 코드 준비해둠 — 적용 방법은 그 폴더의 README 참고. 실제 운영 Terraform 소스에 병합해서 apply하는 걸 권장.
+IAM만 고쳐도 VPC에 Bedrock Endpoint가 없으면 나갈 길이 없다. 아래 리소스 2개면 된다 — 기존 VPC/Subnet/SecurityGroup은 새로 만들지 않고 `data` 소스로 조회만 한다(전부 2026-08-19에 `aws ec2 describe-*`로 실제 계정에서 확인한 ID).
+
+**실제 운영 Terraform 소스가 따로 있다면 이 두 `resource` 블록만 그 소스로 옮겨서 그쪽 state로 apply하는 걸 강력히 권장한다.** 아래처럼 standalone state로 그대로 apply하면 나중에 진짜 소스에 같은 리소스를 또 선언할 때 `EndpointAlreadyExists` 충돌이나 `terraform import`가 필요해진다.
+
+```hcl
+# main.tf
+terraform {
+  required_version = ">= 1.5"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "ap-northeast-2"
+}
+
+data "aws_vpc" "main" {
+  id = "vpc-0ba44b1ba6a8c0446"
+}
+
+data "aws_security_group" "endpoints" {
+  id = "sg-0422984f710c6a64f" # dir-main-endpoint-sg — 이미 sqs/sns/ecr 등 다른 interface endpoint가 쓰는 것
+}
+
+locals {
+  endpoint_subnet_ids = [
+    "subnet-04644407feeb578f3",
+    "subnet-07c5270c5e81b6069",
+  ]
+}
+
+resource "aws_vpc_endpoint" "bedrock_runtime" {
+  vpc_id              = data.aws_vpc.main.id
+  service_name        = "com.amazonaws.ap-northeast-2.bedrock-runtime"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = local.endpoint_subnet_ids
+  security_group_ids  = [data.aws_security_group.endpoints.id]
+  tags = { Name = "dir-main-vpce-bedrock-runtime" }
+}
+
+resource "aws_vpc_endpoint" "bedrock_agent_runtime" {
+  vpc_id              = data.aws_vpc.main.id
+  service_name        = "com.amazonaws.ap-northeast-2.bedrock-agent-runtime"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = local.endpoint_subnet_ids
+  security_group_ids  = [data.aws_security_group.endpoints.id]
+  tags = { Name = "dir-main-vpce-bedrock-agent-runtime" }
+}
+```
+
+`dir-main-endpoint-sg`는 이미 VPC 전체 CIDR에서 443을 열어두고 있어서 별도 인바운드 규칙 추가는 필요 없다.
+
+적용 후 확인:
+
+```bash
+aws ec2 describe-vpc-endpoints --region ap-northeast-2 \
+  --filters "Name=vpc-id,Values=vpc-0ba44b1ba6a8c0446" "Name=service-name,Values=*bedrock*" \
+  --query "VpcEndpoints[].{Service:ServiceName,State:State}"
+```
 
 Endpoint 생성 후, 실제 ENI IP로 `dir-ai-ns`에 Bedrock 전용 egress NetworkPolicy 추가 필요(다른 서비스들의 `<service>-sqs-egress` 패턴과 동일 — ENI IP는 Endpoint가 실제로 생기기 전엔 알 수 없어서 지금은 못 만들어둠).
 
