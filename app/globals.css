@@ -492,7 +492,9 @@ a { color: inherit; text-decoration: none; }
   color: #b7791f;
 }
 .ai-reco-default-notice button { flex-shrink: 0; }
-.ai-reco-inner { border: 1px solid var(--line); background: white; border-radius: 14px; padding: 18px; display: flex; gap: 16px; align-items: stretch; }
+.ai-reco-grid { display: flex; flex-wrap: wrap; gap: 16px; }
+.ai-reco-grid .ai-reco-inner { flex: 1 1 280px; min-width: 0; }
+.ai-reco-inner { border: 1px solid var(--line); background: white; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
 .ai-reco-media { flex: 1.3 1 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .ai-reco-content { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .ai-reco-map { border-radius: 12px; overflow: hidden; flex: 1; }
