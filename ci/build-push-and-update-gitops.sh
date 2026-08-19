@@ -108,7 +108,13 @@ done <"$services_file"
 export GIT_ASKPASS="$project_dir/ci/git-askpass.sh"
 export GIT_TERMINAL_PROMPT=0
 
-git clone --branch stg --single-branch "$GITOPS_REPOSITORY_URL" "$gitops_dir"
+stg_exists_upstream=true
+if ! git clone --branch stg --single-branch "$GITOPS_REPOSITORY_URL" "$gitops_dir" 2>/dev/null; then
+  echo "GitOps stg branch not found upstream; cloning the default branch and creating stg from it."
+  stg_exists_upstream=false
+  git clone "$GITOPS_REPOSITORY_URL" "$gitops_dir"
+  (cd "$gitops_dir" && git checkout -b stg)
+fi
 "$project_dir/ci/update-gitops-images.sh" "$gitops_dir" "$updates_file"
 
 cd "$gitops_dir"
@@ -129,7 +135,9 @@ git config user.name "DAI RUN GitLab CI"
 git config user.email "gitlab-ci@dai-run.internal"
 git add environments/prod
 git commit -m "Deploy application ${CI_COMMIT_SHORT_SHA:-unknown} [skip ci]"
-git pull --rebase origin stg
+if [ "$stg_exists_upstream" = true ]; then
+  git pull --rebase origin stg
+fi
 
 # GitLab push options create the deploy MR with write_repository permission alone.
 # If stg already has an open MR, the push updates that branch instead of requiring
