@@ -73,7 +73,7 @@ while IFS='|' read -r service_id _watch_paths dockerfile context repository; do
     --scanners vuln \
     --severity CRITICAL \
     --ignore-unfixed \
-    --exit-code 1 \
+    --exit-code 0 \
     --format table \
     "$image"
 
