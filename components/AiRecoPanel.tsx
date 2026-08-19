@@ -93,6 +93,10 @@ export function AiRecoPanel({
   const [remainingRefreshes, setRemainingRefreshes] = useState<number | null>(null);
   const [quotaExceededOpen, setQuotaExceededOpen] = useState(false);
   const lastCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  // 저장된 선호도 조회가 끝나기 전에 "AI 추천 다시 받기"를 누르면 아직 null인 필터 상태를
+  // 그대로 저장해버려 기존에 저장해둔 반경/추천기준을 지울 수 있다 — 조회가 끝난 뒤에만
+  // 저장을 시도하도록 막는 플래그.
+  const preferencesLoadedRef = useRef(false);
 
   // 처음 진입 시, 이미 저장된 선호도(반경/추천기준)가 있으면 그 값이 버튼에 미리 선택된
   // 상태로 보이게 한다 — 지금 실제로 적용되고 있는 조건을 그대로 보여주는 것이 목적이다.
@@ -106,7 +110,10 @@ export function AiRecoPanel({
         if (prefs.searchRadiusM) setFilterRadiusKm(prefs.searchRadiusM / 1000);
         if (prefs.recommendationType) setFilterRecommendationType(prefs.recommendationType);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        preferencesLoadedRef.current = true;
+      });
   }, [session?.user?.id]);
 
   // 서버 렌더링 시점엔 브라우저 GPS를 모르므로 일단 기본 위치 기준 추천을 보여주고,
@@ -183,6 +190,20 @@ export function AiRecoPanel({
     }
     if (filterRadiusKm) params.set('radiusKm', String(filterRadiusKm));
     if (filterRecommendationType) params.set('recommendationType', filterRecommendationType);
+    // 이번에 고른 반경/추천기준을 다음 방문에도 기본 선택값으로 쓰도록 저장해둔다 — 부분
+    // 업데이트라 러닝목표/숙련도/거리/환경 등 다른 선호도 필드는 건드리지 않는다. 저장된
+    // 선호도 조회가 아직 안 끝났으면(preferencesLoadedRef) 건너뛴다 — 그 전에 보내면 아직
+    // null인 필터로 기존 저장값을 지워버릴 수 있다.
+    if (preferencesLoadedRef.current) {
+      fetch('/api/user-running-preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchRadiusM: filterRadiusKm ? filterRadiusKm * 1000 : null,
+          recommendationType: filterRecommendationType
+        })
+      }).catch(() => {});
+    }
     fetch(`/api/ai-recommendations/panel?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
