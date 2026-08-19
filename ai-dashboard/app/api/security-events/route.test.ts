@@ -5,21 +5,21 @@ const { mockSend } = vi.hoisted(() => {
   return { mockSend: vi.fn() };
 });
 
+type MockCommand = { __type: string; input: { Bucket: string; [key: string]: unknown } };
 
 vi.mock("@aws-sdk/client-s3", () => {
   return {
     S3Client: vi.fn().mockImplementation(function () {
       return { send: mockSend };
     }),
-    ListObjectsV2Command: vi.fn().mockImplementation(function (input: any) {
+    ListObjectsV2Command: vi.fn().mockImplementation(function (input: Record<string, unknown>) {
       return { __type: "ListObjectsV2Command", input };
     }),
-    GetObjectCommand: vi.fn().mockImplementation(function (input: any) {
+    GetObjectCommand: vi.fn().mockImplementation(function (input: Record<string, unknown>) {
       return { __type: "GetObjectCommand", input };
     }),
   };
 });
-
 
 import { GET } from "./route";
 
@@ -44,7 +44,7 @@ describe("GET /api/security-events", () => {
       "version account eni\n2 970307871446 eni-abc - - - - - - - 1786691700 1786691761 - NODATA";
     const vpcflowGz = gzipSync(Buffer.from(vpcflowText));
 
-    mockSend.mockImplementation(async (command: any) => {
+    mockSend.mockImplementation(async (command: MockCommand) => {
       if (command.__type === "ListObjectsV2Command") {
         const isCloudtrail = command.input.Bucket.includes("cloudtrail");
         return {
@@ -78,7 +78,7 @@ describe("GET /api/security-events", () => {
   });
 
   it("skips CloudTrail files that fail to parse as JSON", async () => {
-    mockSend.mockImplementation(async (command: any) => {
+    mockSend.mockImplementation(async (command: MockCommand) => {
       if (command.__type === "ListObjectsV2Command") {
         return { Contents: [{ Key: "bad.json.gz", LastModified: new Date() }] };
       }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import SecurityDashboard from "./page";
 
@@ -8,13 +8,13 @@ describe("SecurityDashboard", () => {
   });
 
   it("shows loading state before data arrives", () => {
-    (global.fetch as any).mockReturnValue(new Promise(() => {}));
+    (global.fetch as unknown as Mock).mockReturnValue(new Promise(() => {}));
     render(<SecurityDashboard />);
     expect(screen.getByText("불러오는 중...")).toBeInTheDocument();
   });
 
   it("renders CloudTrail events and VPC flow log lines once loaded", async () => {
-    (global.fetch as any).mockResolvedValue({
+    (global.fetch as unknown as Mock).mockResolvedValue({
       json: async () => ({
         cloudtrailEvents: [
           {
