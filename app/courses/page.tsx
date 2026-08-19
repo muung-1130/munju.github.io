@@ -9,9 +9,20 @@ export const dynamic = 'force-dynamic';
 
 export default async function CoursePage() {
   const recoCourses = await fetchAiRecoPanelCourses();
+  const courseDemoBackground =
+    'linear-gradient(135deg, #EAF4FF 0%, #CFE9FF 100%)';
 
   return (
-    <div>
+    <div
+      data-cicd-demo="course-theme"
+      style={{
+        minHeight: 'calc(100vh - 170px)',
+        padding: '24px',
+        borderRadius: '18px',
+        background: courseDemoBackground,
+        transition: 'background 300ms ease',
+      }}
+    >
       <PageTitle
         title="코스 탐색"
         subtitle="내 위치 반경 안의 코스를 찾아드려요."

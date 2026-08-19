@@ -98,3 +98,40 @@ build-push-and-update-gitops:
       - ci-output/trivy/
   script:
     - ./ci/build-push-and-update-gitops.sh
+
+.demo-frontend-build:
+  stage: deploy
+  needs: []
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_CD_DEMO == "true"'
+      when: manual
+    - when: never
+  resource_group: cicd-demo-frontend
+  interruptible: false
+  timeout: 1h
+  cache:
+    key: trivy-db-v1
+    paths:
+      - .trivy-cache/
+    policy: pull-push
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - ci-output/demo/
+    reports:
+      dotenv: ci-output/demo/image.env
+
+demo-frontend-cold-build:
+  extends: .demo-frontend-build
+  variables:
+    DEMO_CACHE_MODE: "cold"
+  script:
+    - ./ci/demo-frontend-build.sh
+
+demo-frontend-warm-build:
+  extends: .demo-frontend-build
+  variables:
+    DEMO_CACHE_MODE: "warm"
+  script:
+    - ./ci/demo-frontend-build.sh
