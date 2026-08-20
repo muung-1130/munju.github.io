@@ -28,6 +28,10 @@ spec:
       kind: ServiceAccount
     - group: apps
       kind: Deployment
+    - group: apps
+      kind: ReplicaSet
+    - group: ""
+      kind: Pod
     - group: autoscaling
       kind: HorizontalPodAutoscaler
     - group: networking.k8s.io
