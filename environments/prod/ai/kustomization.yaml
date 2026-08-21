@@ -20,4 +20,5 @@ resources:
   - externalsecret-dir-course-recommendation-shadow.yaml
   - networkpolicy-dir-course-recommendation-db-shadow.yaml
   - networkpolicy-dir-ai-assistant-sqs-canary.yaml
+  - networkpolicy-dir-ai-bedrock-egress.yaml
   - httproute-dir-ai-route.yaml
