@@ -563,6 +563,12 @@ export default function RunTrackingPage() {
               locationMarker={guideCurrentPos ?? undefined}
             />
           </div>
+          <p className="muted" style={{ marginTop: 10 }}>
+            이미 시작점 근처인데 GPS 오차로 거리가 다르게 잡히나요? 수동으로 출발할 수 있어요.
+          </p>
+          <button className="primary-btn full-width run-start-btn" disabled={finishing} onClick={confirmStartFromGuide}>
+            {finishing ? '준비 중...' : '출발'}
+          </button>
         </div>
       )}
 
