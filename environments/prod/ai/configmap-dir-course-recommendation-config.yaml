@@ -13,7 +13,7 @@ data:
   NEXTAUTH_URL: https://dai-run.internal
   NEXT_TELEMETRY_DISABLED: '1'
   NODE_ENV: production
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://dir-otel-gateway-svc.dir-obsv-ns.svc.cluster.local:4318
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://dir-adot.dir-obsv-ns.svc.cluster.local:4318
   PGDATABASE: dai_run
   PGHOST: dir-postgresql-rw.dir-db-ns.svc.cluster.local
   PGPORT: '5432'
