@@ -3,13 +3,18 @@ data:
   AI_RAG_SERVICE_URL: http://dir-ai-assistant-svc.dir-ai-ns.svc.cluster.local:8202
   AI_RECOMMENDATION_SERVICE_URL: http://dir-course-recommendation-svc.dir-ai-ns.svc.cluster.local:8201
   AWS_REGION: ap-northeast-2
+  BEDROCK_MODEL_ID: global.amazon.nova-2-lite-v1:0
   COURSE_RECOMMENDATION_SERVICE_URL: http://dir-course-recommendation-service-svc.dir-ai-ns.svc.cluster.local:8201
   COURSE_SERVICE_URL: http://dir-course-svc.dir-backend-ns.svc.cluster.local:8102
+  DB_HOST: dir-postgresql-rw.dir-db-ns.svc.cluster.local
+  DB_NAME: dai_run
+  DB_PORT: '5432'
   HOSTNAME: 0.0.0.0
   MEDIA_SERVICE_URL: http://dir-media-svc.dir-backend-ns.svc.cluster.local:8113
   NEXTAUTH_URL: https://dai-run.internal
   NEXT_TELEMETRY_DISABLED: '1'
   NODE_ENV: production
+  OBJECT_STORAGE_BUCKET: runspot-shoe-life-images
   OTEL_EXPORTER_OTLP_ENDPOINT: http://dir-otel-gateway-svc.dir-obsv-ns.svc.cluster.local:4318
   PGDATABASE: dai_run
   PGHOST: dir-postgresql-rw.dir-db-ns.svc.cluster.local
