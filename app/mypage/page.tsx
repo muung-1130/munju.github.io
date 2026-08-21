@@ -1,33 +1,31 @@
+import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { Card, PageTitle, StatCard } from '@/components/UI';
 import { WithdrawAccountButton } from '@/components/WithdrawAccountButton';
 import { RunningStatsSection } from '@/components/RunningStatsSection';
-import { MyCrewsSection } from '@/components/MyCrewsSection';
-import { MyChallengesSection } from '@/components/MyChallengesSection';
-import { CompletedChallengesSection } from '@/components/CompletedChallengesSection';
-import { RecentRunsTable } from '@/components/RecentRunsTable';
-import { ShoesSection } from '@/components/ShoesSection';
-import { LikedShoesSection } from '@/components/LikedShoesSection';
-import { LikedCoursesSection } from '@/components/LikedCoursesSection';
-import { MyMarathonReservationsSection } from '@/components/MyMarathonReservationsSection';
-import { MyCourseReviewsSection } from '@/components/MyCourseReviewsSection';
 import {
   getRunningSummary,
   getCurrentRunStreak,
-  getRecentRunsDetailed,
   formatPace,
   formatDuration
 } from '@/lib/runningRecord';
-import { getMyActiveCrews } from '@/lib/crew';
-import { getMyActiveChallengesWeeklyProgress, getCompletedChallenges } from '@/lib/challenges';
-import { getUserShoesDetailed, getUserLikedShoes } from '@/lib/shoes';
-import { getUserLikedCourses, getUserCourseReviews } from '@/lib/courseSocial';
-import { getMyMarathonReservations } from '@/lib/marathon';
 import { getUserWeightKgForDisplay } from '@/lib/calorie';
 import { WeightEditableCalorieStat } from '@/components/WeightEditableCalorieStat';
 import { getRunningPreferences } from '@/lib/runningPreferences';
 import { PreferencesSummarySection } from '@/components/PreferencesSummarySection';
+
+const MYPAGE_NAV_LINKS = [
+  { href: '/mypage/liked-courses', icon: '🗺', label: '찜한 러닝코스' },
+  { href: '/mypage/marathon-reservations', icon: '🏁', label: '신청한 마라톤' },
+  { href: '/mypage/reviews', icon: '✍', label: '내가 남긴 리뷰' },
+  { href: '/mypage/crews', icon: '👥', label: '내 크루' },
+  { href: '/mypage/challenges', icon: '🎯', label: '하고있는 챌린지' },
+  { href: '/mypage/completed-challenges', icon: '🏆', label: '완료한 챌린지' },
+  { href: '/mypage/runs', icon: '🏃', label: '최근 러닝기록' },
+  { href: '/mypage/shoes', icon: '👟', label: '보유 러닝화' },
+  { href: '/mypage/liked-shoes', icon: '❤', label: '찜한 러닝화' }
+];
 
 function formatJoinDate(iso?: string) {
   if (!iso) return '-';
@@ -45,34 +43,11 @@ export default async function MyPage() {
   const email = session?.user?.email ?? '-';
   const joinDate = formatJoinDate(session?.user?.createdAt);
 
-  const [
-    summary,
-    streak,
-    myCrews,
-    myChallenges,
-    completedChallenges,
-    recentRuns,
-    myShoes,
-    likedShoes,
-    likedCourses,
-    weightKg,
-    runningPreferences,
-    myMarathonReservations,
-    myCourseReviews
-  ] = await Promise.all([
+  const [summary, streak, weightKg, runningPreferences] = await Promise.all([
     userId ? getRunningSummary(userId) : Promise.resolve(null),
     userId ? getCurrentRunStreak(userId) : Promise.resolve(0),
-    userId ? getMyActiveCrews(userId) : Promise.resolve([]),
-    userId ? getMyActiveChallengesWeeklyProgress(userId) : Promise.resolve([]),
-    userId ? getCompletedChallenges(userId) : Promise.resolve([]),
-    userId ? getRecentRunsDetailed(userId) : Promise.resolve([]),
-    userId ? getUserShoesDetailed(userId) : Promise.resolve([]),
-    userId ? getUserLikedShoes(userId) : Promise.resolve([]),
-    userId ? getUserLikedCourses(userId) : Promise.resolve([]),
     userId ? getUserWeightKgForDisplay(userId) : Promise.resolve(66),
-    userId ? getRunningPreferences(userId) : Promise.resolve(null),
-    userId ? getMyMarathonReservations(userId) : Promise.resolve([]),
-    userId ? getUserCourseReviews(userId) : Promise.resolve([])
+    userId ? getRunningPreferences(userId) : Promise.resolve(null)
   ]);
 
   const avgDistanceM = summary && summary.runCount > 0 ? summary.totalDistanceM / summary.runCount : null;
@@ -118,28 +93,20 @@ export default async function MyPage() {
 
       <PreferencesSummarySection preferences={runningPreferences} />
 
-      <LikedCoursesSection courses={likedCourses} />
-
-      <MyMarathonReservationsSection reservations={myMarathonReservations} />
-
-      <MyCourseReviewsSection reviews={myCourseReviews} />
-
-      <MyCrewsSection crews={myCrews} />
-
-      <MyChallengesSection challenges={myChallenges} />
-
-      <CompletedChallengesSection challenges={completedChallenges} />
-
       {streak > 0 && (
         <div className="run-streak-banner">
           🔥 오늘도 뛰었어요! 연속 러닝 <strong>{streak}일째</strong>
         </div>
       )}
-      <RecentRunsTable runs={recentRuns} />
 
-      <ShoesSection shoes={myShoes} />
-
-      <LikedShoesSection shoes={likedShoes} />
+      <nav className="mypage-nav-grid" aria-label="마이페이지 상세 메뉴">
+        {MYPAGE_NAV_LINKS.map((item) => (
+          <Link key={item.href} href={item.href} className="mypage-nav-card">
+            <span className="mypage-nav-card-icon">{item.icon}</span>
+            <span>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
 
       <WithdrawAccountButton />
     </div>

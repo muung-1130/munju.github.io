@@ -33,6 +33,25 @@ pool.on('error', (err) => console.error('[dir-environment-consumer] postgres poo
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// coaching-service/src/routes/environment.ts는 station_name = 자치구명(예: "종로구")으로
+// 정확히 일치하는 행만 조회한다. 그런데 에어코리아 실측 API가 내려주는 stationName은 항상
+// "구"로 끝나지 않는다(예: 종로구 측정소가 "종로"로 내려옴 — lambda/environment-ingest/
+// README.md의 pk=AIR#종로 기록 참고). 원본 이름 그대로 저장하면 그 자치구 사용자는 데이터가
+// 있어도 항상 "미세먼지 정보를 아직 수집하지 못했어요"로 보인다 — 자치구 표준 이름으로
+// 정규화해서 저장한다.
+const SEOUL_DISTRICT_SET = new Set([
+  '강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구', '노원구', '도봉구',
+  '동대문구', '동작구', '마포구', '서대문구', '서초구', '성동구', '성북구', '송파구', '양천구', '영등포구',
+  '용산구', '은평구', '종로구', '중구', '중랑구'
+]);
+
+function normalizeStationName(stationName) {
+  if (SEOUL_DISTRICT_SET.has(stationName)) return stationName;
+  const withGuSuffix = `${stationName}구`;
+  if (SEOUL_DISTRICT_SET.has(withGuSuffix)) return withGuSuffix;
+  return stationName;
+}
+
 async function checkpoint() {
   const result = await pool.query(
     'SELECT collected_at FROM environment.ingest_consumer_checkpoint WHERE consumer_name = $1',
@@ -108,7 +127,7 @@ async function upsertAirQuality(client, rows) {
     const placeholders = batch.map((row, rowIndex) => {
       const offset = rowIndex * 16;
       values.push(
-        row.stationName, row.measuredAt, row.pm10Value, row.pm10Grade, row.pm25Value, row.pm25Grade,
+        normalizeStationName(row.stationName), row.measuredAt, row.pm10Value, row.pm10Grade, row.pm25Value, row.pm25Grade,
         row.o3Value, row.o3Grade, row.no2Value, row.no2Grade, row.coValue, row.coGrade,
         row.so2Value, row.so2Grade, row.khaiValue, row.khaiGrade
       );
