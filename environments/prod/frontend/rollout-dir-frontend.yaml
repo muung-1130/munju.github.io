@@ -1,5 +1,5 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   labels:
     app.kubernetes.io/component: web
@@ -17,10 +17,13 @@ spec:
     matchLabels:
       app.kubernetes.io/name: dir-frontend
   strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
-    type: RollingUpdate
+    blueGreen:
+      activeService: dir-frontend-svc
+      previewService: dir-frontend-preview-svc
+      previewReplicaCount: 1
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 30
+      abortScaleDownDelaySeconds: 30
   template:
     metadata:
       annotations:
@@ -45,7 +48,7 @@ spec:
             name: dir-frontend-config
         - secretRef:
             name: dir-frontend-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/frontend@sha256:49094a2ddf6c6c0c1ff1bc7b1fb120a097f1ce3a8b28be772f9ff561dcd7c304
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/frontend@sha256:5974239005c717776b6b695f413b0974f59640abfdf018c92686414d39f170e5
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
