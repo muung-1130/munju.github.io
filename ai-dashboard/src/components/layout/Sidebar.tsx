@@ -8,6 +8,7 @@ const NAV = [
   { href: "/", label: "Overview", icon: "◧" },
   { href: "/incidents", label: "Incidents & Alerts", icon: "⚠" },
   { href: "/services", label: "Services", icon: "▣" },
+  { href: "/insights", label: "AI Insights", icon: "✦" },
   { href: "/autoscaling", label: "Predictive Autoscaling", icon: "⇧" },
   { href: "/infrastructure", label: "Infrastructure", icon: "▤" },
   { href: "/changes", label: "Changes", icon: "↻" },
