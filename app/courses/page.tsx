@@ -20,7 +20,7 @@ export default async function CoursePage() {
         padding: '24px',
         borderRadius: '18px',
         background: courseDemoBackground,
-        transition: 'background 300ms ease',
+        transition: 'background 300ms ease', boxSizing: 'border-box',
       }}
     >
       <PageTitle
