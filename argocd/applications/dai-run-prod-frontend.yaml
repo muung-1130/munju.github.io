@@ -1,4 +1,4 @@
-apiVersion: argoproj.io/v1alpha1
+﻿apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: dai-run-prod-frontend
@@ -15,8 +15,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: dir-frontend-ns
   ignoreDifferences:
-    - group: argoproj.io
-      kind: Rollout
+    - group: apps
+      kind: Deployment
       name: dir-frontend
       namespace: dir-frontend-ns
       jsonPointers:
@@ -29,7 +29,6 @@ spec:
         - /spec/type
         - /spec/ports/0/nodePort
         - /spec/externalTrafficPolicy
-        - /spec/selector
   syncPolicy:
     automated:
       enabled: true
