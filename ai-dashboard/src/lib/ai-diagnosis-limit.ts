@@ -1,14 +1,14 @@
 import { Pool } from "pg";
 
 /**
- * Cost guardrail for AI diagnosis calls: business hours only (09-17 KST),
+ * Cost guardrail for AI diagnosis calls: business hours only (09-24 KST),
  * at most one call per clock hour, tracked in Postgres so the cap survives
  * dev-server restarts. Fails CLOSED — if the DB can't be reached, the call
  * is denied rather than silently allowed, since the whole point is to
  * bound spend.
  */
 
-const ALLOWED_HOURS_KST = [9, 10, 11, 12, 13, 14, 15, 16, 17];
+const ALLOWED_HOURS_KST = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
 
 let pool: Pool | null = null;
 
@@ -56,7 +56,7 @@ export type RateLimitResult = { allowed: true } | { allowed: false; reason: stri
 export async function checkAiDiagnosisRateLimit(): Promise<RateLimitResult> {
   const hour = currentKstHour();
   if (!ALLOWED_HOURS_KST.includes(hour)) {
-    return { allowed: false, reason: "AI 진단은 09:00~17:00(KST)에만 사용할 수 있습니다 (비용 절약을 위한 제한)." };
+    return { allowed: false, reason: "AI 진단은 09:00~24:00(KST)에만 사용할 수 있습니다 (비용 절약을 위한 제한)." };
   }
 
   const p = getPool();
