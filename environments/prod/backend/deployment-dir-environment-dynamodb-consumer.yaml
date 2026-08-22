@@ -36,7 +36,7 @@ spec:
             name: dir-environment-dynamodb-consumer-config
         - secretRef:
             name: dir-environment-dynamodb-consumer-secret-eso-shadow-v1
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/environment-consumer@sha256:9db2b9b6bf8a6ef833b3d9d0ba926c88451053e604e4dc607680c5a7a9f3a53d
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/environment-consumer@sha256:a27a7f30f2a7fcb78ade640777941c6d5d6e46d9734264b8478cfa431a9be1fb
         imagePullPolicy: IfNotPresent
         name: dir-environment-dynamodb-consumer
         resources:
