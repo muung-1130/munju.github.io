@@ -6,8 +6,9 @@ resources:
   - httproute-dir-http-redirect-route.yaml
   - configmap-dir-frontend-config.yaml
   - namespace.yaml
-  - deployment-dir-frontend.yaml
+  - rollout-dir-frontend.yaml
   - service-dir-frontend-svc.yaml
+  - service-dir-frontend-preview-svc.yaml
   - hpa-dir-frontend-hpa.yaml
   - configmap-dir-ai-dashboard-config.yaml
   - deployment-dir-ai-dashboard.yaml
