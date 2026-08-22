@@ -1,7 +1,7 @@
 import { randomBytes, createHash } from 'crypto';
 import type { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import GoogleProvider from 'next-auth/providers/google';
+import CognitoProvider from 'next-auth/providers/cognito';
 import bcrypt from 'bcryptjs';
 import { getPool } from '@/lib/db';
 import { resolveUniqueField } from '@/lib/uniqueField';
@@ -70,23 +70,24 @@ export const authOptions: AuthOptions = {
         };
       }
     }),
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(process.env.COGNITO_CLIENT_ID && process.env.COGNITO_CLIENT_SECRET && process.env.COGNITO_ISSUER
       ? [
-          GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET
+          CognitoProvider({
+            clientId: process.env.COGNITO_CLIENT_ID,
+            clientSecret: process.env.COGNITO_CLIENT_SECRET,
+            issuer: process.env.COGNITO_ISSUER
           })
         ]
       : [])
   ],
   callbacks: {
     async signIn({ account, profile }) {
-      if (account?.provider !== 'google' || !profile?.email || !account.providerAccountId) return true;
+      if (account?.provider !== 'cognito' || !profile?.email || !account.providerAccountId) return true;
 
       const pool = getPool();
 
       const existingIdentity = await pool.query(
-        `SELECT user_id FROM auth_user.user_identities WHERE provider = 'GOOGLE' AND provider_user_id = $1`,
+        `SELECT user_id FROM auth_user.user_identities WHERE provider = 'COGNITO' AND provider_user_id = $1`,
         [account.providerAccountId]
       );
 
@@ -118,7 +119,7 @@ export const authOptions: AuthOptions = {
           const userName = await resolveUniqueField(pool, 'user_name', undefined, emailLocalPart);
           const nickname = await resolveUniqueField(pool, 'nickname', undefined, emailLocalPart);
 
-          // 구글에서 받는 정보(이메일) 외의 성별/출생년도/동은 아직 비어있는 채로 생성한다.
+          // Cognito에서 받는 정보(이메일) 외의 성별/출생년도/동은 아직 비어있는 채로 생성한다.
           // 로그인 직후 AppShell이 profileComplete === false를 보고 추가 정보 입력창을 띄운다.
           const inserted = await client.query(
             `INSERT INTO auth_user.users (user_name, user_email, nickname, status, last_login_at)
@@ -131,14 +132,14 @@ export const authOptions: AuthOptions = {
 
         await client.query(
           `INSERT INTO auth_user.user_identities (user_id, provider, provider_user_id, provider_email)
-           VALUES ($1, 'GOOGLE', $2, $3)`,
+           VALUES ($1, 'COGNITO', $2, $3)`,
           [userId, account.providerAccountId, profile.email]
         );
 
         await client.query('COMMIT');
       } catch (err) {
         await client.query('ROLLBACK');
-        console.error('구글 로그인 계정 생성/연결 실패:', err);
+        console.error('Cognito 로그인 계정 생성/연결 실패:', err);
         return false;
       } finally {
         client.release();
@@ -149,12 +150,12 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user, account, trigger }) {
       const pool = getPool();
 
-      if (account?.provider === 'google' && account.providerAccountId) {
+      if (account?.provider === 'cognito' && account.providerAccountId) {
         const { rows } = await pool.query(
           `SELECT u.user_id, u.user_name, u.nickname, u.created_at, u.gender, u.birth_year, u.dong, u.is_admin
              FROM auth_user.user_identities i
              JOIN auth_user.users u ON u.user_id = i.user_id
-            WHERE i.provider = 'GOOGLE' AND i.provider_user_id = $1`,
+            WHERE i.provider = 'COGNITO' AND i.provider_user_id = $1`,
           [account.providerAccountId]
         );
         const row = rows[0];
