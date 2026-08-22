@@ -1,14 +1,11 @@
 import { Pool } from "pg";
 
 /**
- * Cost guardrail for AI diagnosis calls: business hours only (09-24 KST),
- * at most one call per clock hour, tracked in Postgres so the cap survives
- * dev-server restarts. Fails CLOSED — if the DB can't be reached, the call
- * is denied rather than silently allowed, since the whole point is to
- * bound spend.
+ * Cost guardrail for AI diagnosis calls: at most one call per clock hour,
+ * tracked in Postgres so the cap survives dev-server restarts. Fails
+ * CLOSED — if the DB can't be reached, the call is denied rather than
+ * silently allowed, since the whole point is to bound spend.
  */
-
-const ALLOWED_HOURS_KST = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
 
 let pool: Pool | null = null;
 
@@ -30,7 +27,6 @@ function getPool(): Pool | null {
   return pool;
 }
 
-const kstHourFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", hour: "2-digit", hourCycle: "h23" });
 const kstBucketFmt = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Seoul",
   year: "numeric",
@@ -39,10 +35,6 @@ const kstBucketFmt = new Intl.DateTimeFormat("en-CA", {
   hour: "2-digit",
   hourCycle: "h23",
 });
-
-function currentKstHour(): number {
-  return parseInt(kstHourFmt.format(new Date()), 10);
-}
 
 /** e.g. "2026-08-04-09" — one bucket per KST clock hour. */
 function currentKstHourBucket(): string {
@@ -54,11 +46,6 @@ function currentKstHourBucket(): string {
 export type RateLimitResult = { allowed: true } | { allowed: false; reason: string };
 
 export async function checkAiDiagnosisRateLimit(): Promise<RateLimitResult> {
-  const hour = currentKstHour();
-  if (!ALLOWED_HOURS_KST.includes(hour)) {
-    return { allowed: false, reason: "AI 진단은 09:00~24:00(KST)에만 사용할 수 있습니다 (비용 절약을 위한 제한)." };
-  }
-
   const p = getPool();
   if (!p) {
     return { allowed: false, reason: "사용량 확인 불가로 요청을 거부했습니다 (DB 연결 없음)." };
@@ -73,6 +60,7 @@ export async function checkAiDiagnosisRateLimit(): Promise<RateLimitResult> {
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 2500)),
     ]);
     if (result.rows[0].n > 0) {
+      const hour = parseInt(bucket.slice(-2), 10);
       const nextHour = (hour + 1) % 24;
       return { allowed: false, reason: `이번 시간대(${hour}시)엔 이미 1회 사용했습니다. ${nextHour}시 이후 다시 시도해주세요.` };
     }
