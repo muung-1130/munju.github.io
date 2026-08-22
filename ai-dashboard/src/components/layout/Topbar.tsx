@@ -7,6 +7,7 @@ const MOBILE_NAV = [
   { href: "/", label: "Overview" },
   { href: "/incidents", label: "Incidents" },
   { href: "/services", label: "Services" },
+  { href: "/insights", label: "AI Insights" },
   { href: "/autoscaling", label: "Autoscaling" },
   { href: "/infrastructure", label: "Infra" },
   { href: "/changes", label: "Changes" },
