@@ -21,7 +21,7 @@ spec:
       activeService: dir-frontend-svc
       previewService: dir-frontend-preview-svc
       previewReplicaCount: 1
-      autoPromotionEnabled: false
+      autoPromotionEnabled: true
       scaleDownDelaySeconds: 30
       abortScaleDownDelaySeconds: 30
   template:
