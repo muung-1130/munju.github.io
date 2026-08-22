@@ -3,6 +3,7 @@ data:
   AI_RAG_SERVICE_URL: http://dir-ai-assistant-svc.dir-ai-ns.svc.cluster.local:8202
   AI_RECOMMENDATION_SERVICE_URL: http://dir-course-recommendation-svc.dir-ai-ns.svc.cluster.local:8201
   AWS_REGION: ap-northeast-2
+  COGNITO_ISSUER: https://cognito-idp.ap-northeast-2.amazonaws.com/ap-northeast-2_FwbYfA34x
   COURSE_RECOMMENDATION_SERVICE_URL: http://dir-course-recommendation-service-svc.dir-ai-ns.svc.cluster.local:8201
   COURSE_SERVICE_URL: http://dir-course-svc.dir-backend-ns.svc.cluster.local:8102
   HOSTNAME: 0.0.0.0
