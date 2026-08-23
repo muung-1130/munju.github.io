@@ -49,18 +49,22 @@ export type AiDiagnosisResult = {
 };
 
 function isBedrockConfigured(): boolean {
-  // Any of these means the SDK's default credential provider chain has
-  // something to resolve: a Bedrock API key (bearer token, the SDK reads
-  // AWS_BEARER_TOKEN_BEDROCK itself), a classic IAM access key pair, EKS Pod
-  // Identity (AWS_CONTAINER_CREDENTIALS_FULL_URI — what this cluster
-  // actually uses; static keys were removed from the Secret once Pod
-  // Identity was wired up), or IRSA (AWS_ROLE_ARN + web identity token).
+  // This only needs to rule out "definitely no credential source at all" —
+  // the actual InvokeModel call below still fails closed (returns null) if
+  // whatever source we do have turns out to lack Bedrock permissions.
+  //
+  // In this cluster the pod authenticates via EKS Pod Identity, which the
+  // AWS SDK's default credential provider chain resolves from
+  // AWS_CONTAINER_CREDENTIALS_FULL_URI (+ AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE)
+  // — not from AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY. IRSA
+  // (AWS_WEB_IDENTITY_TOKEN_FILE) and a Bedrock API key (AWS_BEARER_TOKEN_BEDROCK,
+  // read by the SDK itself) are also valid sources depending on environment.
   return Boolean(
     process.env.AWS_BEARER_TOKEN_BEDROCK ||
       (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) ||
       process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI ||
       process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ||
-      (process.env.AWS_ROLE_ARN && process.env.AWS_WEB_IDENTITY_TOKEN_FILE),
+      process.env.AWS_WEB_IDENTITY_TOKEN_FILE,
   );
 }
 

@@ -34,7 +34,9 @@ export type AiRecoCourse = {
 };
 
 const AVERAGE_PACE_MIN_PER_KM = 6;
-const ROUTE_COLOR = '#74BDEB';
+// 하늘색(#74BDEB)은 사이트 기본 테마색이라 지도 배경 위에서 경로가 잘 안 보였다 — 코스탐색
+// 페이지(CourseNearbyExplorer)와 같은 팔레트를 코스별로 순환시켜 눈에 띄는 색으로 바꾼다.
+const ROUTE_COLOR_PALETTE = ['#135be8', '#ff8b1a', '#3aa655', '#e0439a', '#00a3a3', '#7d5cff', '#d63c3c', '#b8860b'];
 const RADIUS_PRESETS_KM = [1, 3, 5, 10];
 const RECOMMENDATION_TYPE_OPTIONS = [
   { value: 'location_based', label: '내 주변' },
@@ -232,7 +234,7 @@ export function AiRecoPanel({
   const route: CourseRoute = {
     id: course.courseId,
     name: course.name,
-    color: ROUTE_COLOR,
+    color: ROUTE_COLOR_PALETTE[index % ROUTE_COLOR_PALETTE.length],
     positions: course.positions
   };
 
@@ -346,7 +348,6 @@ export function AiRecoPanel({
         </button>
 
         <div className="ai-reco-media">
-          {course.recommendationId && course.slotLabel && <span className="ai-reco-slot-badge">{course.slotLabel}</span>}
           {course.positions.length > 0 && (
             <div className="ai-reco-map">
               <CourseMapView routes={[route]} height={320} scrollWheelZoom />

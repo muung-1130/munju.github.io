@@ -657,7 +657,7 @@ export default function RunTrackingPage() {
               </div>
             </div>
           )}
-          <button className="primary-btn full-width" onClick={() => router.push('/mypage')}>
+          <button className="primary-btn full-width" onClick={() => router.push('/mypage/runs')}>
             마이페이지에서 확인하기
           </button>
         </div>

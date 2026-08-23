@@ -31,20 +31,30 @@ a { color: inherit; text-decoration: none; }
 .app-shell { min-height: 100vh; padding: 0 20px 28px; position: relative; }
 .top-nav { height: 82px; display: flex; align-items: center; gap: 28px; max-width: 1510px; margin: 0 auto; color: var(--navy); }
 .top-nav-row1 { display: contents; }
-/* .top-nav-row1이 display:contents라 brand/nav-actions가 .top-nav의 flex 아이템으로 바로
-   올라오는데, DOM 순서(brand, nav-actions, nav-menu)를 그대로 두면 아이콘들이 로고 바로
-   옆(가운데쪽)에 끼고 네비게이션이 중앙에서 오른쪽으로 밀린다. order로 데스크톱 시각 순서만
-   brand → nav-menu(중앙) → nav-actions(우측)로 바로잡는다 — 모바일에서는 nav-actions가
-   top-nav-row1 자신의 flex 컨텍스트 안(brand 옆)으로 다시 들어가므로 이 order 값의 영향을
-   안 받고 기존 동작(로고 좌측, 아이콘 우측, 같은 줄) 그대로 유지된다. */
+.mobile-nav-drawer { display: contents; }
+/* .top-nav-row1/.mobile-nav-drawer가 display:contents라 안의 brand/header-chat-icons/
+   nav-menu/nav-actions가 .top-nav의 flex 아이템으로 바로 올라온다 — order로 데스크톱 시각
+   순서를 brand → header-chat-icons → nav-menu(중앙) → nav-actions(우측)로 고정한다. 모바일에서는
+   .mobile-nav-drawer 자체가 display:contents를 벗어나 좌측에서 슬라이드하는 고정 드로어가 되므로
+   이 order 값의 영향을 받지 않는다. */
 .brand { order: 1; display: flex; align-items: center; gap: 12px; min-width: 220px; }
 .brand-mark { width: 36px; height: 36px; object-fit: contain; }
 .brand-text { font-size: 34px; font-weight: 900; letter-spacing: -1px; }
-.nav-menu { order: 2; flex: 1; display: flex; justify-content: center; gap: 10px; }
+/* AI 러닝 비서/크루 채팅 헤더 아이콘 — 로고 바로 오른쪽, 데스크톱에서는 nav-menu 앞에 온다. */
+.header-chat-icons { order: 2; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.header-chat-icon-btn {
+  width: 40px; height: 40px; border-radius: 50%; background: #74BDEB; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
+  box-shadow: 0 6px 14px rgba(116,189,235,.35);
+}
+.header-chat-icon-btn img { width: 30px; height: 30px; object-fit: contain; pointer-events: none; }
+.header-chat-icon-btn.crew { background: #3C6E71; box-shadow: 0 6px 14px rgba(60,110,113,.35); }
+.header-chat-icon-btn.crew img { width: 22px; height: 22px; }
+.nav-menu { order: 3; flex: 1; display: flex; justify-content: center; gap: 10px; }
 .nav-link { padding: 14px 20px; border-radius: 12px; font-weight: 800; color: rgba(60,110,113,.75); transition: .2s ease; white-space: nowrap; }
 .nav-link:hover { background: #CFE9FF; color: var(--navy); }
 .nav-link.active { background: #74BDEB; color: #3C6E71; box-shadow: inset 0 -2px 0 rgba(255,255,255,.5), 0 12px 24px rgba(116,189,235,.35); }
-.nav-actions { order: 3; display: flex; align-items: center; gap: 12px; }
+.nav-actions { order: 4; display: flex; align-items: center; gap: 12px; }
 .mobile-menu-toggle { display: none; }
 .nav-username { color: rgba(60,110,113,.9); font-weight: 800; font-size: 14px; white-space: nowrap; }
 .nav-actions button, .nav-actions a.nav-icon-link {
@@ -114,16 +124,8 @@ a { color: inherit; text-decoration: none; }
 @media (min-width: 1200px) {
   .app-shell.chat-open { margin-right: var(--chat-panel-width); }
 }
-/* 챗봇 아이콘은 드래그로 자유롭게 옮길 수 있어(JS가 top/left 인라인 스타일로 위치를 지정),
-   말풍선과는 완전히 분리된 별도의 fixed 엘리먼트다 — 아이콘을 어디로 옮기든 말풍선은 항상
-   화면 상단 중앙에 고정된다. */
-.home-chat-toggle {
-  position: fixed; width: 56px; height: 56px; border-radius: 50%; background: #74BDEB;
-  box-shadow: 0 10px 18px rgba(116,189,235,.35); z-index: 1100; flex-shrink: 0; padding: 0;
-  overflow: hidden; display: grid; place-items: center; cursor: grab;
-}
-.home-chat-toggle:active { cursor: grabbing; }
-.home-chat-toggle img { width: 52px; height: 52px; object-fit: contain; pointer-events: none; }
+/* 말풍선은 헤더 아이콘(AppShell .header-chat-icons)과 별개인 fixed 엘리먼트로, 항상 화면
+   상단 중앙에 고정된다. */
 .home-chat-bubble-top {
   position: fixed; top: 96px; left: 50%; transform: translateX(-50%); z-index: 1100;
   width: max-content; max-width: min(70vw, 420px);
@@ -135,11 +137,14 @@ a { color: inherit; text-decoration: none; }
   position: fixed; top: 82px; right: 0; z-index: 1100;
   width: var(--chat-panel-width); height: min(750px, calc(100vh - 82px));
   background: var(--card); border: 1px solid var(--line); border-left: 1px solid var(--line);
-  border-radius: 18px 0 0 18px; box-shadow: var(--shadow);
+  border-radius: 18px 0 0 18px;
   display: flex; flex-direction: column; padding: 22px;
-  transform: translateX(100%); transition: transform .35s ease; pointer-events: none;
+  transform: translateX(100%); transition: transform .35s ease, box-shadow .35s ease; pointer-events: none;
 }
-.home-chat-panel.open { transform: translateX(0); pointer-events: auto; }
+/* box-shadow는 translate로 옮겨진 실제 박스 위치를 따라 계속 칠해지기 때문에, 닫힌 상태에서도
+   blur(48px)만큼 화면 우측 가장자리에 얇게 번져 보였다(그림자가 "빼꼼 튀어나온" 것처럼 보이던
+   원인) — 열렸을 때만 그림자를 준다. */
+.home-chat-panel.open { transform: translateX(0); pointer-events: auto; box-shadow: var(--shadow); }
 .home-chat-header { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
 .home-chat-header strong { display: block; color: #3C6E71; }
 .home-chat-header small { color: var(--muted); font-weight: 700; }
@@ -156,8 +161,15 @@ a { color: inherit; text-decoration: none; }
   transform: translateX(calc(100% + var(--chat-panel-width) + 20px));
 }
 .crew-chat-panel.open { transform: translateX(0); }
-.crew-chat-toggle { background: #3C6E71; box-shadow: 0 10px 18px rgba(60,110,113,.4); font-size: 26px; }
-.crew-chat-toggle img { width: 32px; height: 32px; object-fit: contain; pointer-events: none; }
+/* 크루 채팅방이 닫혀 있을 때 새 메시지가 오면 헤더의 크루 채팅 아이콘 아래에 뜨는 말풍선. */
+.crew-chat-bubble {
+  position: fixed; top: 96px; right: 20px; z-index: 1100; width: min(320px, calc(100vw - 32px));
+  background: white; border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 14px 16px;
+}
+.crew-chat-bubble-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.crew-chat-bubble-head strong { font-size: 13px; color: #3C6E71; }
+.crew-chat-bubble-head button { background: none; color: var(--muted); font-weight: 900; }
+.crew-chat-bubble p { margin: 0 0 10px; font-size: 14px; color: #000000; line-height: 1.5; }
 
 .crew-battle-banner { background: white; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
 .crew-battle-banner p { margin: 8px 0; font-size: 14px; font-weight: 700; color: #000000; }
@@ -508,10 +520,6 @@ a { color: inherit; text-decoration: none; }
 .ai-reco-edge-arrow {
   flex-shrink: 0; width: 40px; align-self: center; padding: 16px 0; font-size: 22px;
   background: #74BDEB; color: white; border-radius: 10px;
-}
-.ai-reco-slot-badge {
-  align-self: flex-start; background: #3C6E71; color: white; font-size: 11px; font-weight: 900;
-  padding: 4px 10px; border-radius: 999px; letter-spacing: -0.01em;
 }
 /* 홈페이지 위치 확인 버튼을 지도 바로 위에 띄우는 슬롯 — 히어로 문단용 여백(margin-top:14px)은
    여기선 필요 없어서 지운다. 버튼 자체도 지도 위 좁은 슬롯에 맞게 작게 줄인다. */
@@ -1130,8 +1138,9 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 760px) {
   .app-shell { padding:0; }
   .top-nav { height:auto; padding:12px 10px; flex-wrap:wrap; gap:0; position:relative; z-index:1200; }
-  /* 좌측 상단 햄버거 버튼 - 로고/DAIRUN을 중앙에 두기 위해 우측에 같은 폭의 빈 칸을 grid로 확보한다 */
-  .top-nav-row1 { display:grid; grid-template-columns: 40px 1fr 40px; align-items:center; width:100%; gap:8px; }
+  /* 좌측 상단 햄버거 버튼 - 로고/DAIRUN은 가운데, AI 러닝비서·크루 채팅 아이콘은 로고와 같은
+     줄 우측에 둔다(예전엔 화면 아래쪽에 따로 떠 있어서 상단에 정리해달라는 요청). */
+  .top-nav-row1 { display:grid; grid-template-columns: 40px 1fr auto; align-items:center; width:100%; gap:8px; }
   .mobile-menu-toggle {
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
     width:40px; height:40px; border-radius:10px; background:#CFE9FF; grid-column:1;
@@ -1139,19 +1148,44 @@ a { color: inherit; text-decoration: none; }
   .mobile-menu-toggle span { width:20px; height:2px; border-radius:2px; background:#3C6E71; }
   .brand { min-width:0; grid-column:2; justify-self:center; }
   .brand-text { font-size:24px; }
-  /* 닫힌 상태에서는 네비게이션 링크와 알림/문의/프로필 아이콘 모두 숨기고, 햄버거를 눌러야만
-     헤더 아래 드롭다운으로 함께 나타나게 한다. */
-  .nav-menu, .nav-actions { display:none; }
-  .top-nav.mobile-menu-open .nav-menu,
-  .top-nav.mobile-menu-open .nav-actions {
-    display:flex; flex-direction:column; align-items:stretch; width:100%;
-    background:white; border:1px solid var(--line); border-radius:14px;
-    box-shadow:var(--shadow); padding:10px; margin-top:10px; gap:6px;
+  .header-chat-icons { grid-column:3; gap:6px; }
+  .header-chat-icon-btn { width:34px; height:34px; }
+  .header-chat-icon-btn img { width:24px; height:24px; }
+  .header-chat-icon-btn.crew img { width:18px; height:18px; }
+  /* 닫힌 상태에서는 메뉴 전체(nav-menu+nav-actions)를 화면 밖 좌측에 숨겨두고, 햄버거를 누르면
+     화면 위로 슬라이드해 들어오는 전체높이 드로어로 연다(예전엔 헤더 아래로 펼쳐지며 본문을
+     밀어내렸다). */
+  .mobile-nav-drawer {
+    display: flex; flex-direction: column; gap: 18px;
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 1300;
+    width: min(78vw, 300px); background: white; box-shadow: var(--shadow);
+    padding: 18px 16px 24px; overflow-y: auto;
+    transform: translateX(-100%); transition: transform .3s ease;
   }
-  .top-nav.mobile-menu-open .nav-actions { grid-column:1/-1; flex-direction:row; justify-content:center; flex-wrap:wrap; }
-  .top-nav.mobile-menu-open .nav-link { width:100%; text-align:center; }
+  .top-nav.mobile-menu-open .mobile-nav-drawer { transform: translateX(0); }
+  /* top-nav가 자체 stacking context(z-index:1200)를 만들어서, 안에 중첩된 드로어(z-index:1300)와
+     비교하려면 backdrop도 top-nav보다 낮은 값이어야 드로어가 항상 위에 그려진다. */
+  .mobile-nav-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1150; }
+  .nav-menu { flex-direction: column; align-items: stretch; gap: 4px; }
+  .nav-link { width: 100%; text-align: left; }
+  /* nav-username("관리자님" 등)이 알림/문의/프로필 아이콘(42px)과 같은 줄에서 세로 중앙에
+     오도록 row+center로 둔다 — 기존엔 align-items:stretch만 있어서 텍스트가 아이콘 줄
+     맨 위에 붙어 보였다. */
+  .nav-actions {
+    flex-direction: row; align-items: center; flex-wrap: wrap; gap: 10px;
+    padding-top: 14px; border-top: 1px solid var(--line);
+  }
+  /* 알림/프로필 버튼이 좌측 슬라이드 드로어 안, 화면 하단 쪽에 있어서 기존처럼 아래로
+     펼치면(top:52px) 드로어 밖으로 밀려 안 보이는 경우가 있었다 — 위로 펼치게 뒤집는다. */
+  .profile-menu { top: auto; bottom: 52px; }
   .page-wrap { border-radius:0; padding:16px 6px; }
-  .hero-content h1 { font-size:28px; }
+  /* 메인 배너("안녕하세요" 인사말) 상하 여백을 줄여 컴팩트하게 만든다. */
+  /* 인사 문구 영역은 로고 높이(36px)의 약 5배 안쪽으로 — 헤더에 이미 "DAI RUN"이 있으니
+     eyebrow는 모바일에서 생략하고 h1 한 줄 분량만 남긴다. */
+  .home-page .home-hero-split { padding-top: 10px; padding-bottom: 8px; }
+  .home-page .home-hero-split .hero-content { gap: 0; }
+  .home-page .eyebrow { display: none; }
+  .hero-content h1 { font-size: 16px; line-height: 1.3; margin: 0; }
   /* course-filter-row(거리/시티런 필터)는 원래 명시적 grid-row가 없어서 grid
      auto-placement가 검색창 근처가 아니라 목록 뒤 implicit row로 밀어넣고 있었다.
      검색창 바로 아래에 오도록 행을 하나 더 만들어 명시적으로 배치한다. */
@@ -1168,14 +1202,7 @@ a { color: inherit; text-decoration: none; }
   .challenge-page-grid, .dashboard-grid, .marathon-info-row, .feature-grid, .similar-row, .profile-summary, .public-challenge-grid { grid-template-columns:1fr; }
   .pace-card, .heart-zone, .recent-card, .recent-course, .owned-shoes, .wide-card, .ranking-card.full { grid-column:span 1; }
   .home-chat-bubble-top { max-width: 90vw; }
-  /* 닫혀있는 챗봇/크루챗 아이콘의 기본 위치(JS)가 네비게이션과 겹치거나 화면 밖으로 튀어나가던
-     문제 — 인라인 top/left를 무시하고 우측 상단에 두 아이콘을 나란히 고정한다. */
-  .home-chat-toggle {
-    top: 76px !important; left: auto !important; right: 12px; bottom: auto;
-    width: 46px; height: 46px;
-  }
-  .home-chat-toggle img { width: 42px; height: 42px; }
-  .crew-chat-toggle { top: 76px !important; right: 66px; }
+  .crew-chat-bubble { right: 10px; }
   /* 열린 패널은 좌우 여백 16px 안쪽으로 완전히 가두고, 남는 폭이 화면 밖으로 튀어나가지
      않도록 max-width도 이중으로 제한한다. */
   .home-chat-panel {
@@ -1221,11 +1248,25 @@ a { color: inherit; text-decoration: none; }
   .ai-reco-edge-prev { left: 14px; }
   .ai-reco-edge-next { right: 14px; }
 
-  /* 메인페이지 4개 기능 타일(AI 러닝코스 추천 등): 모바일에서는 설명 멘트를 없애고
-     버튼 자체를 더 작게 줄인다. */
-  .home-page .home-feature-tile { padding: 14px 16px; gap: 0; }
-  .home-page .home-feature-tile p { display: none; }
-  .home-page .home-feature-tile strong { font-size: 14px; }
+  /* 메인페이지: 러닝코스/러닝크루/챌린지/러닝화 4개 기능 타일은 모바일에서 아예 숨긴다. */
+  .home-page .home-feature-grid { display: none; }
+
+  /* 오늘의 AI 추천 코스: 카드 여백/테두리를 없애고 화면 가로 전체 폭(지도 포함)을 쓰게
+     한다 — hero-split의 좌우 패딩과 page-wrap의 좌우 패딩을 모두 벗어나는 full-bleed. */
+  .home-page .home-hero { overflow: visible; border-radius: 0; background: none; margin-bottom: 0; }
+  .home-page .home-hero-split { padding-left: 0; padding-right: 0; }
+  .home-page .home-hero-split .hero-content { padding: 0 16px; }
+  .home-page .home-hero-split .hero-ai-reco {
+    width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
+  }
+  .home-page .hero-ai-reco .ai-reco-panel {
+    width: 100%; border-radius: 0; border-left: none; border-right: none; box-shadow: none; padding: 18px 12px;
+  }
+  .home-page .hero-ai-reco .ai-reco-inner { padding: 12px; }
+
+  /* 코스탐색 페이지: 오늘의 AI 추천 코스는 모바일에서 숨긴다(홈페이지와 다른 요청 — 홈은
+     그대로 두고 폭만 넓히지만, 코스탐색은 아예 보이지 않게 한다). */
+  .side-column .ai-reco-panel { display: none; }
 }
 
 /* 코스 상세: 소유자 배지 + hover 프로필 */
@@ -1285,9 +1326,11 @@ a { color: inherit; text-decoration: none; }
 .course-review-item .review-head strong { color: #3C6E71; }
 .course-review-item .review-head span { color: #ffb340; font-weight: 800; }
 .course-review-item p { margin: 0; color: #000000; font-size: 14px; line-height: 1.6; }
-.review-owner-actions { display: flex; gap: 8px; margin-left: auto; }
+.review-owner-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
 .review-owner-actions button { font-size: 12px; font-weight: 800; color: var(--muted); padding: 4px 10px; border-radius: 8px; }
 .review-owner-actions button:hover { background: white; color: #000000; }
+.review-owner-actions button:disabled { opacity: .6; cursor: default; }
+.review-owner-actions .ghost-btn { padding: 6px 12px; font-size: 12px; }
 .course-review-item.editing .review-owner-actions { margin-left: 0; }
 .course-review-item.editing .review-owner-actions button.primary-btn { flex: 0 0 auto; padding: 10px 20px; }
 

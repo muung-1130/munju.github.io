@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { useCrewChat } from './CrewChatContext';
 import { CrewVsPanel } from './CrewVsPanel';
 
-const ICON_SIZE = 56;
 const BATTLE_POLL_MS = 7000;
 const MIN_PANEL_WIDTH = 340;
 const MAX_PANEL_WIDTH = 920;
@@ -27,18 +26,6 @@ type PendingBattle = {
   expiresAtLabel: string | null;
 };
 
-// 채팅 진입 버튼의 기본 가로 위치는 화면 우측 끝이 아니라 우측 2/3 지점으로 둔다.
-function defaultIconPosition() {
-  return { top: window.innerHeight - ICON_SIZE - 24, left: (window.innerWidth * 2) / 3 };
-}
-
-function clampIconPosition(pos: { top: number; left: number }) {
-  return {
-    top: Math.min(Math.max(pos.top, 8), window.innerHeight - ICON_SIZE - 8),
-    left: Math.min(Math.max(pos.left, 8), window.innerWidth - ICON_SIZE - 8)
-  };
-}
-
 function clampPanelPosition(pos: { top: number; left: number }, width: number, height: number) {
   return {
     top: Math.min(Math.max(pos.top, 8), window.innerHeight - height - 8),
@@ -46,19 +33,17 @@ function clampPanelPosition(pos: { top: number; left: number }, width: number, h
   };
 }
 
-// AI 러닝 비서 아이콘과 같은 방식(드래그 가능한 떠다니는 아이콘)으로 만든, 크루 채팅 전용 위젯.
-// 크루 채팅방에 한 번 "참여하기"로 입장하면 다른 페이지로 이동해도 이 아이콘을 통해 계속 접근할 수 있다.
-// 열린 패널 자체도 헤더를 드래그해 자유롭게 옮길 수 있고, "고정" 버튼으로 고정하지 않으면
-// 바깥을 클릭했을 때 자동으로 최소화된다.
+// 크루 채팅방에 한 번 "참여하기"로 입장하면 다른 페이지로 이동해도 헤더의 크루 채팅 아이콘을
+// 통해 계속 접근할 수 있다(AppShell 참고). 열린 패널 자체는 헤더를 드래그해 자유롭게 옮길 수
+// 있고, "고정" 버튼으로 고정하지 않으면 바깥을 클릭했을 때 자동으로 최소화된다.
 export function CrewChatWidget() {
   const { data: session } = useSession();
   const { crewId, crewName, open, pinned, messages, bubbleMessage, setOpen, setPinned, addMessage, dismissBubble, exitCrewChat } =
     useCrewChat();
   const [input, setInput] = useState('');
   const [bubbleReply, setBubbleReply] = useState('');
-  const [iconPos, setIconPos] = useState<{ top: number; left: number } | null>(null);
+  const [bubbleTop, setBubbleTop] = useState<number | null>(null);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
-  const iconDraggingRef = useRef(false);
   const panelDraggingRef = useRef(false);
   const panelRef = useRef<HTMLElement>(null);
   const [panelSize, setPanelSize] = useState<{ width: number; height: number } | null>(null);
@@ -104,9 +89,17 @@ export function CrewChatWidget() {
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
+  // 헤더 크루 채팅 아이콘 아래에 새 메시지 말풍선(crew-chat-bubble)을 띄우기 위해 헤더 실제
+  // 높이를 측정해둔다 — 모바일에서는 헤더가 로고줄+네비게이션줄로 줄바꿈돼 높이가 유동적이다.
   useEffect(() => {
-    if (crewId && !iconPos) setIconPos(clampIconPosition(defaultIconPosition()));
-  }, [crewId, iconPos]);
+    function updateBubbleTop() {
+      const header = document.querySelector('.top-nav');
+      setBubbleTop(header ? header.getBoundingClientRect().bottom + 12 : null);
+    }
+    updateBubbleTop();
+    window.addEventListener('resize', updateBubbleTop);
+    return () => window.removeEventListener('resize', updateBubbleTop);
+  }, []);
 
   // 크루장에게 제안된 배틀(동의 대기 중)이 있으면 채팅 패널 상단에 계속 떠 있어야 하므로 주기적으로 확인한다.
   useEffect(() => {
@@ -227,35 +220,6 @@ export function CrewChatWidget() {
 
   if (!crewId) return null;
 
-  function handleIconMouseDown(event: React.MouseEvent<HTMLButtonElement>) {
-    if (event.button !== 0) return;
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startPos = iconPos ?? defaultIconPosition();
-    iconDraggingRef.current = false;
-
-    function handleMouseMove(moveEvent: MouseEvent) {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) iconDraggingRef.current = true;
-      setIconPos(clampIconPosition({ top: startPos.top + dy, left: startPos.left + dx }));
-    }
-    function handleMouseUp() {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    }
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-  }
-
-  function handleIconClick() {
-    if (iconDraggingRef.current) {
-      iconDraggingRef.current = false;
-      return;
-    }
-    setOpen(true);
-  }
-
   function handlePanelHeaderMouseDown(event: React.MouseEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
     if ((event.target as HTMLElement).closest('button')) return; // 버튼 클릭은 드래그로 취급하지 않음
@@ -326,23 +290,8 @@ export function CrewChatWidget() {
 
   return (
     <>
-      {!open && iconPos && (
-        <button
-          className="home-chat-toggle crew-chat-toggle"
-          style={{ top: iconPos.top, left: iconPos.left }}
-          onMouseDown={handleIconMouseDown}
-          onClick={handleIconClick}
-          aria-label={`${crewName} 채팅방 열기 (드래그해서 위치를 옮길 수 있어요)`}
-        >
-          <img src="/assets/crew-chat-shield.svg" alt="" />
-        </button>
-      )}
-
-      {!open && bubbleMessage && iconPos && (
-        <div
-          className="crew-chat-bubble"
-          style={{ top: Math.max(8, iconPos.top - 190), left: Math.max(8, Math.min(iconPos.left - 200, window.innerWidth - 320)) }}
-        >
+      {!open && bubbleMessage && (
+        <div className="crew-chat-bubble" style={bubbleTop !== null ? { top: bubbleTop } : undefined}>
           <div className="crew-chat-bubble-head">
             <strong>{crewName} · {bubbleMessage.senderName}</strong>
             <button onClick={dismissBubble} aria-label="닫기">✕</button>
