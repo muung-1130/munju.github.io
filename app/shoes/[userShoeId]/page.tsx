@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { Card, PageTitle } from '@/components/UI';
 import { getShoeWearAnalyses } from '@/lib/shoes';
-import { ShoeWearAnalysisUploader } from '@/components/ShoeWearAnalysisUploader';
 import { WearAnalysisHistoryPanel } from '@/components/WearAnalysisHistoryPanel';
 import { RetireShoeButton } from '@/components/RetireShoeButton';
 
@@ -37,7 +36,6 @@ export default async function ShoeWearAnalysisPage({ params }: { params: { userS
         action={data.status !== 'RETIRED' ? <RetireShoeButton userShoeId={params.userShoeId} /> : undefined}
       />
       <WearAnalysisHistoryPanel userShoeId={params.userShoeId} analyses={data.analyses} />
-      <ShoeWearAnalysisUploader userShoeId={params.userShoeId} initialPurchaseDate={data.purchaseDate} />
     </div>
   );
 }

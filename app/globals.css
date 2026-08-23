@@ -833,10 +833,10 @@ a { color: inherit; text-decoration: none; }
 .wear-hero-label { font-size: 13px; font-weight: 800; opacity: .75; letter-spacing: .02em; }
 .wear-hero-date { margin: 10px 0 4px; font-size: 26px; font-weight: 900; letter-spacing: -.02em; }
 .wear-hero-days { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-top: 4px; }
-.wear-hero-days strong { font-size: 40px; letter-spacing: -.03em; color: #3C6E71; }
+.wear-hero-days strong { font-size: 40px; letter-spacing: -.03em; color: white; }
 .wear-hero-days span { font-size: 14px; opacity: .78; }
 .wear-hero-meta { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-.wear-hero-condition { padding: 6px 14px; border-radius: 999px; background: var(--line); font-weight: 800; font-size: 13px; }
+.wear-hero-condition { padding: 6px 14px; border-radius: 999px; background: var(--line); color: var(--navy); font-weight: 800; font-size: 13px; }
 .wear-hero-confidence { font-size: 12.5px; opacity: .75; }
 
 .wear-section { padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: white; }
