@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 
 import boto3
@@ -92,6 +93,27 @@ DIAGNOSIS_PATTERNS = (
     "병원 안 가도",
 )
 
+_HANGUL_SYLLABLES = "가-힣"
+
+
+def _contains_keyword(text: str, keywords: tuple[str, ...]) -> bool:
+    """한글 음절 접두 경계를 확인해 키워드를 찾는다.
+
+    단순 substring 검사(`keyword in text`)는 "시간"이 "실시간"에도 매칭되는 식으로,
+    다른 한글 음절이 키워드 앞에 붙어 완전히 다른 단어(복합어)를 이루는 경우를
+    오탐한다. 키워드 바로 앞이 한글 음절이 아닐 때만(공백, 문장부호, 문자열 시작,
+    비한글 문자) 매칭으로 인정해 이 오탐을 막는다.
+
+    뒤쪽 경계는 검사하지 않는다 — 한국어는 조사/어미가 공백 없이 바로 붙으므로
+    ("진단해" + "줘" → "진단해줘", "처방" + "해줘" → "처방해줘") 뒤쪽까지 막으면
+    정상적인 활용형을 오히려 놓치게 된다.
+    """
+    for keyword in keywords:
+        pattern = rf"(?<![{_HANGUL_SYLLABLES}]){re.escape(keyword)}"
+        if re.search(pattern, text):
+            return True
+    return False
+
 
 @dataclass(frozen=True)
 class GuardrailResult:
@@ -112,28 +134,28 @@ def apply_input_guardrails(question: str, allow_followup: bool = False) -> Guard
             answer="질문을 입력해 주세요.",
         )
 
-    if any(pattern in lowered for pattern in PROMPT_INJECTION_PATTERNS):
+    if _contains_keyword(lowered, PROMPT_INJECTION_PATTERNS):
         return GuardrailResult(
             allowed=False,
             reason="PROMPT_INJECTION",
             answer="내부 지시나 시스템 설정을 변경하는 요청에는 답할 수 없습니다. 러닝 훈련, 코칭, 코스와 관련된 질문을 해 주세요.",
         )
 
-    if any(pattern in lowered for pattern in SENSITIVE_DATA_PATTERNS):
+    if _contains_keyword(lowered, SENSITIVE_DATA_PATTERNS):
         return GuardrailResult(
             allowed=False,
             reason="SENSITIVE_DATA",
             answer="비밀번호, API 키, 토큰 같은 민감 정보는 입력하지 마세요. 해당 정보 없이 러닝 관련 질문만 도와드릴 수 있습니다.",
         )
 
-    if any(pattern in lowered for pattern in DIAGNOSIS_PATTERNS):
+    if _contains_keyword(lowered, DIAGNOSIS_PATTERNS):
         return GuardrailResult(
             allowed=False,
             reason="MEDICAL_DIAGNOSIS",
             answer="의학적 진단이나 처방은 제공할 수 없습니다. 통증이 있거나 증상이 지속되면 운동을 중단하고 의료 전문가와 상담해 주세요.",
         )
 
-    if not allow_followup and not any(keyword in lowered for keyword in RUNNING_KEYWORDS):
+    if not allow_followup and not _contains_keyword(lowered, RUNNING_KEYWORDS):
         return GuardrailResult(
             allowed=False,
             reason="OUT_OF_SCOPE",
