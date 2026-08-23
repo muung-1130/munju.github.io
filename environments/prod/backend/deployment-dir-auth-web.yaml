@@ -24,13 +24,14 @@ spec:
   template:
     metadata:
       annotations:
-        kubectl.kubernetes.io/restartedAt: '2026-08-23T12:58:16+09:00'
+        kubectl.kubernetes.io/restartedAt: '2026-08-23T19:16:55+09:00'
       labels:
         app.kubernetes.io/component: web
         app.kubernetes.io/name: dir-auth-web
         app.kubernetes.io/part-of: dai-run
         dairun.io/availability: standard
         dairun.io/workload-class: app
+        istio.io/dataplane-mode: none
     spec:
       nodeSelector:
         workload: app
