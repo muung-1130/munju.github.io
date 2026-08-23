@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-auth-web-cognito-egress
+  namespace: dir-backend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-auth-web
+  policyTypes:
+    - Egress
+  egress:
+    # next-auth CognitoProvider가 OIDC discovery(.well-known/openid-configuration),
+    # 토큰 교환, JWKS 조회를 위해 cognito-idp.ap-northeast-2.amazonaws.com과
+    # Cognito Hosted UI 도메인(*.auth.ap-northeast-2.amazoncognito.com, CloudFront 프런팅)에
+    # 아웃바운드 443이 필요하다. dir-backend-baseline이 기본적으로 egress를 DNS/OTLP만
+    # 허용하므로 이 트래픽이 막혀 있었다(OAuthSignin 오류의 원인).
+    #
+    # Bedrock(dir-ai-bedrock-egress)이나 DynamoDB(dir-environment-dynamodb-consumer-egress)처럼
+    # AWS가 게시하는 ip-ranges.json에 COGNITO_IDP 전용 좁은 CIDR가 없고(ap-northeast-2 기준
+    # 2026-08-23 확인, 서비스 태그 없음), 일반 AMAZON 카테고리는 이 리전만 129개 prefix라
+    # 사실상 무의미하게 넓다. Hosted UI 도메인은 CloudFront 기반이라 더더욱 고정 IP가 없다.
+    # 그래서 목적지 IP가 아니라 워크로드(dir-auth-web pod)로 범위를 좁혀 443 전체를 허용한다.
+    - ports:
+        - protocol: TCP
+          port: 443
+      to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
