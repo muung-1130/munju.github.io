@@ -205,7 +205,13 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const { openAuthModal } = useAuthModal();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // 페이지 이동 시 모바일 메뉴는 항상 닫아둔다.
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   async function handleSignOut() {
     // NextAuth는 쿠키만 지우고 auth_user.auth_sessions 행은 회수하지 않으므로, 로그아웃 직전에
@@ -232,8 +238,20 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
   return (
     <div className={`app-shell ${chatOpen ? 'chat-open' : ''}`}>
-      <header className="top-nav">
+      <header className={`top-nav ${mobileMenuOpen ? 'mobile-menu-open' : ''}`}>
         <div className="top-nav-row1">
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
           <Link href="/" className="brand" aria-label="DAI RUN 홈">
             <Image src="/assets/logo-fixed-color.png" alt="" width={36} height={36} className="brand-mark" priority />
             <span className="brand-text">DAI RUN</span>

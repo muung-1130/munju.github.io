@@ -484,7 +484,12 @@ export function CrewChatWidget() {
                 )}
                 <div className={`home-chat-line ${message.senderUserId === session?.user?.id ? 'user' : ''}`}>
                   {message.senderUserId !== session?.user?.id && <span className="avatar-dot">{message.senderName[0]}</span>}
-                  <p>{message.message}</p>
+                  <div className="home-chat-bubble-group">
+                    {message.senderUserId !== session?.user?.id && (
+                      <span className="crew-chat-sender-name">{message.senderName}</span>
+                    )}
+                    <p>{message.message}</p>
+                  </div>
                   <span className="crew-chat-message-time">{message.timeLabel}</span>
                 </div>
               </div>

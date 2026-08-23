@@ -17,10 +17,10 @@ export default async function CoursePage() {
       data-cicd-demo="course-theme"
       style={{
         minHeight: 'calc(100vh - 170px)',
-        padding: '24px',
+        
         borderRadius: '18px',
         background: courseDemoBackground,
-        transition: 'background 300ms ease',
+        transition: 'background 300ms ease', boxSizing: 'border-box',
       }}
     >
       <PageTitle

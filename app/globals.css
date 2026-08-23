@@ -45,6 +45,7 @@ a { color: inherit; text-decoration: none; }
 .nav-link:hover { background: #CFE9FF; color: var(--navy); }
 .nav-link.active { background: #74BDEB; color: #3C6E71; box-shadow: inset 0 -2px 0 rgba(255,255,255,.5), 0 12px 24px rgba(116,189,235,.35); }
 .nav-actions { order: 3; display: flex; align-items: center; gap: 12px; }
+.mobile-menu-toggle { display: none; }
 .nav-username { color: rgba(60,110,113,.9); font-weight: 800; font-size: 14px; white-space: nowrap; }
 .nav-actions button, .nav-actions a.nav-icon-link {
   width: 42px; height: 42px; border-radius: 50%; color: var(--navy); background: #CFE9FF;
@@ -266,6 +267,11 @@ a { color: inherit; text-decoration: none; }
 .home-chat-markdown th, .home-chat-markdown td { border: 1px solid rgba(0,0,0,.12); padding: 4px 8px; }
 .home-chat-markdown blockquote { margin: 0 0 8px; padding-left: 10px; border-left: 3px solid rgba(0,0,0,.15); color: #4A5568; }
 .crew-chat-message-time { flex-shrink: 0; align-self: flex-end; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+/* 크루 채팅: 다른 멤버가 보낸 메시지 위에 닉네임을 표시한다(누가 보냈는지 구분하기 위함). */
+.home-chat-bubble-group { display: flex; flex-direction: column; gap: 2px; max-width: 80%; }
+.home-chat-bubble-group > p { margin: 0; background: white; border-radius: 14px; padding: 11px 14px; line-height: 1.5; font-size: 15px; }
+.home-chat-line.user .home-chat-bubble-group > p { background: #74BDEB; color: #3C6E71; }
+.crew-chat-sender-name { font-size: 12px; font-weight: 800; color: #3C6E71; margin-left: 4px; }
 .crew-chat-date-divider { display: flex; justify-content: center; margin: 6px 0; }
 .crew-chat-date-divider span { background: white; color: var(--muted); font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
 /* 홈페이지 폭이 줄어들면(모바일 아님, 컨테이너 자체가 좁아지는 경우 포함) grid 대신 flex-wrap으로
@@ -726,10 +732,10 @@ a { color: inherit; text-decoration: none; }
 .slider-row strong { display:block; margin-bottom:8px; }
 .slider-row div { display:flex; align-items:center; gap:12px; color:#000000; font-size:13px; }
 .slider-row input { flex:1; accent-color:#3C6E71; }
-.env-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:14px 0 24px; }
-.env-grid button { padding:12px 0; border:1px solid var(--line); border-radius:12px; background: white; font-weight:800; }
+.env-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:14px 0 24px; }
+.env-grid button { padding:12px 0; border:1px solid var(--line); border-radius:12px; background: white; font-weight:800; min-width:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .env-grid .selected { border-color:#3C6E71; color:#3C6E71; background:rgba(116,189,235,.14); }
-.env-grid.foot-type-grid { grid-template-columns:repeat(3,1fr); margin-bottom: 16px; }
+.env-grid.foot-type-grid { grid-template-columns:repeat(3,minmax(0,1fr)); margin-bottom: 16px; }
 
 .onboarding-pref-modal { width: 480px; max-width: 92vw; }
 .onboarding-pref-modal label { display: block; margin: 16px 0 8px; font-weight: 900; }
@@ -746,8 +752,8 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 600px) {
   .challenge-rule-row { grid-template-columns: 1fr 1fr; }
 }
-.budget-row { display:flex; align-items:center; gap:10px; margin:14px 0 24px; }
-.budget-row input { flex:1; height:44px; border:1px solid var(--line); border-radius:10px; padding:0 12px; font-weight:800; min-width:0; }
+.budget-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:14px 0 24px; }
+.budget-row input { flex:1 1 100px; height:44px; border:1px solid var(--line); border-radius:10px; padding:0 12px; font-weight:800; min-width:0; }
 .budget-row span { color:var(--muted); font-weight:700; flex-shrink:0; }
 .primary-outline { width:100%; background: white; border:2px solid #3C6E71; color:#3C6E71; padding:14px; border-radius:12px; font-weight:900; }
 .segmented { display:flex; gap:6px; }
@@ -762,7 +768,7 @@ a { color: inherit; text-decoration: none; }
 .shoe-card button { background: white; border:1px solid var(--line); color:#3C6E71; border-radius:10px; padding:9px 14px; font-weight:900; }
 .shoe-card .heart { float:right; color:var(--muted); font-size: 18px; background: none; border: none; cursor: pointer; }
 .shoe-card .heart.liked { color: #e5484d; }
-.reco-badge { position:absolute; left:14px; top:12px; background:#ff7a18; color:white; border-radius:8px; padding:6px 9px; font-size:12px; font-weight:900; white-space: nowrap; }
+.reco-badge { position:absolute; left:14px; top:12px; max-width: calc(100% - 28px); background:#ff7a18; color:white; border-radius:8px; padding:6px 9px; font-size:12px; font-weight:900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
 .reco-badge.b1 { background:#74BDEB; color:#3C6E71; } .reco-badge.b2 { background:#2caf60; }
 .reco-badge.like-count-badge { background: #3C6E71; }
 .shoe-reco-reason { font-size: 12px; color: #000000; line-height: 1.5; margin: 8px 0 12px; }
@@ -790,8 +796,8 @@ a { color: inherit; text-decoration: none; }
 .shoe-function-tags span { background: rgba(116,189,235,.14) !important; color: #3C6E71 !important; font-size: 14px !important; font-weight: 900 !important; padding: 7px 11px !important; }
 .shoe-card-footer { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
 .shoe-catalog-score { flex: 1; font-size: 11px; color: var(--muted); font-weight: 800; }
-.shoe-catalog-sort { display: flex; gap: 8px; margin-bottom: 12px; }
-.shoe-catalog-sort button { padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; font-weight: 800; font-size: 13px; background: white; color: #000000; }
+.shoe-catalog-sort { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.shoe-catalog-sort button { padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; font-weight: 800; font-size: 13px; background: white; color: #000000; white-space: nowrap; }
 .shoe-catalog-sort button.active { border-color: #3C6E71; color: #3C6E71; background: rgba(116,189,235,.14); }
 .shoe-catalog-weight-filter { display: flex; align-items: center; gap: 6px; }
 .shoe-catalog-weight-filter input { width: 110px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; font-weight: 700; font-size: 13px; }
@@ -960,6 +966,28 @@ a { color: inherit; text-decoration: none; }
   padding: 14px 18px; font-weight: 800; color: #b7791f; margin-bottom: 14px; text-align: center;
 }
 
+/* 마이페이지: 상세 목록(찜한 코스/신청 마라톤/리뷰/크루/챌린지/러닝기록/러닝화 등)은
+   본문에 바로 나열하지 않고 버튼 형태의 카드로 모아 각자 별도 페이지로 이동시킨다. */
+.mypage-nav-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+.mypage-nav-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 12px;
+  text-align: center; font-weight: 800; color: #3C6E71; box-shadow: var(--soft-shadow);
+  transition: transform .18s ease, border-color .18s ease;
+}
+.mypage-nav-card:hover { transform: translateY(-2px); border-color: #74BDEB; }
+.mypage-nav-card-icon { font-size: 22px; }
+@media (max-width: 900px) { .mypage-nav-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .mypage-nav-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; } .mypage-nav-card { padding: 14px 8px; font-size: 13px; } }
+
+/* 마이페이지 하위 상세 페이지 공통: 좌상단 뒤로가기 링크 */
+.mypage-subpage { display: flex; flex-direction: column; gap: 14px; }
+.mypage-back-link {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 800; color: #3C6E71; background: white; border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 16px; font-size: 13px;
+}
+
 .mypage-runs-table-wrap { overflow-x: auto; margin-top: 12px; }
 .mypage-runs-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
 .mypage-runs-table th, .mypage-runs-table td { padding: 10px 12px; text-align: left; }
@@ -1084,7 +1112,7 @@ a { color: inherit; text-decoration: none; }
 .dong-dropdown li button:hover { background: var(--ice); }
 .auth-link { background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; text-align: center; text-decoration: underline; }
 .auth-form-links { display: flex; flex-direction: column; gap: 4px; }
-.auth-google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; height: 48px; border: 1px solid var(--line); border-radius: 12px; background: white; font-weight: 800; color: #000000; }
+.auth-social-btn { display: flex; align-items: center; justify-content: center; gap: 10px; height: 48px; border: 1px solid var(--line); border-radius: 12px; background: white; font-weight: 800; color: #000000; }
 .auth-congrats-overlay { position: fixed; inset: 0; z-index: 1400; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .auth-congrats-bubble { pointer-events: auto; cursor: pointer; display: flex; align-items: center; gap: 14px; background: white; border-radius: 20px; box-shadow: var(--shadow); padding: 20px 26px; max-width: 480px; animation: authCongratsIn .25s ease; }
 .auth-congrats-bubble p { margin: 0; font-size: 16px; font-weight: 800; color: #3C6E71; }
@@ -1101,12 +1129,28 @@ a { color: inherit; text-decoration: none; }
 }
 @media (max-width: 760px) {
   .app-shell { padding:0; }
-  .top-nav { height:auto; padding:18px; flex-wrap:wrap; gap:14px; }
-  .top-nav-row1 { display:flex; align-items:center; justify-content:space-between; width:100%; gap:12px; }
-  .brand { min-width:0; }
+  .top-nav { height:auto; padding:12px 10px; flex-wrap:wrap; gap:0; position:relative; z-index:1200; }
+  /* 좌측 상단 햄버거 버튼 - 로고/DAIRUN을 중앙에 두기 위해 우측에 같은 폭의 빈 칸을 grid로 확보한다 */
+  .top-nav-row1 { display:grid; grid-template-columns: 40px 1fr 40px; align-items:center; width:100%; gap:8px; }
+  .mobile-menu-toggle {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    width:40px; height:40px; border-radius:10px; background:#CFE9FF; grid-column:1;
+  }
+  .mobile-menu-toggle span { width:20px; height:2px; border-radius:2px; background:#3C6E71; }
+  .brand { min-width:0; grid-column:2; justify-self:center; }
   .brand-text { font-size:24px; }
-  .nav-menu { width:100%; flex-wrap:wrap; justify-content:flex-start; }
-  .page-wrap { border-radius:0; padding:20px; }
+  /* 닫힌 상태에서는 네비게이션 링크와 알림/문의/프로필 아이콘 모두 숨기고, 햄버거를 눌러야만
+     헤더 아래 드롭다운으로 함께 나타나게 한다. */
+  .nav-menu, .nav-actions { display:none; }
+  .top-nav.mobile-menu-open .nav-menu,
+  .top-nav.mobile-menu-open .nav-actions {
+    display:flex; flex-direction:column; align-items:stretch; width:100%;
+    background:white; border:1px solid var(--line); border-radius:14px;
+    box-shadow:var(--shadow); padding:10px; margin-top:10px; gap:6px;
+  }
+  .top-nav.mobile-menu-open .nav-actions { grid-column:1/-1; flex-direction:row; justify-content:center; flex-wrap:wrap; }
+  .top-nav.mobile-menu-open .nav-link { width:100%; text-align:center; }
+  .page-wrap { border-radius:0; padding:16px 6px; }
   .hero-content h1 { font-size:28px; }
   /* course-filter-row(거리/시티런 필터)는 원래 명시적 grid-row가 없어서 grid
      auto-placement가 검색창 근처가 아니라 목록 뒤 implicit row로 밀어넣고 있었다.
@@ -1124,10 +1168,20 @@ a { color: inherit; text-decoration: none; }
   .challenge-page-grid, .dashboard-grid, .marathon-info-row, .feature-grid, .similar-row, .profile-summary, .public-challenge-grid { grid-template-columns:1fr; }
   .pace-card, .heart-zone, .recent-card, .recent-course, .owned-shoes, .wide-card, .ranking-card.full { grid-column:span 1; }
   .home-chat-bubble-top { max-width: 90vw; }
-  /* 닫혀있는 챗봇 아이콘의 기본 위치(JS)가 네비게이션의 마이페이지 링크 옆이라 모바일에서
-     줄바꿈된 네비게이션과 겹쳤다 — 인라인 top/left를 무시하고 하단 우측 고정 위치로 뗀다. */
-  .home-chat-toggle { top: auto !important; left: auto !important; bottom: 24px; right: 16px; }
-  .home-chat-panel { top:auto; bottom:20px; right:16px; left:16px; width:auto !important; height:70vh !important; }
+  /* 닫혀있는 챗봇/크루챗 아이콘의 기본 위치(JS)가 네비게이션과 겹치거나 화면 밖으로 튀어나가던
+     문제 — 인라인 top/left를 무시하고 우측 상단에 두 아이콘을 나란히 고정한다. */
+  .home-chat-toggle {
+    top: 76px !important; left: auto !important; right: 12px; bottom: auto;
+    width: 46px; height: 46px;
+  }
+  .home-chat-toggle img { width: 42px; height: 42px; }
+  .crew-chat-toggle { top: 76px !important; right: 66px; }
+  /* 열린 패널은 좌우 여백 16px 안쪽으로 완전히 가두고, 남는 폭이 화면 밖으로 튀어나가지
+     않도록 max-width도 이중으로 제한한다. */
+  .home-chat-panel {
+    top: 76px !important; bottom: 20px; right: 16px !important; left: 16px !important;
+    width: auto !important; max-width: calc(100vw - 32px) !important; height: auto !important;
+  }
   .home-chat-resize-handle { display:none; }
   .crew-chat-modal, .crew-detail-modal, .auth-modal { width: 100%; }
 
@@ -1166,6 +1220,12 @@ a { color: inherit; text-decoration: none; }
   }
   .ai-reco-edge-prev { left: 14px; }
   .ai-reco-edge-next { right: 14px; }
+
+  /* 메인페이지 4개 기능 타일(AI 러닝코스 추천 등): 모바일에서는 설명 멘트를 없애고
+     버튼 자체를 더 작게 줄인다. */
+  .home-page .home-feature-tile { padding: 14px 16px; gap: 0; }
+  .home-page .home-feature-tile p { display: none; }
+  .home-page .home-feature-tile strong { font-size: 14px; }
 }
 
 /* 코스 상세: 소유자 배지 + hover 프로필 */
@@ -1203,9 +1263,9 @@ a { color: inherit; text-decoration: none; }
 .field-any-checkbox { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #000000; font-size: 13px; }
 .field-any-checkbox input[type='checkbox'] { width: 15px; height: 15px; cursor: pointer; }
 .auth-form input:disabled, .auth-form textarea:disabled { background: white; color: var(--muted); cursor: not-allowed; }
-.review-rating-field label { display: block; margin-bottom: 6px; font-weight: 800; color: #000000; font-size: 14px; }
-.star-rating-row { display: flex; align-items: center; gap: 10px; }
-.star-rating { display: flex; gap: 3px; cursor: pointer; user-select: none; }
+.review-rating-field label { display: block; margin-bottom: 6px; font-weight: 800; color: #000000; font-size: 14px; text-align: center; }
+.star-rating-row { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; text-align: center; }
+.star-rating { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; cursor: pointer; user-select: none; }
 .star-rating.locked { cursor: pointer; }
 .star-rating-star { position: relative; display: inline-block; line-height: 1; }
 .star-rating-star-bg { color: var(--line); }

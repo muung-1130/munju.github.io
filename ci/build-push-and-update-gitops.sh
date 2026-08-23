@@ -145,6 +145,7 @@ fi
 git push \
   -o merge_request.create \
   -o merge_request.target=main \
+  -o merge_request.merge_when_pipeline_succeeds \
   -o "merge_request.title=Deploy application ${CI_COMMIT_SHORT_SHA:-unknown}" \
   -o "merge_request.description=Application pipeline ${CI_PIPELINE_IID:-unknown} (commit ${CI_COMMIT_SHORT_SHA:-unknown}) passed its build and Trivy gate. Review the environments/prod digest changes before approving." \
   origin HEAD:stg
