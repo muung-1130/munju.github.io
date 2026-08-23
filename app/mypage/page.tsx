@@ -16,13 +16,13 @@ import { getRunningPreferences } from '@/lib/runningPreferences';
 import { PreferencesSummarySection } from '@/components/PreferencesSummarySection';
 
 const MYPAGE_NAV_LINKS = [
+  { href: '/mypage/runs', icon: '🏃', label: '최근 러닝기록' },
   { href: '/mypage/liked-courses', icon: '🗺', label: '찜한 러닝코스' },
   { href: '/mypage/marathon-reservations', icon: '🏁', label: '신청한 마라톤' },
   { href: '/mypage/reviews', icon: '✍', label: '내가 남긴 리뷰' },
   { href: '/mypage/crews', icon: '👥', label: '내 크루' },
   { href: '/mypage/challenges', icon: '🎯', label: '하고있는 챌린지' },
   { href: '/mypage/completed-challenges', icon: '🏆', label: '완료한 챌린지' },
-  { href: '/mypage/runs', icon: '🏃', label: '최근 러닝기록' },
   { href: '/mypage/shoes', icon: '👟', label: '보유 러닝화' },
   { href: '/mypage/liked-shoes', icon: '❤', label: '찜한 러닝화' }
 ];

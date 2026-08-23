@@ -383,7 +383,7 @@ export default function FreeRunTrackingPage() {
             </>
           )}
 
-          <button className="ghost-btn full-width" style={{ marginTop: 12 }} onClick={() => router.push('/mypage')}>
+          <button className="ghost-btn full-width" style={{ marginTop: 12 }} onClick={() => router.push('/mypage/runs')}>
             마이페이지에서 확인하기
           </button>
         </div>
