@@ -244,6 +244,45 @@ def get_last_run_location(db: Session, user_id: str) -> dict:
         return {"error": f"최근 러닝 위치 조회 실패: {str(e)}"}
 
 
+def get_user_crews(db: Session, user_id: str) -> dict:
+    """사용자가 가입한 크루 조회"""
+    try:
+        result = db.execute(
+            text("""
+            SELECT
+                c.crew_name, c.region_code, c.join_type, c.status,
+                cm.role, c.max_members,
+                (SELECT COUNT(*) FROM crew.crew_members cm2
+                 WHERE cm2.crew_id = c.crew_id AND cm2.status = 'ACTIVE') AS member_count
+            FROM crew.crew_members cm
+            JOIN crew.crews c ON c.crew_id = cm.crew_id
+            WHERE cm.user_id = :user_id AND cm.status = 'ACTIVE'
+            ORDER BY cm.joined_at DESC
+            """),
+            {"user_id": user_id}
+        )
+        rows = result.fetchall()
+
+        if not rows:
+            return {"message": "가입한 크루가 없습니다", "crews": []}
+
+        crews = []
+        for name, region, join_type, status, role, max_members, member_count in rows:
+            crews.append({
+                "name": name,
+                "region": region,
+                "join_type": join_type,
+                "status": status,
+                "role": role,
+                "member_count": member_count,
+                "max_members": max_members,
+            })
+
+        return {"count": len(crews), "crews": crews}
+    except Exception as e:
+        return {"error": f"크루 조회 실패: {str(e)}"}
+
+
 def get_active_challenges(db: Session, user_id: str) -> dict:
     """사용자의 진행 중인 챌린지 조회"""
     try:

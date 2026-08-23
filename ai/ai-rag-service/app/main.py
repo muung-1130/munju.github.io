@@ -18,6 +18,7 @@ from app.tools import (
     get_current_weather,
     get_last_run_location,
     get_recent_runs,
+    get_user_crews,
     get_user_profile,
     search_nearby_courses,
 )
@@ -40,6 +41,7 @@ LAST_RUN_KEYWORDS = ("마지막 러닝", "최근 러닝 날짜", "마지막 달�
 COURSE_KEYWORDS = ("코스", "경로", "주변")
 OWNED_SHOE_KEYWORDS = ("내 러닝화", "내 신발", "등록한 러닝화", "보유 러닝화", "교체 시기")
 CHALLENGE_STATUS_KEYWORDS = ("참여 중", "참여중", "진행률", "내 챌린지", "현재 챌린지")
+CREW_KEYWORDS = ("내 크루", "가입한 크루", "소속 크루", "크루 목록", "크루 알려")
 MARATHON_REGIONS = ("서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주")
 MARATHON_SCHEDULE_KEYWORDS = ("일정", "날짜", "언제", "접수", "신청", "개최")
 MARATHON_SCHEDULE_PHRASES = ("대회 알려", "대회 추천", "대회 찾아")
@@ -133,6 +135,28 @@ def build_challenge_answer(db: Session, user_id: str) -> str:
         "현재 참여 중인 챌린지를 확인했어요.\n" + "\n".join(f"- {line}" for line in lines) +
         f"\n총 {len(challenges)}개가 진행 중입니다. "
         "목표 달성을 위한 러닝 계획도 추천해드릴까요?"
+    )
+
+
+def build_crew_answer(db: Session, user_id: str) -> str:
+    result = get_user_crews(db, user_id)
+    crews = result.get("crews", [])
+    if not crews:
+        return "현재 가입한 크루가 없습니다. 관심 있는 크루를 찾아볼까요?"
+
+    role_labels = {"LEADER": "크루장", "MANAGER": "운영진", "MEMBER": "멤버"}
+    lines = []
+    for crew in crews:
+        region_label = crew.get("region") or "지역 미지정"
+        role_label = role_labels.get(crew.get("role"), crew.get("role"))
+        lines.append(
+            "{} ({}) — {}/{}명, {}".format(
+                crew["name"], region_label, crew["member_count"], crew["max_members"], role_label,
+            )
+        )
+    return wrap_text_for_chat(
+        "가입하신 크루를 확인했어요.\n" + "\n".join(f"- {line}" for line in lines) +
+        f"\n총 {len(crews)}개 크루에 소속되어 있습니다."
     )
 
 
@@ -415,6 +439,15 @@ def chat(
     ):
         return RagChatResponse(
             answer=build_challenge_answer(db, request.user_id),
+            sessionId=request.session_id,
+            sources=[],
+        )
+
+    if request.user_id and any(
+        keyword in lowered_question for keyword in CREW_KEYWORDS
+    ):
+        return RagChatResponse(
+            answer=build_crew_answer(db, request.user_id),
             sessionId=request.session_id,
             sources=[],
         )
