@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 
+type RecommendedAction = { description: string; command: string | null };
+
 type AiDiagnosisResult = {
   severity: "info" | "warning" | "critical";
   confidencePct: number;
   rootCauseHypothesis: string;
   narrative: string;
-  recommendedActions: string[];
+  recommendedActions: RecommendedAction[];
   generatedAt: string;
   modelId: string;
 };
@@ -19,10 +21,42 @@ const SEVERITY_COLOR: Record<AiDiagnosisResult["severity"], string> = {
   critical: "var(--status-critical)",
 };
 
-export function AiDiagnosisPanel({ containerJob }: { containerJob: string | null }) {
+function RecommendedActions({ actions }: { actions: RecommendedAction[] }) {
+  if (actions.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+        권장 조치
+      </p>
+      <ul className="space-y-2">
+        {actions.map((a, i) => (
+          <li key={i} className="text-sm">
+            <p style={{ color: "var(--text-secondary)" }}>{a.description}</p>
+            {a.command && (
+              <pre
+                className="mt-1 overflow-x-auto rounded-lg px-3 py-2 font-mono text-xs"
+                style={{ background: "var(--surface-2)", color: "var(--text-primary)" }}
+              >
+                {a.command}
+              </pre>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function AiDiagnosisPanel({
+  containerJob,
+  initialResult,
+}: {
+  containerJob: string | null;
+  initialResult: AiDiagnosisResult | null;
+}) {
   const [state, setState] = useState<
     { status: "idle" } | { status: "loading" } | { status: "error"; message: string } | { status: "done"; result: AiDiagnosisResult }
-  >({ status: "idle" });
+  >(initialResult ? { status: "done", result: initialResult } : { status: "idle" });
 
   const generate = async () => {
     if (!containerJob) return;
@@ -48,7 +82,7 @@ export function AiDiagnosisPanel({ containerJob }: { containerJob: string | null
   return (
     <Card
       title="AI 진단 초안 (생성형 LLM)"
-      subtitle="Prometheus·Loki·Tempo 실측 신호를 근거로 Bedrock LLM이 그 자리에서 작성 — 학습된 이상탐지 모델이 아닌 초안입니다"
+      subtitle="Loki 실측 신호를 근거로 Bedrock LLM이 그 자리에서 작성 — 학습된 이상탐지 모델이 아닌 초안입니다"
       action={
         <button
           type="button"
@@ -57,7 +91,7 @@ export function AiDiagnosisPanel({ containerJob }: { containerJob: string | null
           className="rounded-lg border px-2.5 py-1.5 text-xs font-medium disabled:opacity-50"
           style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
         >
-          {state.status === "loading" ? "생성 중…" : "초안 생성"}
+          {state.status === "loading" ? "생성 중…" : state.status === "done" ? "재분석" : "초안 생성"}
         </button>
       }
     >
@@ -69,7 +103,8 @@ export function AiDiagnosisPanel({ containerJob }: { containerJob: string | null
 
       {containerJob && state.status === "idle" && (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          &quot;초안 생성&quot;을 누르면 이 서비스의 최근 RPS·오류율·p95·로그·trace를 모아 LLM에게 진단을 요청합니다.
+          &quot;초안 생성&quot;을 누르면 이 서비스의 최근 로그를 모아 LLM에게 진단을 요청합니다. 결과는 다시
+          분석하기 전까지 계속 보입니다.
         </p>
       )}
 
@@ -103,13 +138,7 @@ export function AiDiagnosisPanel({ containerJob }: { containerJob: string | null
             {state.result.narrative}
           </p>
 
-          {state.result.recommendedActions.length > 0 && (
-            <ul className="list-disc space-y-1 pl-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-              {state.result.recommendedActions.map((a, i) => (
-                <li key={i}>{a}</li>
-              ))}
-            </ul>
-          )}
+          <RecommendedActions actions={state.result.recommendedActions} />
 
           <p className="text-xs tabular" style={{ color: "var(--text-muted)" }}>
             {state.result.modelId} · {new Date(state.result.generatedAt).toLocaleString("ko-KR")}

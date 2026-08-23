@@ -7,6 +7,7 @@ import { StatusBadge, statusColor } from "@/components/ui/StatusBadge";
 import { LiveBadge } from "@/components/ui/LiveBadge";
 import { IncidentCard } from "@/components/incidents/IncidentCard";
 import { AiDiagnosisPanel } from "@/components/services/AiDiagnosisPanel";
+import { getStoredDiagnosis } from "@/lib/ai-results-store";
 import { LineChart, type ChartPoint } from "@/components/charts/LineChart";
 import { formatTimeAgo } from "@/lib/format";
 import { getLiveContainerResource, LIVE_CONTAINER_MAP } from "@/lib/live";
@@ -51,11 +52,12 @@ export default async function ServiceDetailPage({
   const melt = buildServiceMelt(serviceId);
   const containerName = LIVE_CONTAINER_MAP[serviceId] ?? null;
 
-  const [liveResource, liveRed, liveLogs, liveTraces] = await Promise.all([
+  const [liveResource, liveRed, liveLogs, liveTraces, storedDiagnosis] = await Promise.all([
     getLiveContainerResource(serviceId),
     containerName ? getLiveServiceRed(containerName) : Promise.resolve(null),
     containerName ? getLiveLogs(containerName, 12) : Promise.resolve(null),
     containerName ? getLiveTraces(containerName, 10) : Promise.resolve(null),
+    containerName ? getStoredDiagnosis(containerName) : Promise.resolve(null),
   ]);
 
   // Measured values: real RED metrics win whenever they exist for this service;
@@ -497,7 +499,7 @@ export default async function ServiceDetailPage({
 
         {tab === "ai" && (
           <div className="space-y-4">
-            <AiDiagnosisPanel containerJob={containerName} />
+            <AiDiagnosisPanel containerJob={containerName} initialResult={storedDiagnosis} />
             {incident ? (
               <IncidentCard incident={incident} />
             ) : (

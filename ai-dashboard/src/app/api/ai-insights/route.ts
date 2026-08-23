@@ -1,5 +1,6 @@
 import { generateClusterInsights } from "@/lib/ai-insights";
 import { checkAiDiagnosisRateLimit, recordAiDiagnosisCall } from "@/lib/ai-diagnosis-limit";
+import { saveInsights } from "@/lib/ai-results-store";
 
 // Shares the same hourly budget/business-hours gate as /api/ai-diagnosis —
 // that limiter already caps the whole dashboard to one Bedrock call per
@@ -24,6 +25,7 @@ export async function POST() {
   }
 
   await recordAiDiagnosisCall(INSIGHTS_JOB_SENTINEL);
+  await saveInsights(result);
 
   return Response.json(result);
 }

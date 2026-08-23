@@ -1,6 +1,7 @@
 import { generateAiDiagnosis } from "@/lib/ai-diagnosis";
 import { checkAiDiagnosisRateLimit, recordAiDiagnosisCall } from "@/lib/ai-diagnosis-limit";
 import { postAiDiagnosisToSlack } from "@/lib/slack";
+import { saveDiagnosis } from "@/lib/ai-results-store";
 
 export async function POST(request: Request) {
   let body: { containerJob?: unknown };
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
   // rejection above never reaches here, and a downstream Bedrock failure
   // already returned null before this point.
   await recordAiDiagnosisCall(containerJob);
+  await saveDiagnosis(containerJob, result);
   await postAiDiagnosisToSlack(containerJob, result);
 
   return Response.json(result);

@@ -1,5 +1,6 @@
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { getLiveClusterLogSample } from "./loki";
+import type { RecommendedAction } from "./ai-diagnosis";
 
 /**
  * Cluster-wide "what do the logs mean" draft: samples recent warn/error Loki
@@ -21,7 +22,7 @@ export type AiInsightsResult = {
   overallAssessment: "normal" | "attention" | "concerning";
   summary: string;
   findings: { namespace: string; container: string; observation: string }[];
-  recommendedActions: string[];
+  recommendedActions: RecommendedAction[];
   logLinesAnalyzed: number;
   generatedAt: string;
   modelId: string;
@@ -52,12 +53,16 @@ const SYSTEM_PROMPT = `당신은 SRE 관측 대시보드에 들어가는 로그 
 이 클러스터에 아직 없어 포함되지 않았습니다 — 로그만 근거로 판단하세요).
 로그에 없는 사실을 지어내지 말고, 특별한 이상 징후가 없으면 솔직하게 "normal"로 답하세요.
 반복되는 패턴이나 여러 서비스에 걸친 공통 원인이 보이면 짚어주세요.
+recommendedActions는 사람이 그대로 복붙해서 실행할 수 있는 kubectl 등 실제 명령어를 우선 제시하세요
+(namespace는 findings에 나온 실제 namespace/container 값을 쓰세요).
+명령어가 필요 없는 조치는 command를 null로 두세요.
+데이터를 삭제하거나(DELETE/DROP) 되돌리기 어려운 명령어는 제안하지 마세요 — 조회·재시작·스케일 조정 수준으로 제한하세요.
 반드시 아래 JSON 스키마 그대로, 다른 텍스트 없이 JSON만 출력하세요:
 {
   "overallAssessment": "normal" | "attention" | "concerning",
   "summary": string (2-3문장, 한국어, 전체 상황 요약),
   "findings": [{ "namespace": string, "container": string, "observation": string }] (최대 5개, 눈에 띄는 서비스만),
-  "recommendedActions": string[] (0-4개, 한국어)
+  "recommendedActions": [{ "description": string (한국어, 한 문장), "command": string | null }] (0-4개)
 }`;
 
 export async function generateClusterInsights(): Promise<AiInsightsResult | null> {
