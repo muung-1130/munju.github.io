@@ -32,7 +32,7 @@ spec:
         workload: app
       containers:
         - name: dir-ai-dashboard
-          image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-dashboard@sha256:f7953315071ce2797f0c372b9b75159546b88d30426ae76f58d41345167b0e3a
+          image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-dashboard@sha256:12dbf19d7dd2cb287d2424a854207d26a0a5ca59709931c865b3c9b15c3e7c91
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
