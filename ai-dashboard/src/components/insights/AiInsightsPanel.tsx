@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 
+type RecommendedAction = { description: string; command: string | null };
+
 type AiInsightsResult = {
   overallAssessment: "normal" | "attention" | "concerning";
   summary: string;
   findings: { namespace: string; container: string; observation: string }[];
-  recommendedActions: string[];
+  recommendedActions: RecommendedAction[];
   logLinesAnalyzed: number;
   generatedAt: string;
   modelId: string;
@@ -19,10 +21,36 @@ const ASSESSMENT_META: Record<AiInsightsResult["overallAssessment"], { label: st
   concerning: { label: "우려됨", color: "var(--status-critical)" },
 };
 
-export function AiInsightsPanel() {
+function RecommendedActions({ actions }: { actions: RecommendedAction[] }) {
+  if (actions.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+        권장 조치
+      </p>
+      <ul className="space-y-2">
+        {actions.map((a, i) => (
+          <li key={i} className="text-sm">
+            <p style={{ color: "var(--text-secondary)" }}>{a.description}</p>
+            {a.command && (
+              <pre
+                className="mt-1 overflow-x-auto rounded-lg px-3 py-2 font-mono text-xs"
+                style={{ background: "var(--surface-2)", color: "var(--text-primary)" }}
+              >
+                {a.command}
+              </pre>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function AiInsightsPanel({ initialResult }: { initialResult: AiInsightsResult | null }) {
   const [state, setState] = useState<
     { status: "idle" } | { status: "loading" } | { status: "error"; message: string } | { status: "done"; result: AiInsightsResult }
-  >({ status: "idle" });
+  >(initialResult ? { status: "done", result: initialResult } : { status: "idle" });
 
   const generate = async () => {
     setState({ status: "loading" });
@@ -52,14 +80,14 @@ export function AiInsightsPanel() {
           className="rounded-lg border px-2.5 py-1.5 text-xs font-medium disabled:opacity-50"
           style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
         >
-          {state.status === "loading" ? "분석 중…" : "지금 분석"}
+          {state.status === "loading" ? "분석 중…" : state.status === "done" ? "재분석" : "지금 분석"}
         </button>
       }
     >
       {state.status === "idle" && (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           &quot;지금 분석&quot;을 누르면 최근 6시간 내 warn/error 로그를 모아 LLM에게 요약·해석을 요청합니다. 시간당
-          1회로 제한돼 있습니다(비용 절약, AI 진단 초안 기능과 예산 공유).
+          1회로 제한돼 있습니다(비용 절약, AI 진단 초안 기능과 예산 공유). 결과는 다시 분석하기 전까지 계속 보입니다.
         </p>
       )}
 
@@ -103,13 +131,7 @@ export function AiInsightsPanel() {
             </ul>
           )}
 
-          {state.result.recommendedActions.length > 0 && (
-            <ul className="list-disc space-y-1 pl-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-              {state.result.recommendedActions.map((a, i) => (
-                <li key={i}>{a}</li>
-              ))}
-            </ul>
-          )}
+          <RecommendedActions actions={state.result.recommendedActions} />
 
           <p className="text-xs tabular" style={{ color: "var(--text-muted)" }}>
             {state.result.modelId} · {new Date(state.result.generatedAt).toLocaleString("ko-KR")}

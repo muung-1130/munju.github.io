@@ -36,12 +36,14 @@ import { getLiveAlertRuleStates } from "./prometheus-alerts";
 // supported" — confirmed via `aws bedrock list-inference-profiles`).
 const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID ?? "apac.amazon.nova-pro-v1:0";
 
+export type RecommendedAction = { description: string; command: string | null };
+
 export type AiDiagnosisResult = {
   severity: "info" | "warning" | "critical";
   confidencePct: number;
   rootCauseHypothesis: string;
   narrative: string;
-  recommendedActions: string[];
+  recommendedActions: RecommendedAction[];
   generatedAt: string;
   modelId: string;
 };
@@ -120,15 +122,19 @@ function buildContext(
 }
 
 const SYSTEM_PROMPT = `당신은 SRE 관측 대시보드에 들어가는 1차 진단 초안을 작성하는 보조자입니다.
-아래 실측 신호(Prometheus/Loki/Tempo/cAdvisor)만 근거로 사용하고, 신호에 없는 사실을 지어내지 마세요.
+아래 실측 신호(Loki 로그, 그 외 제공되는 신호)만 근거로 사용하고, 신호에 없는 사실을 지어내지 마세요.
 이상 징후가 없으면 솔직하게 낮은 confidence와 severity "info"로 답하세요.
+recommendedActions는 사람이 그대로 복붙해서 실행할 수 있는 kubectl 등 실제 명령어를 우선 제시하세요
+(namespace는 dir-frontend-ns/dir-backend-ns/dir-ai-ns 중 신호에 나온 서비스에 맞는 것을 쓰세요).
+명령어가 필요 없는 조치(예: "코드 리뷰 필요")는 command를 null로 두세요.
+데이터를 삭제하거나(DELETE/DROP) 되돌리기 어려운 명령어는 제안하지 마세요 — 조회·재시작·스케일 조정 수준으로 제한하세요.
 반드시 아래 JSON 스키마 그대로, 다른 텍스트 없이 JSON만 출력하세요:
 {
   "severity": "info" | "warning" | "critical",
   "confidencePct": number (0-100),
   "rootCauseHypothesis": string (한 문장),
   "narrative": string (2-4문장, 한국어),
-  "recommendedActions": string[] (0-4개, 한국어)
+  "recommendedActions": [{ "description": string (한국어, 한 문장), "command": string | null }] (0-4개)
 }`;
 
 export async function generateAiDiagnosis(containerJob: string): Promise<AiDiagnosisResult | null> {
