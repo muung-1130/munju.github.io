@@ -14,3 +14,4 @@ resources:
   - service-dir-ai-dashboard-svc.yaml
   - httproute-dir-ai-dashboard.yaml
   - networkpolicy-dir-ai-dashboard.yaml
+  - networkpolicy-dir-ai-dashboard-bedrock-egress.yaml
