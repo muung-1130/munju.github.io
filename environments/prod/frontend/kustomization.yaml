@@ -16,3 +16,4 @@ resources:
   - httproute-dir-ai-dashboard.yaml
   - networkpolicy-dir-ai-dashboard.yaml
   - networkpolicy-dir-ai-dashboard-bedrock-egress.yaml
+  - networkpolicy-dir-ai-dashboard-pod-identity-egress.yaml
