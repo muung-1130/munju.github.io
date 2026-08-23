@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-pod-identity-egress
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    # 2026-08-23: EKS Pod Identity Agent credential endpoint (host-network
+    # link-local, AWS_CONTAINER_CREDENTIALS_FULL_URI). dir-ai-dashboard-allow-public-https
+    # explicitly excludes 169.254.0.0/16, and no other rule covered this address,
+    # so every AWS SDK call from this pod (Bedrock included) could never fetch
+    # credentials -- Ambient mesh (before istio.io/dataplane-mode: none, see
+    # deployment-dir-ai-dashboard.yaml) was silently masking this: ztunnel
+    # locally accepted the TCP connection then never relayed it, making the
+    # real cause look like a mesh issue. Once ambient was excluded for this
+    # pod, the underlying NetworkPolicy gap became visible (TCP-level timeout,
+    # zero requests reaching the agent per its logs) and this rule fixed it.
+    # Verified live: full credential exchange + signed Bedrock Converse call
+    # both succeed after this rule (2026-08-23, kubectl exec + manual SigV4).
+    - to:
+        - ipBlock:
+            cidr: 169.254.170.23/32
+      ports:
+        - protocol: TCP
+          port: 80
