@@ -348,7 +348,6 @@ export function AiRecoPanel({
         </button>
 
         <div className="ai-reco-media">
-          {course.recommendationId && course.slotLabel && <span className="ai-reco-slot-badge">{course.slotLabel}</span>}
           {course.positions.length > 0 && (
             <div className="ai-reco-map">
               <CourseMapView routes={[route]} height={320} scrollWheelZoom />
