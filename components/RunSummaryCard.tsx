@@ -41,7 +41,7 @@ export function RunSummaryCard() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/home/personalized')
+    fetch('/api/home/personalized', { credentials: 'same-origin' })
       .then((res) => (res.ok ? res.json() : null))
       .then((json: PersonalizedResponse | null) => {
         if (!cancelled) setData(json ?? { authenticated: false });

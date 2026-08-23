@@ -25,27 +25,10 @@ const SEEN_MESSAGE_IDS_KEY_PREFIX = 'aiAssistantSeenMessageIds:';
 const POLL_SESSION_USER_KEY = 'aiAssistantPollSessionUserId';
 const MAX_SEEN_MESSAGE_IDS = 200;
 
-const ICON_SIZE = 56;
 const MIN_PANEL_WIDTH = 340;
 const MAX_PANEL_WIDTH = 920;
 const MIN_PANEL_HEIGHT = 420;
 const MAX_PANEL_HEIGHT_MARGIN = 40; // 뷰포트 상하 여백
-
-// 채팅 진입 버튼의 기본 가로 위치는 화면 우측 2/3 지점으로 둔다. 세로 위치만 네비게이션의
-// "마이페이지" 링크에 맞춰두고(아직 렌더되지 않았으면 상단 근처로 대체), 렌더가 지연되는
-// 흐름에서도 값이 흔들리지 않게 한다.
-function defaultIconPosition() {
-  const navLink = document.querySelector('[data-nav-mypage]');
-  const top = navLink ? navLink.getBoundingClientRect().top + navLink.getBoundingClientRect().height / 2 - ICON_SIZE / 2 : 20;
-  return { top, left: (window.innerWidth * 2) / 3 };
-}
-
-function clampPosition(pos: { top: number; left: number }) {
-  return {
-    top: Math.min(Math.max(pos.top, 8), window.innerHeight - ICON_SIZE - 8),
-    left: Math.min(Math.max(pos.left, 8), window.innerWidth - ICON_SIZE - 8)
-  };
-}
 
 export function AssistantChatWidget() {
   const pathname = usePathname();
@@ -60,9 +43,6 @@ export function AssistantChatWidget() {
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [iconPos, setIconPos] = useState<{ top: number; left: number } | null>(null);
-  const draggedRef = useRef(false);
-  const draggingRef = useRef(false);
   const [panelSize, setPanelSize] = useState<{ width: number; height: number } | null>(null);
   const chatListRef = useRef<HTMLDivElement>(null);
 
@@ -103,8 +83,6 @@ export function AssistantChatWidget() {
   }
 
   useEffect(() => {
-    if (!iconPos) setIconPos(clampPosition(defaultIconPosition()));
-
     function updateMobileBubbleTop() {
       if (window.innerWidth > 760) {
         setMobileBubbleTop(null);
@@ -113,15 +91,9 @@ export function AssistantChatWidget() {
       const header = document.querySelector('.top-nav');
       setMobileBubbleTop(header ? header.getBoundingClientRect().bottom + 12 : null);
     }
-
-    function handleResize() {
-      if (!draggedRef.current) setIconPos(clampPosition(defaultIconPosition())); // 사용자가 직접 옮긴 뒤에는 리사이즈로 위치를 되돌리지 않는다.
-      updateMobileBubbleTop();
-    }
     updateMobileBubbleTop();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    window.addEventListener('resize', updateMobileBubbleTop);
+    return () => window.removeEventListener('resize', updateMobileBubbleTop);
   }, []);
 
   // coachedPathsRef가 컴포넌트 인스턴스에만 붙어있던 메모리 상태라, 새로고침/재진입마다
@@ -223,36 +195,6 @@ export function AssistantChatWidget() {
     }
   }, [open, sending]);
 
-  function handleIconMouseDown(event: React.MouseEvent<HTMLButtonElement>) {
-    if (event.button !== 0) return;
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startPos = iconPos ?? defaultIconPosition();
-    draggingRef.current = false;
-
-    function handleMouseMove(moveEvent: MouseEvent) {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) draggingRef.current = true;
-      setIconPos(clampPosition({ top: startPos.top + dy, left: startPos.left + dx }));
-    }
-    function handleMouseUp() {
-      if (draggingRef.current) draggedRef.current = true;
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    }
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-  }
-
-  function handleIconClick() {
-    if (draggingRef.current) {
-      draggingRef.current = false;
-      return;
-    }
-    openChat();
-  }
-
   function getCurrentCoords(): Promise<{ latitude: number; longitude: number } | null> {
     if (!navigator.geolocation) return Promise.resolve(null);
     return new Promise((resolve) => {
@@ -305,18 +247,6 @@ export function AssistantChatWidget() {
         >
           <p>{bubbleMessage}</p>
         </div>
-      )}
-
-      {!open && iconPos && (
-        <button
-          className="home-chat-toggle"
-          style={{ top: iconPos.top, left: iconPos.left }}
-          onMouseDown={handleIconMouseDown}
-          onClick={handleIconClick}
-          aria-label="AI 러닝 비서 채팅 열기 (드래그해서 위치를 옮길 수 있어요)"
-        >
-          <img src="/assets/ai-bot-rabbit.png" alt="" />
-        </button>
       )}
 
       <aside

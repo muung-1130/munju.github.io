@@ -176,6 +176,9 @@ export type UserCourseReview = {
   courseId: string;
   courseName: string;
   overallRating: number;
+  surfaceRating: number | null;
+  sceneryRating: number | null;
+  slopeRating: number | null;
   content: string | null;
   createdAt: string;
 };
@@ -184,7 +187,8 @@ export type UserCourseReview = {
 export async function getUserCourseReviews(userId: string): Promise<UserCourseReview[]> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT r.review_id, r.course_id, c.course_name, r.overall_rating, r.content, r.created_at
+    `SELECT r.review_id, r.course_id, c.course_name, r.overall_rating, r.surface_rating, r.scenery_rating,
+            r.slope_rating, r.content, r.created_at
        FROM course.course_reviews r
        JOIN course.courses c ON c.course_id = r.course_id
       WHERE r.user_id = $1
@@ -196,6 +200,9 @@ export async function getUserCourseReviews(userId: string): Promise<UserCourseRe
     courseId: row.course_id,
     courseName: row.course_name,
     overallRating: Number(row.overall_rating),
+    surfaceRating: row.surface_rating === null ? null : Number(row.surface_rating),
+    sceneryRating: row.scenery_rating === null ? null : Number(row.scenery_rating),
+    slopeRating: row.slope_rating === null ? null : Number(row.slope_rating),
     content: row.content,
     createdAt: row.created_at
   }));

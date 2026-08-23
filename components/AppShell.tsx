@@ -201,7 +201,8 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, update } = useSession();
-  const { open: chatOpen } = useChat();
+  const { open: chatOpen, openChat } = useChat();
+  const { crewId, crewName, setOpen: setCrewChatOpen } = useCrewChat();
   const { openAuthModal } = useAuthModal();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -257,6 +258,50 @@ function AppShellInner({ children }: { children: ReactNode }) {
             <span className="brand-text">DAI RUN</span>
           </Link>
 
+          {/* AI 러닝 비서/크루 채팅은 예전엔 화면 위에 항상 떠 있는 드래그 가능한 원형 버튼으로
+              열었다 — 페이지 내용 위에 계속 겹쳐 보인다는 피드백으로, 헤더 안 고정 아이콘으로
+              옮겨서 로고와 같은 줄에 정리한다. 크루 채팅은 크루 채팅방에 들어가 있을 때만 보인다. */}
+          <div className="header-chat-icons">
+            <button type="button" className="header-chat-icon-btn" onClick={openChat} aria-label="AI 러닝 비서 열기">
+              <img src="/assets/ai-bot-rabbit.png" alt="" />
+            </button>
+            {crewId && (
+              <button
+                type="button"
+                className="header-chat-icon-btn crew"
+                onClick={() => setCrewChatOpen(true)}
+                aria-label={`${crewName ?? '크루'} 채팅 열기`}
+              >
+                <img src="/assets/crew-chat-shield.svg" alt="" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 데스크톱에서는 display:contents로 nav-menu/nav-actions가 각자 order값대로 header의
+            flex 아이템이 되고, 모바일에서는 이 div 자체가 좌측에서 슬라이드해 들어오는
+            드로어가 된다(예전엔 헤더 아래로 펼쳐지며 본문을 밀어내렸다). */}
+        <div className="mobile-nav-drawer">
+          <nav className="nav-menu" aria-label="주요 메뉴">
+            {(session?.user?.isAdmin ? [...navItems, { href: '/admin', label: '관리자' }] : navItems).map((item) => {
+              const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+              // /mypage는 middleware에서 로그인 여부로 분기하므로, 로그아웃 상태에서 미리
+              // prefetch된 리다이렉트 결과가 로그인 후에도 캐시되어 재사용되지 않도록 prefetch를 끈다.
+              const prefetch = item.href === '/mypage' ? false : undefined;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={prefetch}
+                  className={`nav-link ${active ? 'active' : ''}`}
+                  data-nav-mypage={item.href === '/mypage' ? true : undefined}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
           <div className="nav-actions">
             {session && <span className="nav-username">{session.user?.name}님</span>}
             <NotificationBell session={session} />
@@ -285,27 +330,11 @@ function AppShellInner({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
-
-        <nav className="nav-menu" aria-label="주요 메뉴">
-          {(session?.user?.isAdmin ? [...navItems, { href: '/admin', label: '관리자' }] : navItems).map((item) => {
-            const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-            // /mypage는 middleware에서 로그인 여부로 분기하므로, 로그아웃 상태에서 미리
-            // prefetch된 리다이렉트 결과가 로그인 후에도 캐시되어 재사용되지 않도록 prefetch를 끈다.
-            const prefetch = item.href === '/mypage' ? false : undefined;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={prefetch}
-                className={`nav-link ${active ? 'active' : ''}`}
-                data-nav-mypage={item.href === '/mypage' ? true : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
       </header>
+
+      {mobileMenuOpen && (
+        <div className="mobile-nav-backdrop" onClick={() => setMobileMenuOpen(false)} aria-hidden="true" />
+      )}
 
       <main className="page-wrap">{children}</main>
       <AssistantChatWidget />
