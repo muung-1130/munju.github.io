@@ -404,7 +404,7 @@ function ShoesPageInner() {
                           수정
                         </button>
                         <Link href={`/shoes/${shoe.userShoeId}`} className="ghost-btn small">
-                          분석
+                          분석결과 보기
                         </Link>
                         {shoe.status !== 'RETIRED' && (
                           <button className="ghost-btn small" disabled={retiringId === shoe.userShoeId} onClick={() => retireShoe(shoe.userShoeId)}>
