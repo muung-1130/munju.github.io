@@ -16,14 +16,35 @@ spec:
     # 아웃바운드 443이 필요하다. dir-backend-baseline이 기본적으로 egress를 DNS/OTLP만
     # 허용하므로 이 트래픽이 막혀 있었다(OAuthSignin 오류의 원인).
     #
-    # Bedrock(dir-ai-bedrock-egress)이나 DynamoDB(dir-environment-dynamodb-consumer-egress)처럼
-    # AWS가 게시하는 ip-ranges.json에 COGNITO_IDP 전용 좁은 CIDR가 없고(ap-northeast-2 기준
-    # 2026-08-23 확인, 서비스 태그 없음), 일반 AMAZON 카테고리는 이 리전만 129개 prefix라
-    # 사실상 무의미하게 넓다. Hosted UI 도메인은 CloudFront 기반이라 더더욱 고정 IP가 없다.
-    # 그래서 목적지 IP가 아니라 워크로드(dir-auth-web pod)로 범위를 좁혀 443 전체를 허용한다.
+    # 2026-08-23~25 라이브 확인: cognito-idp.ap-northeast-2.amazonaws.com은 이 VPC에
+    # PrivateDnsEnabled=true로 만든 Interface VPC Endpoint(vpce-0a79a2b9ba168ea83, ENI
+    # 10.10.2.119/10.10.4.117)로 해석된다. 처음에는 목적지 IP 대신 워크로드로 범위를
+    # 좁혀 443 전체(0.0.0.0/0)를 허용했는데, 실제로는 이 조합이 이 ENI로의 연결을
+    # 막고 있었다(dir-auth-web 파드에서 두 ENI에 직접 TCP 연결 시도 시 계속 timeout,
+    # 같은 네임스페이스의 dir-crew가 SNS VPC Endpoint ENI를 /32로 고정한 규칙에서는
+    # 정상 연결됨 — 이 저장소의 다른 모든 AWS PrivateLink egress 정책과 동일하게
+    # 목적지 ENI IP를 /32로 못박아야 실제로 통과한다).
+    #
+    # 그래서 두 다리를 분리한다: (1) cognito-idp VPC Endpoint는 dir-crew-sns-egress 등과
+    # 동일하게 실제 ENI IP를 /32로 고정. (2) Hosted UI는 CloudFront 기반이라 고정 IP가
+    # 없으므로 dir-backend-external-egress와 동일한 "사설 대역 제외 0.0.0.0/0" 패턴으로
+    # 공인 인터넷 목적지만 허용해 VPC 내부로는 못 들어오게 막는다.
+    - ports:
+        - protocol: TCP
+          port: 443
+      to:
+        - ipBlock:
+            cidr: 10.10.2.119/32
+        - ipBlock:
+            cidr: 10.10.4.117/32
     - ports:
         - protocol: TCP
           port: 443
       to:
         - ipBlock:
             cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
