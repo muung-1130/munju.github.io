@@ -10,13 +10,13 @@ type AuthModalContextValue = {
 const AuthModalContext = createContext<AuthModalContextValue | null>(null);
 
 // 로그인 모달을 트리 어디서든(코스 찜/리뷰 작성 등) 열 수 있도록 전역 상태로 끌어올린 컨텍스트.
-export function AuthModalProvider({ children }: { children: ReactNode }) {
+export function AuthModalProvider({ children, demoLoginEnabled }: { children: ReactNode; demoLoginEnabled?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
     <AuthModalContext.Provider value={{ openAuthModal: () => setOpen(true) }}>
       {children}
-      <AuthModal open={open} onClose={() => setOpen(false)} />
+      <AuthModal open={open} onClose={() => setOpen(false)} demoLoginEnabled={demoLoginEnabled} />
     </AuthModalContext.Provider>
   );
 }

@@ -50,6 +50,11 @@ a { color: inherit; text-decoration: none; }
   width: 42px; height: 42px; border-radius: 50%; color: var(--navy); background: #CFE9FF;
   border: 1px solid #CFE9FF; font-size: 20px; display: inline-flex; align-items: center; justify-content: center;
 }
+/* 모바일 전용 햄버거 버튼과 그 메뉴(nav-menu + nav-actions) 드롭다운. 데스크톱에서는
+   display:contents로 자기 자신은 사라지고 자식이 .top-nav의 flex 아이템으로 그대로
+   노출되므로 기존 order(브랜드1·메뉴2·액션3) 기준 레이아웃이 그대로 유지된다. */
+.mobile-menu-toggle { display: none; }
+.mobile-nav-drawer { display: contents; }
 .page-wrap { max-width: 1510px; margin: 0 auto; padding: 30px 34px 34px; background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.96)); border-radius: 18px; border: 1px solid rgba(255,255,255,.7); box-shadow: var(--shadow); min-height: calc(100vh - 112px); }
 .page-wrap:has(> .home-page) { background: transparent; border: none; box-shadow: none; border-radius: 0; }
 
@@ -1101,11 +1106,27 @@ a { color: inherit; text-decoration: none; }
 }
 @media (max-width: 760px) {
   .app-shell { padding:0; }
-  .top-nav { height:auto; padding:18px; flex-wrap:wrap; gap:14px; }
-  .top-nav-row1 { display:flex; align-items:center; justify-content:space-between; width:100%; gap:12px; }
+  .top-nav { height:auto; padding:18px; flex-wrap:wrap; gap:14px; position:relative; }
+  /* 로고/DAIRUN 이름을 화면 중앙에 두고, 햄버거 버튼만 좌측 상단에 절대 위치로 뗀다. */
+  .top-nav-row1 { display:flex; align-items:center; justify-content:center; position:relative; width:100%; gap:12px; }
   .brand { min-width:0; }
   .brand-text { font-size:24px; }
-  .nav-menu { width:100%; flex-wrap:wrap; justify-content:flex-start; }
+  .mobile-menu-toggle {
+    display: inline-flex; align-items:center; justify-content:center; position:absolute; left:0; top:50%; transform:translateY(-50%);
+    width:42px; height:42px; border-radius:50%; color:var(--navy); background:#CFE9FF; border:1px solid #CFE9FF;
+  }
+  /* 나머지 메뉴(nav-menu + nav-actions)는 햄버거를 눌러야만 열리는 드롭다운으로 접는다. */
+  .mobile-nav-drawer {
+    display: none; position:absolute; top:100%; left:18px; right:18px; margin-top:8px; z-index:1200;
+    background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+    padding:16px; flex-direction:column; gap:14px;
+  }
+  .top-nav.mobile-menu-open .mobile-nav-drawer { display:flex; }
+  .mobile-nav-drawer .nav-menu { width:100%; flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:6px; }
+  .mobile-nav-drawer .nav-link { padding:12px 14px; }
+  /* 알림/프로필 버튼을 드롭다운 오른쪽 끝에 몰아서, 각 버튼의 말풍선(.profile-menu/.notification-menu,
+     right:0 기준 정렬)이 화면 왼쪽이 아니라 오른쪽에서 뜨게 한다. */
+  .mobile-nav-drawer .nav-actions { width:100%; flex-wrap:wrap; justify-content:flex-end; padding-top:14px; border-top:1px solid var(--line); }
   .page-wrap { border-radius:0; padding:20px; }
   .hero-content h1 { font-size:28px; }
   /* course-filter-row(거리/시티런 필터)는 원래 명시적 grid-row가 없어서 grid
@@ -1125,9 +1146,17 @@ a { color: inherit; text-decoration: none; }
   .pace-card, .heart-zone, .recent-card, .recent-course, .owned-shoes, .wide-card, .ranking-card.full { grid-column:span 1; }
   .home-chat-bubble-top { max-width: 90vw; }
   /* 닫혀있는 챗봇 아이콘의 기본 위치(JS)가 네비게이션의 마이페이지 링크 옆이라 모바일에서
-     줄바꿈된 네비게이션과 겹쳤다 — 인라인 top/left를 무시하고 하단 우측 고정 위치로 뗀다. */
-  .home-chat-toggle { top: auto !important; left: auto !important; bottom: 24px; right: 16px; }
-  .home-chat-panel { top:auto; bottom:20px; right:16px; left:16px; width:auto !important; height:70vh !important; }
+     줄바꿈된 네비게이션과 겹쳤다 — 인라인 top/left를 무시하고 화면 우측 상단에 나란히 고정한다.
+     크루 채팅 아이콘(.crew-chat-toggle)도 같은 .home-chat-toggle 클래스를 쓰므로 이 규칙을
+     그대로 물려받아 AI 비서 아이콘과 같은 자리에 겹쳐 보이지 않도록 별도 right 값으로 띄운다. */
+  .home-chat-toggle { top: 14px !important; left: auto !important; bottom: auto !important; right: 16px; z-index: 1150; }
+  .crew-chat-toggle { right: 82px; }
+  /* 닫힌 상태의 채팅 패널은 화면 밖으로 밀어내는 방식(transform) 대신 아예 그리지 않게 해서,
+     모바일 브라우저에서 화면 오른쪽에 패널 일부가 튀어나와 보이는 문제를 원천적으로 없앤다. */
+  .home-chat-panel { display: none; }
+  .home-chat-panel.open {
+    display: flex; top:auto; bottom:20px; right:16px; left:16px; width:auto !important; height:70vh !important;
+  }
   .home-chat-resize-handle { display:none; }
   .crew-chat-modal, .crew-detail-modal, .auth-modal { width: 100%; }
 
@@ -1230,6 +1259,13 @@ a { color: inherit; text-decoration: none; }
 .review-owner-actions button:hover { background: white; color: #000000; }
 .course-review-item.editing .review-owner-actions { margin-left: 0; }
 .course-review-item.editing .review-owner-actions button.primary-btn { flex: 0 0 auto; padding: 10px 20px; }
+@media (max-width: 640px) {
+  /* 2열 grid에서 별 5개 + 값 표기(최소 폭 약 214px)가 열 폭보다 넓어 잘려 보이던 문제 —
+     한 줄에 하나씩 쌓고 중앙 정렬한다. */
+  .review-rating-grid { grid-template-columns: 1fr; }
+  .review-rating-field { text-align: center; }
+  .star-rating-row { justify-content: center; }
+}
 
 .marathon-filter-card { margin-bottom: 18px; }
 
@@ -1469,6 +1505,12 @@ a { color: inherit; text-decoration: none; }
 .home-page .home-feature-tile strong { font-size: 17px; color: #3C6E71; letter-spacing: -0.02em; }
 .home-page .home-feature-tile p { margin: 0; font-size: 13px; line-height: 1.55; color: rgba(0,0,0,.6); }
 @media (max-width: 900px) { .home-page .home-feature-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 760px) {
+  /* 모바일에서는 타일이 너무 커 보여서 축소하고, 설명 문구는 공간만 차지해 없앤다. */
+  .home-page .home-feature-tile { padding: 16px 14px; gap: 0; }
+  .home-page .home-feature-tile strong { font-size: 14px; }
+  .home-page .home-feature-tile p { display: none; }
+}
 @media (max-width: 520px) { .home-page .home-feature-grid { grid-template-columns: 1fr; } }
 
 .home-page .feature-banner { box-shadow: 0 14px 34px rgba(0,0,0,.25); }

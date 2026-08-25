@@ -40,6 +40,21 @@ function ProfileIcon() {
     </svg>
   );
 }
+// 모바일 전용 메뉴 토글 아이콘(햄버거/닫기). 데스크톱에서는 CSS로 숨긴다.
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+function CloseMenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
 
 const navItems = [
   { href: '/', label: '홈' },
@@ -205,7 +220,9 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const { openAuthModal } = useAuthModal();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const topNavRef = useRef<HTMLElement>(null);
 
   async function handleSignOut() {
     // NextAuth는 쿠키만 지우고 auth_user.auth_sessions 행은 회수하지 않으므로, 로그아웃 직전에
@@ -230,14 +247,65 @@ function AppShellInner({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [profileMenuOpen]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    function handleOutsideClick(event: MouseEvent) {
+      if (topNavRef.current && !topNavRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [mobileMenuOpen]);
+
+  // 페이지 이동(메뉴 안 링크 클릭 포함) 후에는 모바일 메뉴를 자동으로 닫는다.
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   return (
     <div className={`app-shell ${chatOpen ? 'chat-open' : ''}`}>
-      <header className="top-nav">
+      <header className={`top-nav ${mobileMenuOpen ? 'mobile-menu-open' : ''}`} ref={topNavRef}>
         <div className="top-nav-row1">
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+          >
+            {mobileMenuOpen ? <CloseMenuIcon /> : <MenuIcon />}
+          </button>
+
           <Link href="/" className="brand" aria-label="DAI RUN 홈">
             <Image src="/assets/logo-fixed-color.png" alt="" width={36} height={36} className="brand-mark" priority />
             <span className="brand-text">DAI RUN</span>
           </Link>
+        </div>
+
+        {/* 데스크톱에서는 이 래퍼가 display:contents라 nav-menu/nav-actions가 그대로
+            .top-nav의 flex 아이템으로 노출된다(기존 순서·스타일 유지). 모바일에서만 좌측 상단
+            햄버거 버튼으로 열고 닫는 드롭다운 메뉴로 접힌다. */}
+        <div className="mobile-nav-drawer">
+          <nav className="nav-menu" aria-label="주요 메뉴">
+            {(session?.user?.isAdmin ? [...navItems, { href: '/admin', label: '관리자' }] : navItems).map((item) => {
+              const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+              // /mypage는 middleware에서 로그인 여부로 분기하므로, 로그아웃 상태에서 미리
+              // prefetch된 리다이렉트 결과가 로그인 후에도 캐시되어 재사용되지 않도록 prefetch를 끈다.
+              const prefetch = item.href === '/mypage' ? false : undefined;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={prefetch}
+                  className={`nav-link ${active ? 'active' : ''}`}
+                  data-nav-mypage={item.href === '/mypage' ? true : undefined}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
 
           <div className="nav-actions">
             {session && <span className="nav-username">{session.user?.name}님</span>}
@@ -267,26 +335,6 @@ function AppShellInner({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
-
-        <nav className="nav-menu" aria-label="주요 메뉴">
-          {(session?.user?.isAdmin ? [...navItems, { href: '/admin', label: '관리자' }] : navItems).map((item) => {
-            const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-            // /mypage는 middleware에서 로그인 여부로 분기하므로, 로그아웃 상태에서 미리
-            // prefetch된 리다이렉트 결과가 로그인 후에도 캐시되어 재사용되지 않도록 prefetch를 끈다.
-            const prefetch = item.href === '/mypage' ? false : undefined;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={prefetch}
-                className={`nav-link ${active ? 'active' : ''}`}
-                data-nav-mypage={item.href === '/mypage' ? true : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
       </header>
 
       <main className="page-wrap">{children}</main>
@@ -310,10 +358,10 @@ function AppShellInner({ children }: { children: ReactNode }) {
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, demoLoginEnabled }: { children: ReactNode; demoLoginEnabled?: boolean }) {
   return (
     <ChatProvider>
-      <AuthModalProvider>
+      <AuthModalProvider demoLoginEnabled={demoLoginEnabled}>
         <CrewChatProvider>
           <PreferencesModalProvider>
             <AppShellInner>{children}</AppShellInner>
