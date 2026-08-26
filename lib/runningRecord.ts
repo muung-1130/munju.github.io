@@ -43,7 +43,7 @@ export async function getRunningSummary(userId: string): Promise<RunningSummary 
        MIN(best_pace_sec_per_km) AS best_pace_sec_per_km,
        COUNT(*) AS run_count
      FROM running_record.runs
-     WHERE user_id = $1 AND status = 'COMPLETED' AND started_at >= now() - interval '28 days'`,
+     WHERE user_id = $1 AND status IN ('COMPLETED', 'STOPPED') AND started_at >= now() - interval '28 days'`,
     [userId]
   );
 
@@ -97,7 +97,7 @@ export async function getThisWeekDailyDistances(userId: string): Promise<DailyDi
   const { rows } = await pool.query<{ day: string | Date; distance_m: string | null }>(
     `SELECT (started_at AT TIME ZONE 'Asia/Seoul')::date AS day, SUM(distance_m) AS distance_m
        FROM running_record.runs
-      WHERE user_id = $1 AND status = 'COMPLETED'
+      WHERE user_id = $1 AND status IN ('COMPLETED', 'STOPPED')
         AND (started_at AT TIME ZONE 'Asia/Seoul')::date >= $2::date
         AND (started_at AT TIME ZONE 'Asia/Seoul')::date < $2::date + 7
       GROUP BY day`,
@@ -134,7 +134,7 @@ export async function getRunningStatsByPeriod(userId: string, period: StatPeriod
       `SELECT EXTRACT(MONTH FROM (started_at AT TIME ZONE 'Asia/Seoul'))::int AS month,
               SUM(distance_m) AS distance_m, AVG(average_heart_rate) AS avg_hr, COUNT(average_heart_rate) AS hr_count
          FROM running_record.runs
-        WHERE user_id = $1 AND status = 'COMPLETED'
+        WHERE user_id = $1 AND status IN ('COMPLETED', 'STOPPED')
           AND EXTRACT(YEAR FROM (started_at AT TIME ZONE 'Asia/Seoul')) = $2
         GROUP BY month`,
       [userId, year]
@@ -163,7 +163,7 @@ export async function getRunningStatsByPeriod(userId: string, period: StatPeriod
       `SELECT CEIL(EXTRACT(DAY FROM (started_at AT TIME ZONE 'Asia/Seoul'))::numeric / 7)::int AS week_index,
               SUM(distance_m) AS distance_m, AVG(average_heart_rate) AS avg_hr, COUNT(average_heart_rate) AS hr_count
          FROM running_record.runs
-        WHERE user_id = $1 AND status = 'COMPLETED'
+        WHERE user_id = $1 AND status IN ('COMPLETED', 'STOPPED')
           AND EXTRACT(YEAR FROM (started_at AT TIME ZONE 'Asia/Seoul')) = $2
           AND EXTRACT(MONTH FROM (started_at AT TIME ZONE 'Asia/Seoul')) = $3
         GROUP BY week_index`,
@@ -194,7 +194,7 @@ export async function getRunningStatsByPeriod(userId: string, period: StatPeriod
     `SELECT (started_at AT TIME ZONE 'Asia/Seoul')::date AS day,
             SUM(distance_m) AS distance_m, AVG(average_heart_rate) AS avg_hr, COUNT(average_heart_rate) AS hr_count
        FROM running_record.runs
-      WHERE user_id = $1 AND status = 'COMPLETED'
+      WHERE user_id = $1 AND status IN ('COMPLETED', 'STOPPED')
         AND (started_at AT TIME ZONE 'Asia/Seoul')::date >= $2::date
         AND (started_at AT TIME ZONE 'Asia/Seoul')::date < $2::date + 7
       GROUP BY day`,

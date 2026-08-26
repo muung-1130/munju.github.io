@@ -70,6 +70,41 @@ export const authOptions: AuthOptions = {
         };
       }
     }),
+    // 시연용 원클릭 로그인. 비밀번호를 주고받지 않고 서버에서만 계정을 결정하므로 클라이언트
+    // 번들에는 어떤 자격 증명도 노출되지 않는다 — DEMO_LOGIN_ENABLED가 꺼져 있으면(기본값)
+    // 항상 로그인을 거부한다. 행사·시연이 끝나면 반드시 다시 꺼둔다.
+    CredentialsProvider({
+      id: 'demo',
+      name: '시연용 로그인',
+      credentials: {},
+      async authorize() {
+        if (process.env.DEMO_LOGIN_ENABLED !== 'true') return null;
+
+        const pool = getPool();
+        const { rows } = await pool.query(
+          `SELECT user_id, user_name, nickname, user_email, created_at, gender, birth_year, dong, is_admin
+           FROM auth_user.users WHERE is_admin = true AND deleted_at IS NULL
+           ORDER BY created_at ASC LIMIT 1`
+        );
+        const row = rows[0];
+        if (!row) return null;
+
+        await pool.query('UPDATE auth_user.users SET last_login_at = now() WHERE user_id = $1', [row.user_id]);
+        const sessionId = await recordAuthSession(row.user_id);
+
+        return {
+          id: row.user_id,
+          name: row.nickname,
+          email: row.user_email,
+          userName: row.user_name,
+          createdAt: row.created_at,
+          profileComplete: isProfileComplete(row),
+          dong: row.dong,
+          isAdmin: row.is_admin,
+          sessionId
+        };
+      }
+    }),
     ...(process.env.COGNITO_CLIENT_ID && process.env.COGNITO_CLIENT_SECRET && process.env.COGNITO_ISSUER
       ? [
           CognitoProvider({

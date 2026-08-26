@@ -357,10 +357,10 @@ function AppShellInner({ children }: { children: ReactNode }) {
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, demoLoginEnabled }: { children: ReactNode; demoLoginEnabled?: boolean }) {
   return (
     <ChatProvider>
-      <AuthModalProvider>
+      <AuthModalProvider demoLoginEnabled={demoLoginEnabled}>
         <CrewChatProvider>
           <PreferencesModalProvider>
             <AppShellInner>{children}</AppShellInner>

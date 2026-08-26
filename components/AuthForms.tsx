@@ -20,7 +20,15 @@ function SocialLoginIcon() {
   );
 }
 
-export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialMode?: Mode; onAuthenticated?: () => void }) {
+export function AuthForms({
+  initialMode = 'login',
+  onAuthenticated,
+  demoLoginEnabled
+}: {
+  initialMode?: Mode;
+  onAuthenticated?: () => void;
+  demoLoginEnabled?: boolean;
+}) {
   const [mode, setMode] = useState<Mode>(initialMode);
 
   const [loginUsername, setLoginUsername] = useState('');
@@ -28,6 +36,7 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
+  const [demoLoginLoading, setDemoLoginLoading] = useState(false);
 
   const [username, setUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState<CheckStatus>('idle');
@@ -182,6 +191,18 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
     }
   }
 
+  async function handleDemoLogin() {
+    setDemoLoginLoading(true);
+    setLoginError('');
+    const result = await signIn('demo', { redirect: false });
+    setDemoLoginLoading(false);
+    if (result?.error) {
+      setLoginError('시연용 로그인을 사용할 수 없어요.');
+    } else {
+      onAuthenticated?.();
+    }
+  }
+
   async function handleSignup(event: React.FormEvent) {
     event.preventDefault();
     if (!isFormComplete) return;
@@ -241,6 +262,11 @@ export function AuthForms({ initialMode = 'login', onAuthenticated }: { initialM
           <button type="button" className="auth-social-btn" onClick={() => signIn('cognito')}>
             <SocialLoginIcon /> 소셜 로그인으로 계속하기
           </button>
+          {demoLoginEnabled && (
+            <button type="button" className="ghost-btn full-width" disabled={demoLoginLoading} onClick={handleDemoLogin}>
+              {demoLoginLoading ? '로그인 중...' : '시연용 로그인'}
+            </button>
+          )}
         </form>
       ) : (
         <form className="auth-form auth-form-signup" onSubmit={handleSignup}>
