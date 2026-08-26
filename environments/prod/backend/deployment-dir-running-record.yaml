@@ -47,7 +47,7 @@ spec:
             name: dir-running-record-secret
         - secretRef:
             name: dir-running-record-db-secret
-        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/running-record-service@sha256:5991a85fb6eb194e9334499310beb51ac7b488b857d2f66899a6abe3d549f645
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/running-record-service@sha256:5578ff9d29af67177b4946bd1f9addf421e28db3d87e50eb663f08d8b7e8de03
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
