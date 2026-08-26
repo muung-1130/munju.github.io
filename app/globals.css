@@ -1175,9 +1175,10 @@ a { color: inherit; text-decoration: none; }
     flex-direction: row; align-items: center; flex-wrap: wrap; gap: 10px;
     padding-top: 14px; border-top: 1px solid var(--line);
   }
-  /* 알림/프로필 버튼이 좌측 슬라이드 드로어 안, 화면 하단 쪽에 있어서 기존처럼 아래로
-     펼치면(top:52px) 드로어 밖으로 밀려 안 보이는 경우가 있었다 — 위로 펼치게 뒤집는다. */
-  .profile-menu { top: auto; bottom: 52px; }
+  /* 알림/프로필 버튼이 좌측 슬라이드 드로어(폭 최대 300px) 안에 있어서, 버튼 기준
+     position:absolute(right:0)로 펼치면 말풍선이 드로어 안, 즉 화면 왼쪽에서 뜬다.
+     드로어 폭과 무관하게 항상 화면 오른쪽에서 뜨도록 뷰포트 기준 고정 위치로 뗀다. */
+  .profile-menu { position: fixed; top: auto; left: auto; right: 16px; bottom: 24px; }
   .page-wrap { border-radius:0; padding:16px 6px; }
   /* 메인 배너("안녕하세요" 인사말) 상하 여백을 줄여 컴팩트하게 만든다. */
   /* 인사 문구 영역은 로고 높이(36px)의 약 5배 안쪽으로 — 헤더에 이미 "DAI RUN"이 있으니
@@ -1203,9 +1204,16 @@ a { color: inherit; text-decoration: none; }
   .pace-card, .heart-zone, .recent-card, .recent-course, .owned-shoes, .wide-card, .ranking-card.full { grid-column:span 1; }
   .home-chat-bubble-top { max-width: 90vw; }
   .crew-chat-bubble { right: 10px; }
+  /* 닫힌 상태는 화면 밖으로 밀어내는 translateX(100%) 방식 대신 아예 그리지 않는다 — 이 아래
+     .open 규칙이 left/right를 둘 다 16px로 고정해 패널 폭을 "뷰포트 - 32px"로 다시 계산하는데,
+     translateX(100%)는 그 새 폭 기준으로 밀어내다 보니 왼쪽 16px만큼 밀린 채 오른쪽 끝에서
+     패널 일부가 화면 안으로 다시 들어와 "빼꼼" 보이는 문제가 있었다. display로 아예 없애면
+     이 폭 계산과 무관하게 확실히 사라진다. */
+  .home-chat-panel { display: none; }
   /* 열린 패널은 좌우 여백 16px 안쪽으로 완전히 가두고, 남는 폭이 화면 밖으로 튀어나가지
      않도록 max-width도 이중으로 제한한다. */
-  .home-chat-panel {
+  .home-chat-panel.open {
+    display: flex;
     top: 76px !important; bottom: 20px; right: 16px !important; left: 16px !important;
     width: auto !important; max-width: calc(100vw - 32px) !important; height: auto !important;
   }

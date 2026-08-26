@@ -10,11 +10,12 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const demoLoginEnabled = process.env.DEMO_LOGIN_ENABLED === 'true';
   return (
     <html lang="ko">
       <body>
         <Providers>
-          <AppShell>{children}</AppShell>
+          <AppShell demoLoginEnabled={demoLoginEnabled}>{children}</AppShell>
         </Providers>
       </body>
     </html>
