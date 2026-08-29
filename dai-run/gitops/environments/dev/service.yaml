@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dai-run-frontend
+  labels:
+    app.kubernetes.io/name: dai-run-frontend
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dai-run-frontend
+    dairun.io/track: blue
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

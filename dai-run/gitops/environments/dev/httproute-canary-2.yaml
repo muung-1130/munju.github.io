@@ -1,0 +1,226 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: dai-run-backend-canary-2
+  labels:
+    app.kubernetes.io/name: dai-run-backend
+    app.kubernetes.io/part-of: dai-run
+spec:
+  parentRefs:
+  - name: dir-public-gateway
+    namespace: dir-istio-ingress
+    sectionName: http
+  - name: dir-public-gateway
+    namespace: dir-istio-ingress
+    sectionName: https-root
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/media-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-media-service-green
+      port: 8113
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/media-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-media-service
+      port: 8113
+      weight: 100
+    - name: dai-run-media-service-green
+      port: 8113
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/notification-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-notification-service-green
+      port: 8112
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/notification-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-notification-service
+      port: 8112
+      weight: 100
+    - name: dai-run-notification-service-green
+      port: 8112
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/running-record-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-running-record-service-green
+      port: 8103
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/running-record-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-running-record-service
+      port: 8103
+      weight: 100
+    - name: dai-run-running-record-service-green
+      port: 8103
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/shoe-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-shoe-service-green
+      port: 8109
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/shoe-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-shoe-service
+      port: 8109
+      weight: 100
+    - name: dai-run-shoe-service-green
+      port: 8109
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/ai-assistant-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-ai-assistant-service-green
+      port: 8202
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/ai-assistant-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-ai-assistant-service
+      port: 8202
+      weight: 100
+    - name: dai-run-ai-assistant-service-green
+      port: 8202
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/auth-web
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-auth-web-green
+      port: 3000
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/auth-web
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-auth-web
+      port: 3000
+      weight: 100
+    - name: dai-run-auth-web-green
+      port: 3000
+      weight: 0

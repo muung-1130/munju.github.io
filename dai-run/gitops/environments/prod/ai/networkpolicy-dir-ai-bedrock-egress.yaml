@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-bedrock-egress
+  namespace: dir-ai-ns
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - dir-ai-assistant
+          - dir-course-recommendation
+          - dir-shoe-life-ai
+  policyTypes:
+    - Egress
+  egress:
+    # 2026-08-19: Bedrock VPC Interface Endpoint(bedrock-runtime, bedrock-agent-runtime)
+    # ENI 사설 IP. dir-ai-external-egress가 10.0.0.0/8을 명시적으로 제외하고 있어서
+    # (외부 인터넷 443만 허용하는 정책이라 VPC 내부 사설 IP는 원래 대상이 아님) 이
+    # 사설 엔드포인트로 가는 트래픽은 별도 규칙이 필요하다. IP는 2026-08-19
+    # `aws ec2 describe-network-interfaces`로 실제 확인한 값 — VPC Endpoint가
+    # 재생성되면 ENI IP가 바뀔 수 있으니 그때 같이 갱신 필요.
+    - to:
+        - ipBlock:
+            cidr: 10.10.2.77/32
+        - ipBlock:
+            cidr: 10.10.3.10/32
+        - ipBlock:
+            cidr: 10.10.5.117/32
+        - ipBlock:
+            cidr: 10.10.5.176/32
+      ports:
+        - protocol: TCP
+          port: 443

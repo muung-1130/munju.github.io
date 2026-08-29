@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dai-run-media-service
+  labels:
+    app.kubernetes.io/name: dai-run-media-service
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: media-service
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dai-run-media-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dai-run-media-service
+        app.kubernetes.io/part-of: dai-run
+        app.kubernetes.io/component: media-service
+        dairun.io/track: blue
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-dai-run-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: media-service
+          image: harbor.dai-run.internal/dai-run/media-service@sha256:e3f1d07526e647b331fa4d0c7d4b385242d8da6e5517ce7a5325f99143390264
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8113"
+          ports:
+            - name: http
+              containerPort: 8113
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

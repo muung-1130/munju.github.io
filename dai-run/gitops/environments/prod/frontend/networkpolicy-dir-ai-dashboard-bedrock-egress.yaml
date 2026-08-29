@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-bedrock-vpce-egress
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    # 2026-08-22: Bedrock VPC Interface Endpoint(bedrock-runtime) ENI 사설 IP.
+    # dir-ai-dashboard-allow-public-https(같은 디렉터리)가 10.0.0.0/8을 명시적으로
+    # 제외해서(공인 인터넷 443만 허용하는 정책이라 VPC 내부 사설 IP는 원래 대상이
+    # 아님) 이 사설 엔드포인트로 가는 트래픽은 별도 규칙이 필요하다 —
+    # environments/prod/ai/networkpolicy-dir-ai-bedrock-egress.yaml(dir-ai-ns)과
+    # 동일 패턴, 동일 vpce-0eeb332ffffafb1f3(bedrock-runtime) ENI IP.
+    #
+    # 이 리소스는 2026-08-22 17:20 KST에 클러스터에 직접 kubectl apply되어 이미
+    # 라이브로 동작 중이었고(effective, 2026-08-23 `aws ec2 describe-network-interfaces`
+    # 및 파드 내부 TLS 연결 테스트로 IP 재확인 완료), 이 커밋은 gitops를 그 라이브
+    # 상태와 맞추는 것뿐이다 — 새 규칙을 추가하는 게 아니다.
+    #
+    # dir-ai-dashboard는 현재 BEDROCK_MODEL_ID(Converse API, bedrock-runtime)만
+    # 사용하고 Knowledge Base(bedrock-agent-runtime)는 호출하지 않으므로, dir-ai-ns
+    # 쪽과 달리 bedrock-agent-runtime ENI IP(10.10.3.10, 10.10.5.176)는 포함하지
+    # 않았다. 추후 이 서비스가 Knowledge Base를 호출하게 되면 그 두 IP도 추가.
+    - to:
+        - ipBlock:
+            cidr: 10.10.5.117/32
+        - ipBlock:
+            cidr: 10.10.2.77/32
+      ports:
+        - protocol: TCP
+          port: 443

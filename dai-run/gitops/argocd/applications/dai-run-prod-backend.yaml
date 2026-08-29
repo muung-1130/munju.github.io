@@ -1,0 +1,81 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dai-run-prod-backend
+  namespace: dir-argocd-ns
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: dai-run-prod
+  source:
+    repoURL: http://10.20.0.253/dai-run/gitops.git
+    targetRevision: main
+    path: environments/prod/backend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dir-backend-ns
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: dir-challenge-consumer
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: dir-course
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: dir-course-stats-consumer
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: dir-crew
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: dir-crew-consumer
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: dir-crew-notification-consumer
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: dir-notification
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: dir-notification-consumer
+      namespace: dir-backend-ns
+      jsonPointers:
+        - /spec/replicas
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: false
+      allowEmpty: false
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - Validate=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true

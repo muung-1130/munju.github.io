@@ -1,0 +1,42 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  labels:
+    app.kubernetes.io/part-of: dai-run
+  name: dir-ai-route
+  namespace: dir-ai-ns
+spec:
+  hostnames:
+  - dairun.site
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: dir-public-gateway
+    namespace: dir-istio-ingress
+    sectionName: https-root
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: dir-public-gateway
+    namespace: dir-istio-ingress
+    sectionName: http
+  rules:
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-course-recommendation-service-svc
+      port: 8201
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/ai-recommendations
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-ai-assistant-service-svc
+      port: 8202
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/ai-assistant

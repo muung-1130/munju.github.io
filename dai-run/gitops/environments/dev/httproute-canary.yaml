@@ -1,0 +1,296 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: dai-run-frontend-canary
+  labels:
+    app.kubernetes.io/name: dai-run-frontend
+    app.kubernetes.io/part-of: dai-run
+spec:
+  parentRefs:
+  - name: dir-public-gateway
+    namespace: dir-istio-ingress
+    sectionName: http
+  - name: dir-public-gateway
+    namespace: dir-istio-ingress
+    sectionName: https-root
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-frontend-green
+      port: 80
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-frontend
+      port: 80
+      weight: 100
+    - name: dai-run-frontend-green
+      port: 80
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/auth-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-auth-service-green
+      port: 8101
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/auth-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-auth-service
+      port: 8101
+      weight: 100
+    - name: dai-run-auth-service-green
+      port: 8101
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/challenge-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-challenge-service-green
+      port: 8108
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/challenge-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-challenge-service
+      port: 8108
+      weight: 100
+    - name: dai-run-challenge-service-green
+      port: 8108
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/coaching-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-coaching-service-green
+      port: 8106
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/coaching-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-coaching-service
+      port: 8106
+      weight: 100
+    - name: dai-run-coaching-service-green
+      port: 8106
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/course-recommendation-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-course-recommendation-service-green
+      port: 8201
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/course-recommendation-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-course-recommendation-service
+      port: 8201
+      weight: 100
+    - name: dai-run-course-recommendation-service-green
+      port: 8201
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/course-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-course-service-green
+      port: 8102
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/course-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-course-service
+      port: 8102
+      weight: 100
+    - name: dai-run-course-service-green
+      port: 8102
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/crew-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-crew-service-green
+      port: 8104
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/crew-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-crew-service
+      port: 8104
+      weight: 100
+    - name: dai-run-crew-service-green
+      port: 8104
+      weight: 0
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/marathon-service
+      headers:
+      - type: Exact
+        name: X-Dairun-Track
+        value: green
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-marathon-service-green
+      port: 8111
+      weight: 1
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /canary/marathon-service
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: dai-run-marathon-service
+      port: 8111
+      weight: 100
+    - name: dai-run-marathon-service-green
+      port: 8111
+      weight: 0

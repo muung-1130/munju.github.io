@@ -1,0 +1,67 @@
+{
+  "apiVersion": "autoscaling/v2",
+  "kind": "HorizontalPodAutoscaler",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/name": "dir-frontend",
+      "app.kubernetes.io/part-of": "dai-run"
+    },
+    "name": "dir-frontend-hpa",
+    "namespace": "dir-frontend-ns"
+  },
+  "spec": {
+    "behavior": {
+      "scaleDown": {
+        "policies": [
+          {
+            "periodSeconds": 60,
+            "type": "Percent",
+            "value": 25
+          }
+        ],
+        "selectPolicy": "Max",
+        "stabilizationWindowSeconds": 300
+      },
+      "scaleUp": {
+        "policies": [
+          {
+            "periodSeconds": 60,
+            "type": "Pods",
+            "value": 2
+          }
+        ],
+        "selectPolicy": "Max",
+        "stabilizationWindowSeconds": 0
+      }
+    },
+    "maxReplicas": 4,
+    "metrics": [
+      {
+        "resource": {
+          "name": "cpu",
+          "target": {
+            "averageUtilization": 70,
+            "type": "Utilization"
+          }
+        },
+        "type": "Resource"
+      },
+      {
+        "resource": {
+          "name": "memory",
+          "target": {
+            "averageUtilization": 75,
+            "type": "Utilization"
+          }
+        },
+        "type": "Resource"
+      }
+    ],
+    "minReplicas": 1,
+    "scaleTargetRef": {
+      "apiVersion": "argoproj.io/v1alpha1",
+      "kind": "Rollout",
+      "name": "dir-frontend"
+    }
+  }
+}

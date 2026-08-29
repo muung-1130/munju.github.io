@@ -1,0 +1,180 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  labels:
+    app.kubernetes.io/part-of: dai-run
+  name: dir-backend-route
+  namespace: dir-backend-ns
+spec:
+  hostnames:
+  - dairun.site
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: dir-public-gateway
+    namespace: dir-istio-ingress
+    sectionName: https-root
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: dir-public-gateway
+    namespace: dir-istio-ingress
+    sectionName: http
+  rules:
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-auth-user-svc
+      port: 8101
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/auth/signup
+    - path:
+        type: PathPrefix
+        value: /api/auth/check-username
+    - path:
+        type: PathPrefix
+        value: /api/auth/check-nickname
+    - path:
+        type: PathPrefix
+        value: /api/auth/find-username
+    - path:
+        type: PathPrefix
+        value: /api/auth/password-reset
+    - path:
+        type: PathPrefix
+        value: /api/auth/revoke-session
+    - path:
+        type: PathPrefix
+        value: /api/auth/update-profile
+    - path:
+        type: PathPrefix
+        value: /api/auth/complete-profile
+    - path:
+        type: PathPrefix
+        value: /api/auth/withdraw
+    - path:
+        type: PathPrefix
+        value: /api/auth/weight
+    - path:
+        type: PathPrefix
+        value: /api/user-running-preferences
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-course-svc
+      port: 8102
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/courses
+    - path:
+        type: PathPrefix
+        value: /api/dong
+    - path:
+        type: PathPrefix
+        value: /api/geo
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-running-record-svc
+      port: 8103
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/runs
+    - path:
+        type: PathPrefix
+        value: /api/mypage
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-crew-svc
+      port: 8104
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/crew
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-coaching-svc
+      port: 8106
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/environment
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-challenge-svc
+      port: 8108
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/challenges
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-shoe-svc
+      port: 8109
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/shoes
+    - path:
+        type: PathPrefix
+        value: /api/user-shoes
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-marathon-svc
+      port: 8111
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/marathon
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-notification-svc
+      port: 8112
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/notifications
+    - path:
+        type: PathPrefix
+        value: /api/support
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-media-svc
+      port: 8113
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/media
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: dir-auth-web-svc
+      port: 3000
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /api/auth/
+    - path:
+        type: PathPrefix
+        value: /api/health

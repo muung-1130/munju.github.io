@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-assistant-consumer-sqs-canary-egress
+  namespace: dir-ai-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-assistant-consumer
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 169.254.170.23/32
+      ports:
+        - protocol: TCP
+          port: 80
+    - to:
+        - ipBlock:
+            cidr: 10.10.2.9/32
+        - ipBlock:
+            cidr: 10.10.5.157/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-db-ns
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: dir-postgresql
+      ports:
+        - protocol: TCP
+          port: 5432

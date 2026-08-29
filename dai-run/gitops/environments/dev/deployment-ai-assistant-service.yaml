@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dai-run-ai-assistant-service
+  labels:
+    app.kubernetes.io/name: dai-run-ai-assistant-service
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: ai-assistant-service
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dai-run-ai-assistant-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dai-run-ai-assistant-service
+        app.kubernetes.io/part-of: dai-run
+        app.kubernetes.io/component: ai-assistant-service
+        dairun.io/track: blue
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-dai-run-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ai-assistant-service
+          image: harbor.dai-run.internal/dai-run/ai-assistant-service@sha256:1147a658aa2695247a0ef836577ded9ab44037f24a95953cfd90948b39d2e445
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8202"
+            - name: AI_RAG_SERVICE_URL
+              value: "http://dai-run-ai-rag-service.dir-gitops-test-ns.svc.dir-cluster:8000"
+          ports:
+            - name: http
+              containerPort: 8202
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

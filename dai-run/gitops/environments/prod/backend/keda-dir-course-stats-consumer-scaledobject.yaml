@@ -1,0 +1,40 @@
+{
+  "apiVersion": "keda.sh/v1alpha1",
+  "kind": "ScaledObject",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/name": "dir-course-stats-consumer",
+      "app.kubernetes.io/part-of": "dai-run",
+      "scaledobject.keda.sh/name": "dir-course-stats-consumer-scaledobject"
+    },
+    "name": "dir-course-stats-consumer-scaledobject",
+    "namespace": "dir-backend-ns"
+  },
+  "spec": {
+    "cooldownPeriod": 300,
+    "maxReplicaCount": 5,
+    "minReplicaCount": 0,
+    "pollingInterval": 30,
+    "scaleTargetRef": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "dir-course-stats-consumer"
+    },
+    "triggers": [
+      {
+        "authenticationRef": {
+          "name": "dir-backend-consumers-aws"
+        },
+        "metadata": {
+          "activationQueueLength": "0",
+          "awsRegion": "ap-northeast-2",
+          "queueLength": "1",
+          "queueURL": "https://sqs.ap-northeast-2.amazonaws.com/970307871446/dir-prod-course-stats-q",
+          "scaleOnDelayed": "false",
+          "scaleOnInFlight": "true"
+        },
+        "type": "aws-sqs-queue"
+      }
+    ]
+  }
+}

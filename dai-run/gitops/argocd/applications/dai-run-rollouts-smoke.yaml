@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dai-run-rollouts-smoke
+  namespace: dir-argocd-ns
+spec:
+  project: dai-run-dev
+  source:
+    repoURL: http://10.20.0.253/dai-run/gitops.git
+    targetRevision: main
+    path: environments/aws-rollouts-smoke
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dir-gitops-test-ns
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+      allowEmpty: false
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+    syncOptions:
+      - Validate=true
+      - ApplyOutOfSyncOnly=true

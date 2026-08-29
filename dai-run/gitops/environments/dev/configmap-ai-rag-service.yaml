@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dai-run-ai-rag-service-config
+  labels:
+    app.kubernetes.io/name: dai-run-ai-rag-service
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: ai-rag-service
+data:
+  AWS_REGION: ap-northeast-2
+  BEDROCK_KNOWLEDGE_BASE_ID: RESQXZAXAE
+  BEDROCK_MODEL_ARN: "arn:aws:bedrock:ap-northeast-2:970307871446:inference-profile/global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+  BEDROCK_GUARDRAIL_ID: 8twlamhqelkj
+  BEDROCK_GUARDRAIL_VERSION: "2"

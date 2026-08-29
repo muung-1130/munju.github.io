@@ -1,0 +1,208 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-allow-ambient-probe
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 169.254.7.127/32
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-allow-gateway
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-istio-ingress
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 15008
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-allow-dns
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 169.254.25.10/32
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-allow-otel-egress
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-obsv-ns
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-loki-egress
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-obsv-ns
+      ports:
+        - protocol: TCP
+          port: 3100
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-postgresql-egress
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-db-ns
+          podSelector:
+            matchLabels:
+              cnpg.io/cluster: dir-postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 15008
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-redis-egress
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dir-db-ns
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: dir-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 15008
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-allow-public-https
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-ai-dashboard-k8s-api-egress
+  namespace: dir-frontend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 172.20.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443

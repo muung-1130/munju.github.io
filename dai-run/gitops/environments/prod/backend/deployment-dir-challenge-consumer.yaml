@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: consumer
+    app.kubernetes.io/name: dir-challenge-consumer
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/workload-class: app
+  name: dir-challenge-consumer
+  namespace: dir-backend-ns
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dir-challenge-consumer
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: '2026-08-07T16:35:17+09:00'
+      labels:
+        app.kubernetes.io/component: consumer
+        app.kubernetes.io/name: dir-challenge-consumer
+        app.kubernetes.io/part-of: dai-run
+        dairun.io/workload-class: app
+    spec:
+      nodeSelector:
+        workload: app
+      containers:
+      - command:
+        - npx
+        - tsx
+        - src/consumer.ts
+        env:
+        - name: OTEL_SERVICE_NAME
+          value: dir-challenge-consumer
+        - name: MESSAGING_PROVIDER
+          value: sns-sqs
+        - name: PGHOST
+          value: dir-postgresql-rw.dir-db-ns.svc
+        envFrom:
+        - configMapRef:
+            name: dir-challenge-consumer-config
+        - secretRef:
+            name: dir-challenge-consumer-secret
+        - secretRef:
+            name: dir-challenge-db-secret
+        image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/challenge-service@sha256:2d4e0aa10eabaacc9fd52f5dcb2dc89b69238c9bcd05c0a3e26d0fb15584e6f6
+        imagePullPolicy: IfNotPresent
+        name: dir-challenge-consumer
+        resources:
+          limits:
+            cpu: 500m
+            ephemeral-storage: 512Mi
+            memory: 256Mi
+          requests:
+            cpu: 25m
+            ephemeral-storage: 64Mi
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: false
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: dir-challenge-consumer-sa
+      serviceAccountName: dir-challenge-consumer-sa
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - emptyDir:
+          sizeLimit: 32Mi
+        name: tmp

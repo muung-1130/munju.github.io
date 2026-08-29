@@ -1,0 +1,72 @@
+{
+  "apiVersion": "autoscaling/v2",
+  "kind": "HorizontalPodAutoscaler",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/name": "dir-marathon",
+      "app.kubernetes.io/part-of": "dai-run"
+    },
+    "name": "dir-marathon-hpa",
+    "namespace": "dir-backend-ns"
+  },
+  "spec": {
+    "behavior": {
+      "scaleDown": {
+        "policies": [
+          {
+            "periodSeconds": 60,
+            "type": "Percent",
+            "value": 100
+          }
+        ],
+        "selectPolicy": "Max",
+        "stabilizationWindowSeconds": 300
+      },
+      "scaleUp": {
+        "policies": [
+          {
+            "periodSeconds": 60,
+            "type": "Pods",
+            "value": 2
+          },
+          {
+            "periodSeconds": 60,
+            "type": "Percent",
+            "value": 100
+          }
+        ],
+        "selectPolicy": "Max",
+        "stabilizationWindowSeconds": 0
+      }
+    },
+    "maxReplicas": 3,
+    "metrics": [
+      {
+        "resource": {
+          "name": "cpu",
+          "target": {
+            "averageUtilization": 75,
+            "type": "Utilization"
+          }
+        },
+        "type": "Resource"
+      },
+      {
+        "resource": {
+          "name": "memory",
+          "target": {
+            "averageUtilization": 80,
+            "type": "Utilization"
+          }
+        },
+        "type": "Resource"
+      }
+    ],
+    "minReplicas": 1,
+    "scaleTargetRef": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "dir-marathon"
+    }
+  }
+}

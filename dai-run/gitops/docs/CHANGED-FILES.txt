@@ -1,0 +1,46 @@
+Files ORIGINAL/README.md and UPDATED/README.md differ
+Only in UPDATED/argocd/applications: dai-run-prod-ai.yaml
+Files ORIGINAL/argocd/projects/dai-run-prod.yaml and UPDATED/argocd/projects/dai-run-prod.yaml differ
+Only in UPDATED: docs
+Only in UPDATED/environments/prod: ai
+Files ORIGINAL/environments/prod/backend/deployment-dir-auth-user.yaml and UPDATED/environments/prod/backend/deployment-dir-auth-user.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-auth-web.yaml and UPDATED/environments/prod/backend/deployment-dir-auth-web.yaml differ
+Only in ORIGINAL/environments/prod/backend: deployment-dir-backend-waypoint.yaml
+Files ORIGINAL/environments/prod/backend/deployment-dir-challenge-consumer.yaml and UPDATED/environments/prod/backend/deployment-dir-challenge-consumer.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-challenge-weekly-scheduler.yaml and UPDATED/environments/prod/backend/deployment-dir-challenge-weekly-scheduler.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-challenge.yaml and UPDATED/environments/prod/backend/deployment-dir-challenge.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-coaching.yaml and UPDATED/environments/prod/backend/deployment-dir-coaching.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-course-stats-consumer.yaml and UPDATED/environments/prod/backend/deployment-dir-course-stats-consumer.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-course.yaml and UPDATED/environments/prod/backend/deployment-dir-course.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-crew-consumer.yaml and UPDATED/environments/prod/backend/deployment-dir-crew-consumer.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-crew-notification-consumer.yaml and UPDATED/environments/prod/backend/deployment-dir-crew-notification-consumer.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-crew-stats-scheduler.yaml and UPDATED/environments/prod/backend/deployment-dir-crew-stats-scheduler.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-crew.yaml and UPDATED/environments/prod/backend/deployment-dir-crew.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-marathon.yaml and UPDATED/environments/prod/backend/deployment-dir-marathon.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-media.yaml and UPDATED/environments/prod/backend/deployment-dir-media.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-notification-consumer.yaml and UPDATED/environments/prod/backend/deployment-dir-notification-consumer.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-notification.yaml and UPDATED/environments/prod/backend/deployment-dir-notification.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-running-record-outbox-publisher.yaml and UPDATED/environments/prod/backend/deployment-dir-running-record-outbox-publisher.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-running-record.yaml and UPDATED/environments/prod/backend/deployment-dir-running-record.yaml differ
+Files ORIGINAL/environments/prod/backend/deployment-dir-shoe.yaml and UPDATED/environments/prod/backend/deployment-dir-shoe.yaml differ
+Only in UPDATED/environments/prod/backend: hpa-dir-auth-user-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-challenge-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-coaching-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-course-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-crew-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-marathon-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-media-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-notification-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-running-record-hpa.yaml
+Only in UPDATED/environments/prod/backend: hpa-dir-shoe-hpa.yaml
+Only in UPDATED/environments/prod/backend: keda-dir-challenge-consumer-scaledobject.yaml
+Only in UPDATED/environments/prod/backend: keda-dir-course-stats-consumer-scaledobject.yaml
+Only in UPDATED/environments/prod/backend: keda-dir-crew-consumer-scaledobject.yaml
+Only in UPDATED/environments/prod/backend: keda-dir-crew-notification-consumer-scaledobject.yaml
+Only in UPDATED/environments/prod/backend: keda-dir-notification-consumer-scaledobject.yaml
+Files ORIGINAL/environments/prod/backend/kustomization.yaml and UPDATED/environments/prod/backend/kustomization.yaml differ
+Only in ORIGINAL/environments/prod/backend: service-dir-backend-waypoint.yaml
+Files ORIGINAL/environments/prod/frontend/deployment-dir-frontend.yaml and UPDATED/environments/prod/frontend/deployment-dir-frontend.yaml differ
+Only in UPDATED/environments/prod/frontend: hpa-dir-frontend-hpa.yaml
+Files ORIGINAL/environments/prod/frontend/kustomization.yaml and UPDATED/environments/prod/frontend/kustomization.yaml differ
+Only in UPDATED: scripts

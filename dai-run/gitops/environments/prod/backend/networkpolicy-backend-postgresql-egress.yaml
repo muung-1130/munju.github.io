@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-backend-postgresql-egress
+  namespace: dir-backend-ns
+spec:
+  egress:
+  - ports:
+    - port: 5432
+      protocol: TCP
+    - port: 15008
+      protocol: TCP
+    to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: dir-db-ns
+      podSelector:
+        matchLabels:
+          cnpg.io/cluster: dir-postgresql
+  podSelector:
+    matchExpressions:
+    - key: app.kubernetes.io/name
+      operator: In
+      values:
+      - dir-auth-user
+      - dir-auth-web
+      - dir-challenge
+      - dir-challenge-consumer
+      - dir-challenge-weekly-scheduler
+      - dir-coaching
+      - dir-course
+      - dir-course-stats-consumer
+      - dir-crew
+      - dir-crew-consumer
+      - dir-crew-notification-consumer
+      - dir-crew-stats-scheduler
+      - dir-environment-dynamodb-consumer
+      - dir-marathon
+      - dir-media
+      - dir-notification
+      - dir-notification-consumer
+      - dir-running-record
+      - dir-running-record-outbox-publisher
+      - dir-shoe
+  policyTypes:
+  - Egress
+

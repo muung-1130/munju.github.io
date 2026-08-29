@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: dir-auth-user
+    app.kubernetes.io/part-of: dai-run
+  name: dir-auth-user-svc
+  namespace: dir-backend-ns
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: http
+    port: 8101
+    protocol: TCP
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: dir-auth-user
+  sessionAffinity: None
+  type: ClusterIP

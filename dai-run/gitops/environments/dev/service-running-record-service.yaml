@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dai-run-running-record-service
+  labels:
+    app.kubernetes.io/name: dai-run-running-record-service
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: running-record-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dai-run-running-record-service
+    dairun.io/track: blue
+  ports:
+    - name: http
+      port: 8103
+      targetPort: http
+      protocol: TCP

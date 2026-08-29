@@ -1,0 +1,72 @@
+{
+  "apiVersion": "autoscaling/v2",
+  "kind": "HorizontalPodAutoscaler",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/name": "dir-media",
+      "app.kubernetes.io/part-of": "dai-run"
+    },
+    "name": "dir-media-hpa",
+    "namespace": "dir-backend-ns"
+  },
+  "spec": {
+    "behavior": {
+      "scaleDown": {
+        "policies": [
+          {
+            "periodSeconds": 15,
+            "type": "Percent",
+            "value": 100
+          }
+        ],
+        "selectPolicy": "Max",
+        "stabilizationWindowSeconds": 60
+      },
+      "scaleUp": {
+        "policies": [
+          {
+            "periodSeconds": 15,
+            "type": "Pods",
+            "value": 4
+          },
+          {
+            "periodSeconds": 15,
+            "type": "Percent",
+            "value": 100
+          }
+        ],
+        "selectPolicy": "Max",
+        "stabilizationWindowSeconds": 0
+      }
+    },
+    "maxReplicas": 2,
+    "metrics": [
+      {
+        "resource": {
+          "name": "cpu",
+          "target": {
+            "averageUtilization": 70,
+            "type": "Utilization"
+          }
+        },
+        "type": "Resource"
+      },
+      {
+        "resource": {
+          "name": "memory",
+          "target": {
+            "averageUtilization": 85,
+            "type": "Utilization"
+          }
+        },
+        "type": "Resource"
+      }
+    ],
+    "minReplicas": 1,
+    "scaleTargetRef": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "name": "dir-media"
+    }
+  }
+}

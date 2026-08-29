@@ -1,0 +1,136 @@
+{
+  "apiVersion": "v1",
+  "items": [
+    {
+      "apiVersion": "autoscaling/v2",
+      "kind": "HorizontalPodAutoscaler",
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/name": "dir-ai-assistant",
+          "app.kubernetes.io/part-of": "dai-run"
+        },
+        "name": "dir-ai-assistant-hpa",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "maxReplicas": 4,
+        "metrics": [
+          {
+            "resource": {
+              "name": "cpu",
+              "target": {
+                "averageUtilization": 70,
+                "type": "Utilization"
+              }
+            },
+            "type": "Resource"
+          },
+          {
+            "resource": {
+              "name": "memory",
+              "target": {
+                "averageUtilization": 80,
+                "type": "Utilization"
+              }
+            },
+            "type": "Resource"
+          }
+        ],
+        "minReplicas": 1,
+        "scaleTargetRef": {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "name": "dir-ai-assistant"
+        }
+      }
+    },
+    {
+      "apiVersion": "autoscaling/v2",
+      "kind": "HorizontalPodAutoscaler",
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/name": "dir-course-recommendation",
+          "app.kubernetes.io/part-of": "dai-run"
+        },
+        "name": "dir-course-recommendation-hpa",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "maxReplicas": 3,
+        "metrics": [
+          {
+            "resource": {
+              "name": "cpu",
+              "target": {
+                "averageUtilization": 70,
+                "type": "Utilization"
+              }
+            },
+            "type": "Resource"
+          },
+          {
+            "resource": {
+              "name": "memory",
+              "target": {
+                "averageUtilization": 80,
+                "type": "Utilization"
+              }
+            },
+            "type": "Resource"
+          }
+        ],
+        "minReplicas": 1,
+        "scaleTargetRef": {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "name": "dir-course-recommendation"
+        }
+      }
+    },
+    {
+      "apiVersion": "autoscaling/v2",
+      "kind": "HorizontalPodAutoscaler",
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/name": "dir-shoe-life-ai",
+          "app.kubernetes.io/part-of": "dai-run"
+        },
+        "name": "dir-shoe-life-ai-hpa",
+        "namespace": "dir-ai-ns"
+      },
+      "spec": {
+        "maxReplicas": 3,
+        "metrics": [
+          {
+            "resource": {
+              "name": "cpu",
+              "target": {
+                "averageUtilization": 70,
+                "type": "Utilization"
+              }
+            },
+            "type": "Resource"
+          },
+          {
+            "resource": {
+              "name": "memory",
+              "target": {
+                "averageUtilization": 80,
+                "type": "Utilization"
+              }
+            },
+            "type": "Resource"
+          }
+        ],
+        "minReplicas": 1,
+        "scaleTargetRef": {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "name": "dir-shoe-life-ai"
+        }
+      }
+    }
+  ],
+  "kind": "List",
+  "metadata": {}
+}

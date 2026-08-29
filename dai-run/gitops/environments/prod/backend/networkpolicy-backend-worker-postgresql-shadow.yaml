@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: dir-challenge-weekly-scheduler-postgresql-shadow-egress
+      namespace: dir-backend-ns
+      labels: &labels
+        app.kubernetes.io/part-of: dai-run
+        dairun.io/change-scope: backend-db-shadow
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: dir-challenge-weekly-scheduler
+      policyTypes: [Egress]
+      egress: &dbEgress
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: dir-db-ns
+              podSelector:
+                matchLabels:
+                  cnpg.io/cluster: dir-postgresql
+          ports:
+            - {protocol: TCP, port: 5432}
+            - {protocol: TCP, port: 15008}
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: dir-course-stats-consumer-postgresql-shadow-egress
+      namespace: dir-backend-ns
+      labels: *labels
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: dir-course-stats-consumer
+      policyTypes: [Egress]
+      egress: *dbEgress
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: dir-crew-notification-consumer-postgresql-shadow-egress
+      namespace: dir-backend-ns
+      labels: *labels
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: dir-crew-notification-consumer
+      policyTypes: [Egress]
+      egress: *dbEgress
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: dir-crew-stats-scheduler-postgresql-shadow-egress
+      namespace: dir-backend-ns
+      labels: *labels
+    spec:
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: dir-crew-stats-scheduler
+      policyTypes: [Egress]
+      egress: *dbEgress

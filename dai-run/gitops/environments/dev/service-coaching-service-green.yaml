@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dai-run-coaching-service-green
+  labels:
+    app.kubernetes.io/name: dai-run-coaching-service-green
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: coaching-service
+    dairun.io/track: green
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dai-run-coaching-service-green
+    dairun.io/track: green
+  ports:
+    - name: http
+      port: 8106
+      targetPort: http
+      protocol: TCP

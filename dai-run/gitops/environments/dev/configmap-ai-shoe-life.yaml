@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dai-run-ai-shoe-life-config
+  labels:
+    app.kubernetes.io/name: dai-run-ai-shoe-life
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: ai-shoe-life
+data:
+  AWS_REGION: ap-northeast-2
+  BEDROCK_MODEL_ID: global.amazon.nova-2-lite-v1:0
+  PERSIST_ANALYSIS_RESULTS: "true"
+  MINIO_ENDPOINT: "http://dir-minio-svc.dir-storage-ns.svc.dir-cluster:9000"
+  MINIO_VERIFY_TLS: "false"
+  OBJECT_STORAGE_BUCKET: runspot-shoe-life-images

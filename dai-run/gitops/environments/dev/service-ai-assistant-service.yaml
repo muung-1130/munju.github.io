@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dai-run-ai-assistant-service
+  labels:
+    app.kubernetes.io/name: dai-run-ai-assistant-service
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: ai-assistant-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dai-run-ai-assistant-service
+    dairun.io/track: blue
+  ports:
+    - name: http
+      port: 8202
+      targetPort: http
+      protocol: TCP

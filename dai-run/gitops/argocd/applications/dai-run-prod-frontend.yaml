@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dai-run-prod-frontend
+  namespace: dir-argocd-ns
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: dai-run-prod
+  source:
+    repoURL: http://10.20.0.253/dai-run/gitops.git
+    targetRevision: main
+    path: environments/prod/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dir-frontend-ns
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Rollout
+      name: dir-frontend
+      namespace: dir-frontend-ns
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: Service
+      name: dir-frontend-svc
+      namespace: dir-frontend-ns
+      jsonPointers:
+        - /spec/type
+        - /spec/ports/0/nodePort
+        - /spec/externalTrafficPolicy
+        - /spec/selector
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: false
+      selfHeal: false
+      allowEmpty: false
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - Validate=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+
+

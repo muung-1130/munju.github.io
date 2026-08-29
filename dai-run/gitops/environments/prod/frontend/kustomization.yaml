@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dir-frontend-ns
+resources:
+  - httproute-dir-frontend-route.yaml
+  - httproute-dir-http-redirect-route.yaml
+  - configmap-dir-frontend-config.yaml
+  - namespace.yaml
+  - rollout-dir-frontend.yaml
+  - service-dir-frontend-svc.yaml
+  - service-dir-frontend-preview-svc.yaml
+  - hpa-dir-frontend-hpa.yaml
+  - configmap-dir-ai-dashboard-config.yaml
+  - deployment-dir-ai-dashboard.yaml
+  - service-dir-ai-dashboard-svc.yaml
+  - httproute-dir-ai-dashboard.yaml
+  - networkpolicy-dir-ai-dashboard.yaml
+  - networkpolicy-dir-ai-dashboard-bedrock-egress.yaml
+  - networkpolicy-dir-ai-dashboard-pod-identity-egress.yaml

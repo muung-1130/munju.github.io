@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dai-run-gitops-smoke
+  namespace: dir-gitops-test-ns
+  labels:
+    app.kubernetes.io/name: gitops-smoke-test
+    app.kubernetes.io/part-of: dai-run
+data:
+  managed-by: argocd
+  environment: dev
+  purpose: repository-and-sync-verification

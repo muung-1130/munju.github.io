@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: web
+    app.kubernetes.io/name: dir-ai-dashboard
+    app.kubernetes.io/part-of: dai-run
+    dairun.io/workload-class: app
+  name: dir-ai-dashboard
+  namespace: dir-frontend-ns
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dir-ai-dashboard
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: web
+        app.kubernetes.io/name: dir-ai-dashboard
+        app.kubernetes.io/part-of: dai-run
+        dairun.io/workload-class: app
+        # 2026-08-23: this pod calls AWS Bedrock via EKS Pod Identity, which
+        # fetches temp credentials from 169.254.170.23 (host-network link-local,
+        # not a normal pod/external IP). Ambient's in-pod redirect intercepts
+        # that connection (TCP connect succeeds instantly, but the actual HTTP
+        # request never gets a response -- confirmed with live in-pod tests,
+        # same symptom reproduced on dir-ai-assistant in dir-ai-ns), so every
+        # AWS SDK call from this pod hangs until it hits its own timeout.
+        # Istio ambient's in-pod redirection has no supported per-destination-IP
+        # exclusion (global.proxy.excludeIPRanges exists in the Helm values but
+        # isn't read by istio-cni-config's actual ambient runtime keys), so the
+        # only proven mitigation is opting this one workload out of ambient
+        # capture entirely -- same pattern already used for dir-keda-system/
+        # dir-argocd-ns needing direct K8s API server access. Trade-off: this
+        # pod loses ambient mTLS/waypoint L7 coverage for its own traffic
+        # (Postgres/Redis/Loki/OTel egress, Gateway ingress); NetworkPolicy
+        # (L3/L4) still applies and is unaffected.
+        istio.io/dataplane-mode: none
+    spec:
+      nodeSelector:
+        workload: app
+      containers:
+        - name: dir-ai-dashboard
+          image: 970307871446.dkr.ecr.ap-northeast-2.amazonaws.com/dai-run/ai-dashboard@sha256:1f63cffb25c7e1bcd7ab7e36f42ecd713786e013b87df6e32f13c37fd5577856
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "3000"
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: OTEL_SERVICE_NAME
+              value: dir-ai-dashboard
+          envFrom:
+            - configMapRef:
+                name: dir-ai-dashboard-config
+            - secretRef:
+                name: dir-ai-dashboard-secret
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 3
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          startupProbe:
+            failureThreshold: 24
+            httpGet:
+              path: /api/health
+              port: http
+              scheme: HTTP
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              ephemeral-storage: 128Mi
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /app/.next/cache
+              name: next-cache
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: false
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: dir-ai-dashboard-sa
+      serviceAccountName: dir-ai-dashboard-sa
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - emptyDir:
+            sizeLimit: 64Mi
+          name: tmp
+        - emptyDir:
+            sizeLimit: 128Mi
+          name: next-cache

@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dir-environment-dynamodb-consumer-egress
+  namespace: dir-backend-ns
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dir-environment-dynamodb-consumer
+  policyTypes:
+  - Egress
+  egress:
+  - ports:
+    - port: 80
+      protocol: TCP
+    to:
+    - ipBlock:
+        cidr: 169.254.170.23/32
+  - ports:
+    - port: 443
+      protocol: TCP
+    to:
+    - ipBlock:
+        cidr: 35.71.109.0/24
+    - ipBlock:
+        cidr: 52.94.6.0/24

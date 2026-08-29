@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dai-run-zap-baseline-config
+  labels:
+    app.kubernetes.io/name: dai-run-zap-baseline
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: security-testing
+data:
+  # The first two runs are evidence collection only. Promote to "false" in a
+  # separate, reviewed MR after the accepted ZAP rules are documented.
+  ZAP_REPORT_ONLY: "true"
+  ZAP_SPIDER_MINUTES: "2"
+  # Keep the initial scan inside the smoke-test namespace. Do not point this at
+  # a production hostname.
+  ZAP_TARGET_URL: http://dai-run-frontend.dir-gitops-test-ns.svc.cluster.local

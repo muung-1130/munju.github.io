@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dai-run-course-service-green
+  labels:
+    app.kubernetes.io/name: dai-run-course-service-green
+    app.kubernetes.io/part-of: dai-run
+    app.kubernetes.io/component: course-service
+    dairun.io/track: green
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dai-run-course-service-green
+      dairun.io/track: green
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dai-run-course-service-green
+        app.kubernetes.io/part-of: dai-run
+        app.kubernetes.io/component: course-service
+        dairun.io/track: green
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: harbor-dai-run-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: course-service
+          image: harbor.dai-run.internal/dai-run/course-service@sha256:64d4a4a581105a732e2a75dcff2cf7aa48b496e1d47db591dda0138e835607bf
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8102"
+          ports:
+            - name: http
+              containerPort: 8102
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 750m
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
