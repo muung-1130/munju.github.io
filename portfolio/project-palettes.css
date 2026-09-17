@@ -1,0 +1,29 @@
+/* Shared by project folders and detail pages. */
+[data-palette=lime]{--folder:#f0f3de;--cover:#d9ec8d;--cover-ink:#283615;--cover-line:#4c652c66}
+[data-palette=lavender]{--folder:#f0eafa;--cover:#bba5e6;--cover-ink:#34204f;--cover-line:#54347b66}
+[data-palette=peach]{--folder:#fcece2;--cover:#f3ad8e;--cover-ink:#5d2b1e;--cover-line:#8c453666}
+[data-palette=sky]{--folder:#eaf1fc;--cover:#9cbeef;--cover-ink:#1d3b61;--cover-line:#315e9566}
+[data-palette=mint]{--folder:#e9f4ee;--cover:#95cfb6;--cover-ink:#214c3c;--cover-line:#376b5766}
+[data-palette=rose]{--folder:#f9e7ee;--cover:#e7a2be;--cover-ink:#622b43;--cover-line:#87456266}
+[data-palette=pink]{--folder:#fcf0f5;--cover:#f3e2e8;--cover-ink:#111111;--cover-line:#8e747f88}
+[data-palette=butter]{--folder:#faf2d9;--cover:#e6ca83;--cover-ink:#504021;--cover-line:#92753466}
+body.project-detail{--paper:var(--folder);--ink:var(--cover-ink);--line:var(--cover-line);--muted:color-mix(in srgb,var(--cover-ink) 78%,white);--accent:var(--cover);--surface:color-mix(in srgb,var(--folder) 50%,white);background:var(--folder);color:var(--ink)}
+.project-detail .detail-hero{background:var(--cover);color:var(--ink);border:1px solid var(--line);border-radius:22px;padding:42px;margin-top:25px}
+.project-detail .detail-hero h1 span{color:var(--cover-ink)!important}
+.project-detail .detail-hero h1 em,.project-detail .detail-hero dd,.project-detail .detail-hero dt,.project-detail .detail-hero .eyebrow,.project-detail .detail-hero .prose{color:var(--ink)}
+.project-detail .case,.project-detail .flow>div,.project-detail .cluster,.project-detail .cluster-nodes article,.project-detail .pod-flow li{background:var(--surface);border-color:var(--line)}
+.project-detail .case h3,.project-detail .case-label,.project-detail .pod-flow li:before,.project-detail .cluster-bridge{color:var(--ink)}
+.project-detail .project-meta,.project-detail .stat-row article,.project-detail .implementation-list article,.project-detail details{border-color:var(--line)}
+.project-detail .performance>div:last-child,.project-detail .table-scroll th,.project-detail .flow-entry{background:var(--cover)}
+.project-detail .measurement-note,.project-detail pre,.project-detail .pending-note,.project-detail .parallel-flow,.project-detail .media-stage,.project-detail .callout{background:var(--surface);color:var(--ink);border-color:var(--line)}
+.project-detail .table-scroll td,.project-detail .table-scroll th{border-color:var(--line)}
+.project-detail .measurement-note,.project-detail .role-note{border-left-color:var(--cover-ink)}
+.project-detail .flow-lanes>div,.project-detail .diagram-open{background:var(--surface);border-color:var(--line)}
+.project-detail .parallel-flow span,.project-detail .parallel-flow strong,.project-detail .parallel-flow small,.project-detail .flow-lanes p,.project-detail .media-stage .caption,.project-detail .callout small{color:var(--muted)}
+.project-detail .sound-picker button{color:var(--ink);border-color:var(--line)}
+.project-detail .sound-picker button[aria-pressed=true]{background:var(--cover-ink);color:white}
+.project-detail .diagram-toolbar{background:var(--folder);border-color:var(--line)}
+.project-detail a:hover{color:var(--cover-ink)}
+.project-detail a:focus-visible,.project-detail button:focus-visible,.project-detail summary:focus-visible{outline-color:var(--cover-ink)}
+.project-detail .docker-hero h1 em{display:inline-block;margin-left:.16em;font-family:inherit;font-style:normal}
+@media(max-width:650px){.project-detail .detail-hero{padding:28px 20px}.project-detail .docker-hero h1 em{display:block;margin-left:0;margin-top:.18em}}

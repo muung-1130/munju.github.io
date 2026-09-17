@@ -1,0 +1,31 @@
+/* Stable project palettes; site.js assigns a palette to newly added cards. */
+.project{--folder:#f0f3de;--cover:#d9ec8d;--cover-ink:#283615;--cover-line:#4c652c66}
+.project,.project>.folder-tab,.project>.folder-tab:after{background:var(--folder)}
+.project+.project{margin-top:58px}
+.project .project-art{background:var(--cover);color:var(--cover-ink)}
+.project .orbit{border-color:var(--cover-line)}
+.project .tags span{background:#ffffff45}
+.project .project-bottom h3{letter-spacing:-.8px}
+/* A single straight join avoids the old overlapping curved pseudo-element. */
+.project.folder{border-radius:0 16px 16px 16px}
+.project>.folder-tab{top:-30px;height:30px;left:-1px;border-radius:9px 9px 0 0;border-bottom:0;box-shadow:0 1px 0 var(--folder);padding:9px 18px 0;line-height:20px;display:flex;align-items:center;padding-top:0}
+.project>.folder-tab:after{content:none}
+.cover-korean{letter-spacing:-.055em}
+.cover-korean .cover-serif{font-family:inherit;font-style:normal;font-weight:500}
+.cover-korean{gap:.2em;line-height:.95}
+.cover-korean .cover-serif{line-height:1.05;margin-left:24px}
+.cover-title{position:relative;z-index:2;display:flex;flex-direction:column;font-size:clamp(66px,8vw,106px);font-weight:700;letter-spacing:-.07em;line-height:.76;transform:rotate(-7deg);transition:transform .4s ease}
+.cover-serif{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-style:italic;font-size:.83em;letter-spacing:-.065em;margin-left:20px;line-height:.95}
+.cover-kicker,.cover-bottom,.cover-code{position:absolute;z-index:2;font-size:9px;letter-spacing:1.2px}
+.cover-kicker{top:20px;left:22px}.cover-bottom{bottom:20px;left:22px}.cover-code{bottom:20px;right:22px;font-size:8px}
+.file-outline{position:absolute;width:46%;height:72%;border:1px solid var(--cover-line);border-radius:2px 24px 16px 16px;transform:rotate(-13deg)}
+.file-outline:before{content:'';position:absolute;left:-1px;top:-19px;width:40%;height:19px;border:1px solid var(--cover-line);border-bottom:0;border-radius:10px 15px 0 0}
+.outline-back{left:23%;top:17%;transform:rotate(9deg)}.outline-front{left:29%;top:20%;transform:rotate(-10deg)}
+.cover-nfs .cover-title{margin-left:-3%}.cover-camping .cover-title{transform:rotate(-8deg);margin-left:-2%}
+.cover-camping .cover-serif{align-self:flex-end;margin-right:-15px;font-size:1.03em}
+.data-orbit{position:absolute;border:1px solid var(--cover-line);border-radius:50%;width:67%;height:63%;transform:rotate(-23deg)}
+.orbit-a{top:10%}.orbit-b{top:22%}.orbit-c{top:34%}
+@media(hover:hover){.project:hover .cover-title{transform:rotate(-3deg) translateY(-3px)}}
+@media(max-width:600px){.cover-title{font-size:70px}.cover-kicker{top:15px;left:13px;font-size:7px}.cover-bottom{bottom:15px;left:13px;font-size:6px;letter-spacing:.6px}.cover-code{bottom:15px;right:12px;font-size:6px;letter-spacing:.5px}.file-outline{width:60%}.outline-back{left:16%}.outline-front{left:22%}.data-orbit{width:86%}.cover-camping .cover-title{font-size:72px}}
+@media(prefers-reduced-motion:reduce){.cover-title{transition:none}}
+

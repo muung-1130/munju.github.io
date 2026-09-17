@@ -1,0 +1,1 @@
+{"name":"munju-portfolio","private":true,"version":"1.0.0","scripts":{"build":"node build.mjs","start":"node serve.mjs"},"type":"module"}
