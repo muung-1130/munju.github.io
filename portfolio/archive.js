@@ -60,6 +60,7 @@
       buttons[position].tabIndex = selected ? 0 : -1;
     });
     main.scrollTop = 0;
+    document.dispatchEvent(new CustomEvent('archive:change')); 
     status.querySelector('.file-position').textContent = `FILE 0${index + 1} / 04 — ${names[index].toUpperCase()}`;
     if (updateURL) history.pushState(null, '', `#${ids[index]}`);
   }

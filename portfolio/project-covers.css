@@ -29,3 +29,34 @@
 @media(max-width:600px){.cover-title{font-size:70px}.cover-kicker{top:15px;left:13px;font-size:7px}.cover-bottom{bottom:15px;left:13px;font-size:6px;letter-spacing:.6px}.cover-code{bottom:15px;right:12px;font-size:6px;letter-spacing:.5px}.file-outline{width:60%}.outline-back{left:16%}.outline-front{left:22%}.data-orbit{width:86%}.cover-camping .cover-title{font-size:72px}}
 @media(prefers-reduced-motion:reduce){.cover-title{transition:none}}
 
+
+/* Decorative line drawings share each project’s existing palette. */
+.cover-line-art{position:absolute;inset:0;width:100%;height:100%;stroke:var(--cover-line);stroke-width:1;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}.cover-line-art *{vector-effect:non-scaling-stroke}
+@media(max-width:600px){.cover-line-art{width:165%;max-width:none;left:-32.5%}}
+
+/* Compact archive: three equal folders per row, room for each index tab. */
+#work .project-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:22px;row-gap:52px;padding-top:30px;align-items:stretch}
+#work .project-grid>.project{margin:0;padding:16px;min-width:0;display:flex;flex-direction:column}
+#work .project-grid>.project[hidden]{display:none}
+#work .project-grid .folder-tab{min-width:0;height:26px;top:-26px;padding:0 12px;font-size:8px;letter-spacing:.25px}
+#work .project-grid .project-top{font-size:7px;letter-spacing:.5px;gap:8px;min-height:22px}
+#work .project-grid .project-arrow{font-size:22px;flex-shrink:0}
+#work .project-grid .project-art{height:170px;flex-shrink:0;margin:12px 0 16px}
+#work .project-grid .cover-title{font-size:61px}
+#work .project-grid .run-name{font-size:66px;letter-spacing:-5px}
+#work .project-grid .cover-korean{font-size:57px;gap:.15em}
+#work .project-grid .cover-korean .cover-serif{margin-left:14px}
+#work .project-grid .cover-kicker{top:12px;left:12px;font-size:6px;letter-spacing:.6px}
+#work .project-grid .cover-bottom,#work .project-grid .art-note{bottom:11px;left:12px;font-size:6px;letter-spacing:.5px}
+#work .project-grid .cover-code,#work .project-grid .coordinate{display:none}
+#work .project-grid .cover-line-art{width:180%;max-width:none;left:-40%}
+#work .project-grid .project-bottom{display:flex;flex:1;flex-direction:column;align-items:flex-start;gap:15px}
+#work .project-grid .project-bottom h3{font-size:23px;margin:0 0 8px}
+#work .project-grid .project-bottom p{font-size:11px;line-height:1.7;margin:0;min-height:38px;word-break:keep-all}
+#work .project-grid .project-period{gap:7px;margin-bottom:9px}
+#work .project-grid .period-label{font-size:7px}
+#work .project-grid .period-value{font-size:10px;letter-spacing:0}
+#work .project-grid .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto}
+#work .project-grid .tags span{font-size:8px;padding:5px 8px;white-space:nowrap}
+@media(max-width:800px){#work .project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){#work .project-grid{grid-template-columns:minmax(0,1fr);row-gap:44px}#work .project-grid .project-art{height:180px}#work .project-grid .project-bottom p{min-height:0}}
