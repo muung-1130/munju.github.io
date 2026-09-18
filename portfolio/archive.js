@@ -86,10 +86,15 @@
   document.body.append(intro);
   const header = document.querySelector('.header');
   const footer = document.querySelector('footer');
+  const motion = '1';
   let timer;
+  let animations = [];
   let isReplay = false;
   function finish() {
     clearTimeout(timer);
+    animations.forEach(animation => animation.cancel());
+    animations = [];
+    document.body.classList.remove('is-opening');
     intro.hidden = true;
     shell.inert = false;
     header.inert = false;
@@ -98,7 +103,41 @@
     if (isReplay) buttons[0].focus({preventScroll: true});
     else if (document.activeElement === intro.querySelector('button')) buttons[0].focus({preventScroll: true});
   }
+  function openCover() {
+    const card = intro.querySelector('.insert-0');
+    const from = card.getBoundingClientRect();
+    const to = shell.getBoundingClientRect();
+    const dx = from.left - to.left;
+    const dy = from.top - to.top;
+    const sx = from.width / to.width;
+    const sy = from.height / to.height;
+    document.body.classList.add('is-opening');
+    const easing = 'cubic-bezier(.22,.68,.18,1)';
+    const animate = (element, frames, options) => {
+      const animation = element.animate(frames, {fill: 'both', ...options});
+      animations.push(animation);
+      return animation;
+    };
+    // Continue from the actual inserted file bounds, keeping the paper on screen.
+    const start = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+    const frames = motion === '1'
+      ? [{transform: start, opacity: 0}, {transform: `translate(${dx}px, ${dy - 65}px) scale(${sx}, ${sy})`, opacity: 1, offset: .28}, {transform: 'none', opacity: 1}]
+      : motion === '2'
+      ? [{transform: `translate(${dx}px, ${dy}px) scale(${sx * .9}, ${sy * .9})`, opacity: 0}, {opacity: 1, offset: .22}, {transform: 'none', opacity: 1}]
+      : [{transform: start, opacity: 0}, {transform: start, opacity: 1, offset: .16}, {transform: 'none', opacity: 1}];
+    animate(shell, frames, {duration: motion === '3' ? 1400 : 1550, easing});
+    animate(intro, [{opacity: 1}, {opacity: 0}], {duration: 900, delay: 220, easing});
+    animate(card, [{transform: 'translateY(0)'}, {transform: motion === '1' ? 'translateY(-65px)' : motion === '2' ? 'scale(1.12)' : 'translateY(0)'}], {duration: 700, easing});
+    [...hero.children].filter(child => !child.classList.contains('file-stamp')).forEach((child, i) => {
+      animate(child, [{opacity: 0, transform: 'translateY(20px)'}, {opacity: 1, transform: 'none'}], {duration: 650, delay: 650 + i * 90, easing});
+    });
+    timer = setTimeout(finish, 1950);
+  }
   function play(replay = false) {
+    clearTimeout(timer);
+    animations.forEach(animation => animation.cancel());
+    animations = [];
+    document.body.classList.remove('is-opening');
     isReplay = replay;
     activate(0, replay);
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
@@ -108,7 +147,7 @@
     footer.inert = true;
     document.body.classList.add('is-filing');
     intro.querySelector('button').focus({preventScroll: true});
-    timer = setTimeout(finish, 3300);
+    timer = setTimeout(openCover, 2750);
   }
   intro.querySelector('button').addEventListener('click', finish);
   intro.addEventListener('keydown', event => {
