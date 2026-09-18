@@ -45,3 +45,14 @@ if (toolkit) {
   }));
   showView(Object.hasOwn(labels, savedView) ? savedView : 'cards');
 }
+
+const copyEmail = document.querySelector('.copy-email');
+copyEmail?.addEventListener('click', async () => {
+  const status = document.querySelector('.copy-status');
+  try {
+    await navigator.clipboard.writeText('k22qqaa@gmail.com');
+    status.textContent = '이메일 주소를 복사했습니다.';
+  } catch {
+    status.textContent = '아래 이메일 주소를 선택해 복사해주세요.';
+  }
+});

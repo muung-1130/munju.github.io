@@ -13,3 +13,47 @@
 .project-detail .detail-hero h1.work-title{font-family:inherit;font-size:clamp(32px,4.7vw,62px);font-weight:650;line-height:1.3;letter-spacing:-.05em;margin:18px 0 24px;word-break:keep-all}
 .project-detail .detail-service{font-size:13px;margin:24px 0 0}
 @media(max-width:600px){#work .project .project-bottom h3.work-title{font-size:21px}.project-detail .detail-hero h1.work-title{font-size:32px}.project-detail .detail-service{font-size:11px}}
+
+/* Reading hierarchy: contribution first, context second. */
+#work .project .project-bottom p{font-size:15px;line-height:1.75;margin:0 0 14px;word-break:keep-all}
+#work .project .project-caption{margin:8px 0 14px}
+#work .project .project-service{font-size:12px;margin-bottom:5px}
+#work .project .project-period{margin:0;font-size:12px}
+#work .project .period-label{display:none}
+#work .project .period-value{font-size:12px}
+#work .project .tags span{font-size:11px}
+#work .project-art{height:90px!important}
+.project-detail .detail-hero{padding:30px!important;margin-top:20px!important}
+.project-detail .detail-hero h1.work-title{font-size:clamp(30px,3.4vw,44px);line-height:1.28;margin:16px 0}
+.project-detail .detail-hero .detail-service{margin:14px 0 6px;font-size:13px}
+.project-detail .detail-hero .project-period{margin:8px 0}
+.project-detail .detail-hero .prose,.project-detail .detail-hero .intro{font-size:16px;line-height:1.8;max-width:850px;margin:16px 0}
+.project-detail .detail-hero dl{margin-top:20px;padding-top:18px;gap:18px}
+.project-detail .detail-hero dd{font-size:14px;line-height:1.7}
+.project-detail .detail-hero dt{font-size:11px}
+.project-detail .dai-jump{margin:20px 0 0}
+.project-detail .prose,.project-detail .case p,.project-detail .focus-cases dd{font-size:16px;line-height:1.8}
+.featured-evidence figure{margin:0;border:1px solid var(--line);border-radius:12px;padding:18px;background:#fff}
+.featured-evidence img{display:block;width:100%;max-height:440px;object-fit:contain}
+.featured-evidence figcaption{font-size:12px;line-height:1.8;margin-top:12px;color:var(--muted)}
+.focus-toolkit article>div,.focus-toolkit a{font-size:14px}.focus-toolkit p,.focus-lead{font-size:15px}
+.archive-mode #contact .about-content{display:block;max-width:740px;margin:0 auto;padding:35px 0}
+.archive-mode #contact .about-label{display:block;font-size:14px;margin-bottom:24px}
+.archive-mode #contact h3{font-size:clamp(28px,3vw,40px);line-height:1.4;margin:0 0 25px}
+.archive-mode #contact p{font-size:16px;line-height:1.8}
+.contact-actions{display:flex;gap:12px;align-items:center;margin-top:28px}
+.copy-email{border:1px solid var(--line);border-radius:6px;padding:14px 20px;background:transparent;font:inherit;font-size:14px;cursor:pointer}
+.archive-mode #contact .email-address,.archive-mode #contact .copy-status{font-size:13px}
+@media(max-width:600px){
+ body.archive-mode{height:auto;min-height:100dvh;overflow:auto}
+ .archive-shell{flex:none;min-height:calc(100dvh - 110px)}
+ .archive-mode main{overflow:visible;flex:none;min-height:65dvh}
+ .archive-mode .file-page{min-height:65dvh}
+ .archive-mode .file-index{position:sticky;top:0;z-index:5;background:var(--paper)}
+ .archive-mode #contact .about-content{padding:10px 0}
+ .project-detail .detail-hero{padding:22px!important}
+ .project-detail .detail-hero h1.work-title{font-size:30px}
+ .project-detail .detail-hero dl{grid-template-columns:1fr}
+}
+
+.archive-mode #work .filters{margin-bottom:22px}

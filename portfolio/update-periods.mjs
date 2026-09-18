@@ -15,7 +15,9 @@ for (const [slug, {start, end}] of Object.entries(periods)) {
   const anchor = index.indexOf(`href="projects/${slug}/"`);
   const endOfCard = index.indexOf('</a>', anchor);
   let card = index.slice(anchor, endOfCard).replace(/<div class="project-period"[\s\S]*?<\/div>/g, '');
-  card = card.replace('<div class="project-bottom"><div>', `<div class="project-bottom"><div>${badge}`);
+  card = card.includes('class="project-caption"')
+    ? card.replace(/(<div class="project-caption"><div class="project-service">[\s\S]*?<\/div>)/, `$1${badge}`)
+    : card.replace('<div class="project-bottom"><div>', `<div class="project-bottom"><div>${badge}`);
   index = index.slice(0, anchor) + card + index.slice(endOfCard);
   const file = new URL(`projects/${slug}/index.html`, root);
   let detail = (await readFile(file, 'utf8')).replace(/<div class="project-period"[\s\S]*?<\/div>/g, '');

@@ -60,6 +60,7 @@
       buttons[position].tabIndex = selected ? 0 : -1;
     });
     main.scrollTop = 0;
+    if (matchMedia("(max-width:600px)").matches) window.scrollTo(0, 0);
     document.dispatchEvent(new CustomEvent('archive:change')); 
     status.querySelector('.file-position').textContent = `FILE 0${index + 1} / 04 — ${names[index].toUpperCase()}`;
     if (updateURL) history.pushState(null, '', `#${ids[index]}`);
@@ -155,5 +156,10 @@
     if (event.key === 'Tab') { event.preventDefault(); intro.querySelector('button').focus(); }
   });
   status.querySelector('button').addEventListener('click', () => play(true));
-  if (!location.hash || location.hash === '#home') play();
+  let introSeen = false;
+  try { introSeen = localStorage.getItem('munju-intro-seen') === 'true'; } catch {}
+  if ((!location.hash || location.hash === '#home') && !introSeen) {
+    play();
+    try { localStorage.setItem('munju-intro-seen', 'true'); } catch {}
+  }
 })();

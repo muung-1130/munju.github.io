@@ -13,7 +13,7 @@
   filters.find(button => button.dataset.filter === saved.filter)?.click();
   const controls = document.createElement('div');
   controls.className = 'project-view-controls';
-  controls.innerHTML = '<div><span class="project-view-label">PROJECT VIEW</span><div role="group" aria-label="프로젝트 보기 방식"><button type="button" data-view="page">A · 스크롤 기억</button><button type="button" data-view="popup">B · 팝업으로 보기</button></div></div><p aria-live="polite"></p>';
+  controls.innerHTML = '<div><span class="project-view-label">PROJECT VIEW</span><div role="group" aria-label="프로젝트 보기 방식"><button type="button" data-view="page">상세 페이지</button><button type="button" data-view="popup">팝업 보기</button></div></div><p aria-live="polite"></p>';
   const viewOptions = document.createElement('details');
   viewOptions.className = 'focus-view-options';
   viewOptions.innerHTML = '<summary>프로젝트 보기 방식 설정</summary>';
@@ -34,13 +34,17 @@
   }));
   function remember() {
     if (work.hidden) return;
-    saved = {top: main.scrollTop, filter: filters.find(button => button.classList.contains('active'))?.dataset.filter || 'all'};
+    saved = {top: matchMedia("(max-width:600px)").matches ? window.scrollY : main.scrollTop, filter: filters.find(button => button.classList.contains('active'))?.dataset.filter || 'all'};
     try { sessionStorage.setItem(key, JSON.stringify(saved)); } catch {}
   }
   function restore() {
-    if (!work.hidden && Number.isFinite(saved.top)) main.scrollTop = saved.top;
+    if (!work.hidden && Number.isFinite(saved.top)) {
+      if (matchMedia("(max-width:600px)").matches) window.scrollTo(0, saved.top);
+      else main.scrollTop = saved.top;
+    }
   }
   main.addEventListener('scroll', remember, {passive: true});
+  window.addEventListener('scroll', remember, {passive: true});
   window.addEventListener('pagehide', remember);
   window.addEventListener('pageshow', restore);
   document.addEventListener('archive:change', restore);
