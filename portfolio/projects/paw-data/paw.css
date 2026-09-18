@@ -2,3 +2,5 @@ body{--paper:#f3faf7;--ink:#163d35;--muted:#526a62;--line:#bdd4c9;background:var
 @media(max-width:500px){.jump-nav a:last-child{display:block}}
 
 .purpose-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.purpose-grid .case{padding:26px}.purpose-grid h3{font-size:24px}@media(max-width:850px){.purpose-grid{grid-template-columns:1fr}}
+
+.infra-figure{margin:30px 0}.infra-figure .diagram-open{display:block;width:100%;padding:18px;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden}.infra-figure img{display:block;width:100%;height:auto;max-width:1100px;margin:auto}.infra-figure .diagram-open span{display:block;margin-top:14px;color:var(--ink);font-size:12px}.infra-figure figcaption{margin-top:12px;font-size:12px;line-height:1.8;color:var(--muted)}.infra-links{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0 12px}

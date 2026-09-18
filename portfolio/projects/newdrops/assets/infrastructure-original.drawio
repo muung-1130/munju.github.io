@@ -1,0 +1,234 @@
+<mxfile>
+  <diagram name="k8s 인프라 설계도">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2800" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ── 제목 ── -->
+        <mxCell id="title" value="Kubernetes 인프라 설계도 — NewDrops" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="800" y="30" width="900" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- ── 인터넷 사용자 ── -->
+        <mxCell id="user" value="👤 사용자 (Internet)&#xa;https://newdrops.cloud" style="shape=mxgraph.cisco.computers_and_peripherals.pc;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="80" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ── Harbor 레지스트리 (봉수 컴퓨터) ── -->
+        <mxCell id="harbor" value="🗄️ Harbor Registry&#xa;192.168.0.39&#xa;(봉수 컴퓨터)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2400" y="100" width="180" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ── GitHub ── -->
+        <mxCell id="github" value="🐙 GitHub&#xa;github.com/muung-1130/newdrops" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="2400" y="220" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ══════════════════════════════════
+             MASTER NODE
+        ══════════════════════════════════ -->
+        <mxCell id="master_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="200" y="100" width="260" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="master_title" value="⚙️ Master Node&#xa;192.168.0.213 | RAM 3GB" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="210" y="108" width="240" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="master_pods" value="kube-apiserver&#xa;etcd&#xa;kube-scheduler&#xa;kube-controller-manager" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="220" y="145" width="220" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ══════════════════════════════════
+             WORKER 1
+        ══════════════════════════════════ -->
+        <mxCell id="w1_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="200" y="300" width="360" height="360" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1_title" value="🖥️ Worker 1 — 192.168.0.214 | RAM 7GB" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="210" y="308" width="340" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1_cicd" value="cicd-ns&#xa;• Jenkins (4GB)&#xa;• ArgoCD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="215" y="345" width="155" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1_consumer" value="business-ns&#xa;• payment-consumer&#xa;• order-consumer&#xa;• refund-consumer&#xa;• inventory-consumer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="380" y="345" width="165" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1_mon" value="monitoring-ns&#xa;• Headlamp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="215" y="425" width="155" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1_alloy" value="(DaemonSet 전체)&#xa;• Alloy (OTEL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#aaaaaa;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="380" y="445" width="165" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1_note" value="⚠️ HPA 스케일아웃 여유: ~1.3GB" style="text;html=1;strokeColor=none;fillColor=none;fontSize=9;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="215" y="500" width="320" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1_calico" value="calico-node (DaemonSet)" style="text;html=1;strokeColor=none;fillColor=none;fontSize=9;fontColor=#888;" vertex="1" parent="1">
+          <mxGeometry x="215" y="525" width="320" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ══════════════════════════════════
+             WORKER 2
+        ══════════════════════════════════ -->
+        <mxCell id="w2_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="600" y="300" width="360" height="360" as="geometry"/>
+        </mxCell>
+        <mxCell id="w2_title" value="🖥️ Worker 2 — 192.168.0.215 | RAM 5GB" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="610" y="308" width="340" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="w2_cicd" value="cicd-ns&#xa;• SonarQube" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="615" y="345" width="155" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="w2_db" value="db-ns&#xa;• MariaDB (StatefulSet)&#xa;  10Gi PV (local-path)&#xa;• MinIO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="780" y="345" width="165" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="w2_public" value="public-ns&#xa;• auth-service&#xa;• frontend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="615" y="410" width="155" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="w2_mon" value="monitoring-ns&#xa;• Loki" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="780" y="435" width="165" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="w2_note" value="⚠️ HPA 스케일아웃 여유: ~3.0GB" style="text;html=1;strokeColor=none;fillColor=none;fontSize=9;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="615" y="500" width="320" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- ══════════════════════════════════
+             WORKER 3
+        ══════════════════════════════════ -->
+        <mxCell id="w3_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="300" width="360" height="360" as="geometry"/>
+        </mxCell>
+        <mxCell id="w3_title" value="🖥️ Worker 3 — 192.168.0.216 | RAM 5GB" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="308" width="340" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="w3_db" value="db-ns&#xa;• MongoDB (StatefulSet)&#xa;  10Gi PV (local-path)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1015" y="345" width="155" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="w3_biz" value="business-ns&#xa;• product-service&#xa;• order-service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="345" width="165" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="w3_mon" value="monitoring-ns&#xa;• Tempo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1015" y="425" width="155" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="w3_note" value="⚠️ HPA 스케일아웃 여유: ~2.7GB" style="text;html=1;strokeColor=none;fillColor=none;fontSize=9;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1015" y="500" width="320" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- ══════════════════════════════════
+             WORKER 4
+        ══════════════════════════════════ -->
+        <mxCell id="w4_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="300" width="360" height="360" as="geometry"/>
+        </mxCell>
+        <mxCell id="w4_title" value="🖥️ Worker 4 — 192.168.0.217 | RAM 5GB" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1410" y="308" width="340" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="w4_kafka" value="business-ns&#xa;• Kafka (StatefulSet)&#xa;  KRaft 3파티션&#xa;• inventory-service&#xa;• kafka-ui" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1415" y="345" width="165" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="w4_mon" value="monitoring-ns&#xa;• Prometheus&#xa;• Grafana" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1590" y="345" width="155" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="w4_note" value="⚠️ KEDA 스케일아웃 여유: ~2.2GB" style="text;html=1;strokeColor=none;fillColor=none;fontSize=9;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1415" y="500" width="320" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- ══════════════════════════════════
+             MetalLB + Istio Gateway
+        ══════════════════════════════════ -->
+        <mxCell id="metallb" value="⚖️ MetalLB&#xa;LoadBalancer&#xa;192.168.0.200~210" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="370" width="150" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="istio" value="🔀 Istio IngressGateway&#xa;(istio-system)&#xa;HTTPS :443 / HTTP→HTTPS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="490" width="150" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="calico" value="🌐 Calico CNI&#xa;NetworkPolicy&#xa;L3/L4 라우팅" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="600" width="150" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ══════════════════════════════════
+             네트워크 범례
+        ══════════════════════════════════ -->
+        <mxCell id="legend_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="300" width="300" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_title" value="범례" style="text;html=1;strokeColor=none;fillColor=none;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1960" y="310" width="80" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg1" value="" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="345" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg1t" value="cicd-ns" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1905" y="343" width="120" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg2" value="" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="375" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg2t" value="business-ns / public-ns" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1905" y="373" width="180" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg3" value="" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="405" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg3t" value="db-ns" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1905" y="403" width="120" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg4" value="" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="435" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg4t" value="monitoring-ns" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1905" y="433" width="120" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg5" value="" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="465" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg5t" value="Worker Node (VM)" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1905" y="463" width="160" height="24" as="geometry"/>
+        </mxCell>
+
+        <!-- ── 노드 스펙 표 ── -->
+        <mxCell id="spec_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;" vertex="1" parent="1">
+          <mxGeometry x="200" y="710" width="1560" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="spec_title" value="📋 VM 스펙 요약" style="text;html=1;strokeColor=none;fillColor=none;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="210" y="715" width="200" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="spec_table" value="노드 | IP | RAM | vCPU | OS | 역할&#xa;────────────────────────────────────────────────────────────────&#xa;master  | 192.168.0.213 | 3GB | 2 | Ubuntu 22.04 | Control Plane (etcd, apiserver, scheduler)&#xa;worker1 | 192.168.0.214 | 7GB | 2 | Ubuntu 22.04 | cicd-ns (Jenkins 4GB), consumers, Headlamp&#xa;worker2 | 192.168.0.215 | 5GB | 2 | Ubuntu 22.04 | MariaDB(db-ns), MinIO, auth/frontend(public-ns), Loki&#xa;worker3 | 192.168.0.216 | 5GB | 2 | Ubuntu 22.04 | MongoDB(db-ns), product/order-service, Tempo&#xa;worker4 | 192.168.0.217 | 5GB | 2 | Ubuntu 22.04 | Kafka(business-ns), inventory-service, Prometheus, Grafana" style="text;html=1;strokeColor=none;fillColor=none;fontSize=10;fontFamily=Courier New;align=left;" vertex="1" parent="1">
+          <mxGeometry x="210" y="740" width="1540" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- ══════════════════════════════════
+             네트워크 흐름 화살표
+        ══════════════════════════════════ -->
+        <!-- 사용자 → MetalLB -->
+        <mxCell id="arrow1" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#0050ef;strokeWidth=2;" edge="1" source="user" target="metallb" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- MetalLB → Istio -->
+        <mxCell id="arrow2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0050ef;strokeWidth=2;" edge="1" source="metallb" target="istio" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Istio → Worker2 (frontend/auth) -->
+        <mxCell id="arrow3" value="frontend/auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#00aa00;strokeWidth=2;dashed=1;" edge="1" source="istio" target="w2_public" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Istio → Worker3 (product/order) -->
+        <mxCell id="arrow4" value="api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#00aa00;strokeWidth=2;dashed=1;" edge="1" source="istio" target="w3_biz" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Jenkins → Harbor -->
+        <mxCell id="arrow5" value="docker push" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#ff6600;strokeWidth=2;dashed=1;" edge="1" source="w1_cicd" target="harbor" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- Jenkins → GitHub -->
+        <mxCell id="arrow6" value="git push (manifest)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#ff6600;strokeWidth=2;dashed=1;" edge="1" source="w1_cicd" target="github" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <!-- ArgoCD → GitHub -->
+        <mxCell id="arrow7" value="git pull (감지)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9900cc;strokeWidth=2;dashed=1;" edge="1" source="w1_cicd" target="github" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

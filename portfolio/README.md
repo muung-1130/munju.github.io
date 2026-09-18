@@ -42,3 +42,19 @@ Docker 캠핑 화면은 제출 소스를 기반으로 목데이터를 연결한 
 
 ## etcd 개인 프로젝트
 /projects/etcd-recovery/ — etcd 백업·복구 개인 실습. 버터색 폴더, 실행 이미지 7장, 트러블슈팅 6건과 개념 설명 흐름. 협업 5 / 개인 1 / 전체 6. 기존 프로젝트 및 원본 첨부 파일 유지. Pod 강의 캡처는 증빙에 사용하지 않음. 문서 내 장애·삭제·복원 명령은 실행하지 않음.
+
+## Newdrops 추가
+
+- `/projects/newdrops/`: 26.05.21~26.06.17, 협업 프로젝트 6번째. 파스텔 라임 폴더와 상세 페이지.
+- 개인 인프라·CI/CD·Windows Harbor 구축 중심. 제출 Jenkinsfile의 순차 빌드·비차단 검사를 실제 구현으로 구분.
+- 제출 ZIP의 CI/CD·인프라 원본 draw.io 2종과 별도 SVG 요약도, 화면 7컷 PDF. 화면은 로컬 예시 데이터이며 실제 운영 결과가 아님.
+- 원본 PDF·인증 정보·전체 소스는 배포 대상에 포함하지 않음.
+
+## DAI RUN 최종 자료 반영 (2026-09-18)
+
+- Docker 데이터 모델링·AI, Kubernetes Jenkins/Argo CD, AWS GitLab/Argo Rollouts/ZAP로 담당 범위를 구분했습니다.
+- `Delta_설계도.drawio`의 Docker, k8s, AWS, AI 설계도의 복사본 탭을 개별 원본 draw.io와 SVG로 수록했습니다. AI 대표 이미지는 사용자 제공 구성도입니다.
+- dairun.site의 공개 서비스 7컷과 AWS 발표의 로그인 챗봇 시연 2컷을 9페이지 PDF에 수록했습니다. 발표 당시 데이터와 현재 공개 접속 결과를 구분합니다.
+- 챗봇 DB 우선 응답/Bedrock RAG 분기, PostGIS 주변 코스 조회, AWS 날씨 수집의 Lambda-DynamoDB-PostgreSQL 전환을 최종 소스로 확인했습니다.
+- Kubernetes 발표의 Jenkins #22와 Argo CD Healthy/Synced 이미지를 CI/CD 증빙으로 추가했습니다.
+- 원본 ZIP/PPTX, 운영 연결정보, 개발 소스는 포트폴리오 자산으로 복사하지 않았습니다. 현재 운영 AWS 설정 자체를 변경하거나 재검증하지 않았습니다.

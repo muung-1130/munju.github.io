@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Paw-Data · 첨부 구성도 재구성" id="paw-data-infrastructure">
+    <mxGraphModel dx="1100" dy="650" grid="1" gridSize="10" page="1" pageWidth="1100" pageHeight="650">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="network" value="Private Network (VPC / LAN)" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#ffffff;strokeColor=#71958a;verticalAlign=top;spacingTop=12;">
+          <mxGeometry as="geometry" x="220" y="40" width="830" height="520" />
+        </mxCell>
+        <mxCell id="app" value="VM 1 — App Server" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#f2f8ef;strokeColor=#71958a;verticalAlign=top;spacingTop=12;">
+          <mxGeometry as="geometry" x="260" y="110" width="340" height="400" />
+        </mxCell>
+        <mxCell id="dbvm" value="VM 2 — MariaDB Server" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#edf3ff;strokeColor=#71958a;verticalAlign=top;spacingTop=12;">
+          <mxGeometry as="geometry" x="730" y="110" width="270" height="190" />
+        </mxCell>
+        <mxCell id="mongovm" value="VM 3 — MongoDB Server" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#f5eff8;strokeColor=#71958a;verticalAlign=top;spacingTop=12;">
+          <mxGeometry as="geometry" x="730" y="340" width="270" height="170" />
+        </mxCell>
+        <mxCell id="browser" value="외부 사용자&#10;브라우저" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#edf3ff;strokeColor=#71958a;">
+          <mxGeometry as="geometry" x="20" y="185" width="150" height="75" />
+        </mxCell>
+        <mxCell id="react" value="React&#10;Frontend · Port 3000" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#d5e8ce;strokeColor=#71958a;">
+          <mxGeometry as="geometry" x="305" y="185" width="245" height="75" />
+        </mxCell>
+        <mxCell id="api" value="FastAPI&#10;Backend · Port 8000" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#d5e8ce;strokeColor=#71958a;">
+          <mxGeometry as="geometry" x="305" y="375" width="245" height="75" />
+        </mxCell>
+        <mxCell id="maria" value="MariaDB 10.11.15&#10;SQL · Port 3306" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#dae8fc;strokeColor=#71958a;">
+          <mxGeometry as="geometry" x="755" y="180" width="220" height="85" />
+        </mxCell>
+        <mxCell id="mongo" value="MongoDB 8.0.20&#10;PyMongo · Port 27017" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#e1d5e7;strokeColor=#71958a;">
+          <mxGeometry as="geometry" x="755" y="400" width="220" height="85" />
+        </mxCell>
+        <mxCell id="e1" value="HTTPS / :3000" edge="1" parent="1" source="browser" target="react" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;strokeColor=#71958a;fontSize=12;labelBackgroundColor=#ffffff;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e2" value="REST API (HTTP)" edge="1" parent="1" source="react" target="api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;strokeColor=#71958a;fontSize=12;labelBackgroundColor=#ffffff;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e3" value="SQL / :3306" edge="1" parent="1" source="api" target="maria" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;strokeColor=#71958a;fontSize=12;labelBackgroundColor=#ffffff;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e4" value="PyMongo / :27017" edge="1" parent="1" source="api" target="mongo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;strokeColor=#71958a;fontSize=12;labelBackgroundColor=#ffffff;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="note" value="사용자 제공 이미지 기반 재구성 · 저장소 원본 draw.io 아님 · 포트와 버전은 제공 구성도 기준" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=0;fontSize=15;fillColor=#ffffff;strokeColor=#71958a;strokeColor=none;fontSize=12;">
+          <mxGeometry as="geometry" x="220" y="580" width="830" height="35" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

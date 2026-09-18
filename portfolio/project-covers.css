@@ -25,9 +25,11 @@
 .cover-camping .cover-serif{align-self:flex-end;margin-right:-15px;font-size:1.03em}
 .data-orbit{position:absolute;border:1px solid var(--cover-line);border-radius:50%;width:67%;height:63%;transform:rotate(-23deg)}
 .orbit-a{top:10%}.orbit-b{top:22%}.orbit-c{top:34%}
-@media(hover:hover){.project:hover .cover-title{transform:rotate(-3deg) translateY(-3px)}}
+.project .run-name{transition:transform .4s ease}
+@media(hover:hover){.project:hover .cover-title,.project:hover .run-name{transform:rotate(-3deg) translateY(-3px)}}
+.project:focus-visible .cover-title,.project:focus-visible .run-name{transform:rotate(-3deg) translateY(-3px)}
 @media(max-width:600px){.cover-title{font-size:70px}.cover-kicker{top:15px;left:13px;font-size:7px}.cover-bottom{bottom:15px;left:13px;font-size:6px;letter-spacing:.6px}.cover-code{bottom:15px;right:12px;font-size:6px;letter-spacing:.5px}.file-outline{width:60%}.outline-back{left:16%}.outline-front{left:22%}.data-orbit{width:86%}.cover-camping .cover-title{font-size:72px}}
-@media(prefers-reduced-motion:reduce){.cover-title{transition:none}}
+@media(prefers-reduced-motion:reduce){.cover-title,.project .run-name{transition:none}}
 
 
 /* Decorative line drawings share each project’s existing palette. */
@@ -60,3 +62,5 @@
 #work .project-grid .tags span{font-size:8px;padding:5px 8px;white-space:nowrap}
 @media(max-width:800px){#work .project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){#work .project-grid{grid-template-columns:minmax(0,1fr);row-gap:44px}#work .project-grid .project-art{height:180px}#work .project-grid .project-bottom p{min-height:0}}
+
+#work .project-grid .cover-line-art.art-sneaker{width:100%;left:0;opacity:.85}

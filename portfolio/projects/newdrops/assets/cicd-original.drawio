@@ -1,0 +1,352 @@
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ============================================================ -->
+    <!-- TITLE -->
+    <!-- ============================================================ -->
+    <mxCell id="title" value="신발 이커머스 (newdrops) — CI/CD 아키텍처" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="400" y="20" width="860" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- EXTERNAL ZONE -->
+    <!-- ============================================================ -->
+    <mxCell id="ext-zone" value="External" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="20" y="80" width="1610" height="160" as="geometry" />
+    </mxCell>
+
+    <!-- Developer -->
+    <mxCell id="dev" value="👨‍💻 개발자&#xa;(push)" style="shape=mxgraph.general.person;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="ext-zone">
+      <mxGeometry x="30" y="50" width="80" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- GitHub -->
+    <mxCell id="github" value="GitHub&#xa;github.com/muung-1130/newdrops&#xa;:443 (HTTPS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="ext-zone">
+      <mxGeometry x="180" y="55" width="200" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- ngrok -->
+    <mxCell id="ngrok" value="ngrok 프로세스&#xa;master (192.168.0.213)&#xa;munju 실행 중&#xa;→ 192.168.0.214:32201" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="ext-zone">
+      <mxGeometry x="460" y="55" width="200" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- Harbor -->
+    <mxCell id="harbor" value="Harbor Registry&#xa;192.168.0.39&#xa;:443 / :80&#xa;newdrops/ 프로젝트" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="ext-zone">
+      <mxGeometry x="900" y="55" width="180" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- MinIO -->
+    <mxCell id="minio-ext" value="MinIO&#xa;minio-svc.db-ns&#xa;:9000 (API)&#xa;Bucket: backup/builds/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;" vertex="1" parent="ext-zone">
+      <mxGeometry x="1140" y="55" width="180" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- SonarQube Quality Gate result label -->
+    <mxCell id="sonar-ext" value="SonarQube Quality Gate&#xa;webhook → jenkins-svc:8080&#xa;/sonarqube-webhook/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="ext-zone">
+      <mxGeometry x="1380" y="55" width="200" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- CICD-NS ZONE -->
+    <!-- ============================================================ -->
+    <mxCell id="cicd-zone" value="cicd-ns" style="swimlane;startSize=25;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="20" y="260" width="1610" height="560" as="geometry" />
+    </mxCell>
+
+    <!-- =================== JENKINS BOX =================== -->
+    <mxCell id="jenkins-box" value="Jenkins" style="swimlane;startSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;" vertex="1" parent="cicd-zone">
+      <mxGeometry x="20" y="40" width="560" height="500" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins SA -->
+    <mxCell id="jenkins-sa" value="ServiceAccount&#xa;newdrops-jenkins-sa&#xa;ClusterRoleBinding: cluster-admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="20" y="40" width="240" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins Secret -->
+    <mxCell id="jenkins-secret" value="Secret: jenkins-secret&#xa;JENKINS_ADMIN_PASSWORD&#xa;HARBOR_URL / HARBOR_CREDENTIAL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="280" y="40" width="260" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins Deployment -->
+    <mxCell id="jenkins-deploy" value="Deployment: jenkins&#xa;replicas: 1&#xa;node: k8s-node1 (192.168.0.214)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="20" y="110" width="520" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins Pod -->
+    <mxCell id="jenkins-pod" value="Pod: jenkins-container&#xa;Image: 192.168.0.39/newdrops/jenkins:1.0&#xa;containerPort: 8080&#xa;runAsUser: 0 (root)&#xa;volumeMount: /var/jenkins_home&#xa;volumeMount: /var/run/docker.sock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="20" y="165" width="250" height="100" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins PVC -->
+    <mxCell id="jenkins-pvc" value="PVC: jenkins-pvc&#xa;StorageClass: local-path&#xa;node1 로컬 고정" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="290" y="165" width="230" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Docker sock -->
+    <mxCell id="docker-sock" value="HostPath: /var/run/docker.sock&#xa;(docker-in-docker)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="290" y="240" width="230" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins SVC -->
+    <mxCell id="jenkins-svc" value="Service: jenkins-svc&#xa;Type: NodePort&#xa;port: 8080 → nodePort: 32201" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="20" y="290" width="250" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- Trivy Cache -->
+    <mxCell id="trivy-cache" value="Trivy DB Cache&#xa;/var/jenkins_home/.trivy-cache&#xa;(650MB, 재다운로드 방지)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="290" y="300" width="230" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- Pipeline Stages -->
+    <mxCell id="pipeline-title" value="CI Pipeline Stages" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;fontStyle=1;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="20" y="360" width="200" height="20" as="geometry" />
+    </mxCell>
+
+    <mxCell id="stage1" value="① Checkout SCM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="20" y="385" width="130" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="stage2" value="② SonarQube 준비 확인&#xa;curl :9000/api/system/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="160" y="380" width="160" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="stage3" value="③ SonarQube Analysis&#xa;sonar-scanner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="330" y="380" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="stage4" value="④ Quality Gate&#xa;waitForQualityGate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="20" y="430" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="stage5" value="⑤ Build &amp; Push&#xa;docker build/push → Harbor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="160" y="430" width="160" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="stage6" value="⑥ Trivy 보안 스캔&#xa;HIGH/CRITICAL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="330" y="430" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="stage7" value="⑦ Update Manifest&#xa;sed → git push (루프방지 skip)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="20" y="478" width="200" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="stage8" value="⑧ MinIO Backup&#xa;mc cp build-info.txt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="230" y="478" width="180" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Credentials -->
+    <mxCell id="creds" value="Credentials (Jenkins)&#xa;harbor-credentials (user/pass)&#xa;github-credentials (user/pass)&#xa;minio-access-key / minio-secret-key (string)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=9;" vertex="1" parent="jenkins-box">
+      <mxGeometry x="420" y="385" width="120" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- =================== SONARQUBE BOX =================== -->
+    <mxCell id="sonar-box" value="SonarQube" style="swimlane;startSize=25;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=12;" vertex="1" parent="cicd-zone">
+      <mxGeometry x="620" y="40" width="340" height="320" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sonar-deploy" value="Deployment: sonarqube&#xa;replicas: 1 (상시 기동)&#xa;node: k8s-node2 (192.168.0.215)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="sonar-box">
+      <mxGeometry x="20" y="40" width="300" height="45" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sonar-pod" value="Pod: sonarqube-container&#xa;Image: sonarqube:community&#xa;containerPort: 9000&#xa;JVM: Web -Xmx512m / CE -Xmx512m&#xa;Search(ES) -Xmx512m&#xa;initContainer: sysctl vm.max_map_count=262144" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="sonar-box">
+      <mxGeometry x="20" y="95" width="300" height="90" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sonar-pvc" value="PVC: sonarqube-pvc&#xa;StorageClass: local-path&#xa;10Gi (data/logs/extensions)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="sonar-box">
+      <mxGeometry x="20" y="195" width="180" height="55" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sonar-secret" value="Secret: sonarqube-secret&#xa;SONAR_ADMIN_LOGIN&#xa;SONAR_ADMIN_PASSWORD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="sonar-box">
+      <mxGeometry x="210" y="195" width="110" height="55" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sonar-svc" value="Service: sonarqube-svc&#xa;Type: NodePort&#xa;port: 9000 → nodePort: 32200" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;" vertex="1" parent="sonar-box">
+      <mxGeometry x="20" y="260" width="300" height="45" as="geometry" />
+    </mxCell>
+
+    <!-- Webhook info -->
+    <mxCell id="webhook-info" value="Webhook 등록&#xa;http://jenkins-svc:8080/sonarqube-webhook/&#xa;CE 완료 시 Jenkins에 POST 콜백" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#d6b656;fontSize=10;dashed=1;" vertex="1" parent="cicd-zone">
+      <mxGeometry x="620" y="375" width="340" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- =================== ARGOCD BOX =================== -->
+    <mxCell id="argocd-box" value="ArgoCD" style="swimlane;startSize=25;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;" vertex="1" parent="cicd-zone">
+      <mxGeometry x="1000" y="40" width="580" height="340" as="geometry" />
+    </mxCell>
+
+    <mxCell id="argocd-ns-note" value="※ argocd 네임스페이스에 설치" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontStyle=2;" vertex="1" parent="argocd-box">
+      <mxGeometry x="20" y="30" width="250" height="20" as="geometry" />
+    </mxCell>
+
+    <mxCell id="argocd-server" value="Deployment: argocd-server&#xa;Service: argocd-server&#xa;Type: NodePort&#xa;80 → 31759 / 443 → 30445" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;" vertex="1" parent="argocd-box">
+      <mxGeometry x="20" y="55" width="250" height="75" as="geometry" />
+    </mxCell>
+
+    <mxCell id="argocd-controller" value="Deployment: argocd-application-controller&#xa;SA: argocd-application-controller&#xa;ClusterRoleBinding: cluster-admin (발표용)&#xa;kube-apiserver :6443 접근" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="argocd-box">
+      <mxGeometry x="290" y="55" width="270" height="75" as="geometry" />
+    </mxCell>
+
+    <mxCell id="argocd-repo" value="argocd-repo-server :8081&#xa;GitHub repo 감시&#xa;targetRevision: main&#xa;path: infra/k8s (recurse)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="argocd-box">
+      <mxGeometry x="20" y="150" width="250" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="argocd-redis" value="argocd-redis :6379&#xa;argocd-dex-server :5556&#xa;argocd-applicationset :7000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="argocd-box">
+      <mxGeometry x="290" y="150" width="270" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="argocd-app" value="Application: newdrops&#xa;syncPolicy: automated (selfHeal: true, prune: false)&#xa;source: github.com/muung-1130/newdrops → infra/k8s/**&#xa;exclude: kafka-consumers/**&#xa;destination: business-ns / public-ns / db-ns 등" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="argocd-box">
+      <mxGeometry x="20" y="235" width="540" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- =================== NETPOL BOX =================== -->
+    <mxCell id="netpol-box" value="NetworkPolicy (cicd-ns)" style="swimlane;startSize=25;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=11;" vertex="1" parent="cicd-zone">
+      <mxGeometry x="20" y="420" width="560" height="120" as="geometry" />
+    </mxCell>
+
+    <mxCell id="np1" value="deny-all&#xa;(기본 차단)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="netpol-box">
+      <mxGeometry x="10" y="35" width="80" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="np2" value="allow-dns-egress&#xa;kube-system :53" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="netpol-box">
+      <mxGeometry x="100" y="35" width="100" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="np3" value="allow-istiod-egress&#xa;istio-system :15012/10/14" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="netpol-box">
+      <mxGeometry x="210" y="35" width="120" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="np4" value="allow-jenkins&#xa;ingress: istio-system, 192.168.0/24, sonarqube:8080&#xa;egress: :443/80(Harbor), db-ns:9000(MinIO), sonarqube:9000, k8s:6443" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="netpol-box">
+      <mxGeometry x="10" y="78" width="320" height="35" as="geometry" />
+    </mxCell>
+    <mxCell id="np5" value="allow-sonarqube&#xa;ingress: jenkins:9000&#xa;egress: jenkins:8080(webhook)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="netpol-box">
+      <mxGeometry x="340" y="35" width="200" height="55" as="geometry" />
+    </mxCell>
+    <mxCell id="np6" value="allow-argocd&#xa;ingress: istio-system, argocd내부&#xa;egress: argocd내부, :443/:22(GitHub), kube-system:6443" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;" vertex="1" parent="netpol-box">
+      <mxGeometry x="340" y="95" width="200" height="18" as="geometry" />
+    </mxCell>
+
+    <!-- SonarQube Jenkins Integration -->
+    <mxCell id="sq-jenkins" value="Jenkins Credentials: sonarqube (token)&#xa;Jenkins Plugin: SonarQube Scanner&#xa;Jenkins System: sonarqube → http://sonarqube-svc:9000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;dashed=1;" vertex="1" parent="cicd-zone">
+      <mxGeometry x="620" y="440" width="360" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- K8S TARGET ZONE -->
+    <!-- ============================================================ -->
+    <mxCell id="k8s-zone" value="Kubernetes Cluster — 배포 대상 (ArgoCD → K8s)" style="swimlane;startSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="20" y="840" width="1610" height="300" as="geometry" />
+    </mxCell>
+
+    <!-- business-ns -->
+    <mxCell id="bns" value="business-ns" style="swimlane;startSize=20;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="k8s-zone">
+      <mxGeometry x="20" y="35" width="800" height="240" as="geometry" />
+    </mxCell>
+
+    <mxCell id="auth-deploy" value="Deployment: auth-service&#xa;Image: :BUILD_NUMBER&#xa;:8000 (FastAPI)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;" vertex="1" parent="bns">
+      <mxGeometry x="10" y="30" width="140" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="product-deploy" value="Deployment: product-service&#xa;Image: :BUILD_NUMBER&#xa;:8001 (FastAPI)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;" vertex="1" parent="bns">
+      <mxGeometry x="160" y="30" width="140" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="inventory-deploy" value="Deployment: inventory-service&#xa;Image: :BUILD_NUMBER&#xa;:3000 (Node/Express)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;" vertex="1" parent="bns">
+      <mxGeometry x="310" y="30" width="150" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="order-deploy" value="Deployment: order-service&#xa;Image: :BUILD_NUMBER&#xa;:8080 (Go/Gin)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;" vertex="1" parent="bns">
+      <mxGeometry x="470" y="30" width="140" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="kafka-box2" value="Kafka StatefulSet&#xa;node4 고정&#xa;KEDA ScaledObject&#xa;(consumer lag 기반)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;" vertex="1" parent="bns">
+      <mxGeometry x="620" y="30" width="160" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="hpa-note" value="HPA: auth/product/inventory/order (min1 max5)&#xa;KEDA: payment/inventory/order/refund-consumer (Kafka lag 기반)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="bns">
+      <mxGeometry x="10" y="95" width="770" height="35" as="geometry" />
+    </mxCell>
+
+    <mxCell id="configmap-note" value="ConfigMap: business-config (MARIADB_HOST/PORT/USER/DB, MONGODB_URL, KAFKA_BROKERS)&#xa;Secret: business-secret (MARIADB_PASSWORD, JWT_SECRET)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="bns">
+      <mxGeometry x="10" y="140" width="770" height="35" as="geometry" />
+    </mxCell>
+
+    <mxCell id="istio-note" value="Istio 사이드카 주입 (mTLS) — 외부 직접 접근 차단" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="bns">
+      <mxGeometry x="10" y="185" width="770" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- public-ns -->
+    <mxCell id="pns" value="public-ns" style="swimlane;startSize=20;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="k8s-zone">
+      <mxGeometry x="840" y="35" width="380" height="240" as="geometry" />
+    </mxCell>
+
+    <mxCell id="frontend-deploy" value="Deployment: frontend&#xa;Image: :BUILD_NUMBER&#xa;nginx :80&#xa;NodePort: 30080" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;" vertex="1" parent="pns">
+      <mxGeometry x="10" y="30" width="160" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="auth-pub" value="Deployment: auth-service&#xa;:8000&#xa;Google OAuth callback" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;" vertex="1" parent="pns">
+      <mxGeometry x="185" y="30" width="175" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="pub-config" value="ConfigMap: public-config | Secret: public-secret, google-oauth-secret&#xa;Istio IngressGateway → HTTPS :443 (TLS: newdrops-tls, 만료 2026-09-11)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="pns">
+      <mxGeometry x="10" y="105" width="350" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="nginx-conf" value="nginx ConfigMap: try_files $uri $uri/ /index.html&#xa;(SPA 라우팅 404 방지)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="pns">
+      <mxGeometry x="10" y="155" width="350" height="35" as="geometry" />
+    </mxCell>
+
+    <!-- db-ns ref -->
+    <mxCell id="dbns" value="db-ns&#xa;MariaDB :3306&#xa;MongoDB :27017&#xa;MinIO :9000/:9001&#xa;CronJob: backup 02:00/02:30" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="k8s-zone">
+      <mxGeometry x="1240" y="35" width="350" height="100" as="geometry" />
+    </mxCell>
+
+    <mxCell id="monitoring-ns" value="monitoring-ns&#xa;Prometheus / Grafana / Loki / Tempo&#xa;Alloy (DaemonSet) / kube-state-metrics / kafka-exporter&#xa;Headlamp (K8s UI)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=9;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="k8s-zone">
+      <mxGeometry x="1240" y="150" width="350" height="100" as="geometry" />
+    </mxCell>
+
+    <!-- ============================================================ -->
+    <!-- ARROWS / CONNECTIONS -->
+    <!-- ============================================================ -->
+
+    <!-- Dev → GitHub -->
+    <mxCell id="e1" value="git push" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#0000FF;fontColor=#0000FF;fontSize=10;" edge="1" source="dev" target="github" parent="ext-zone">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- GitHub → ngrok (webhook) -->
+    <mxCell id="e2" value="webhook POST&#xa;(ngrok URL)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#FF8000;fontColor=#FF8000;fontSize=10;" edge="1" source="github" target="ngrok" parent="ext-zone">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ngrok → Jenkins SVC -->
+    <mxCell id="e3" value="→:32201" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#FF8000;fontColor=#FF8000;fontSize=10;" edge="1" source="ngrok" target="jenkins-svc" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins → SonarQube -->
+    <mxCell id="e4" value="sonar-scanner&#xa;:9000" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=10;" edge="1" source="jenkins-pod" target="sonar-svc" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- SonarQube → Jenkins (webhook) -->
+    <mxCell id="e5" value="webhook&#xa;:8080" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;fontColor=#d6b656;fontSize=10;dashed=1;" edge="1" source="sonar-pod" target="jenkins-svc" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins → Harbor -->
+    <mxCell id="e6" value="docker push&#xa;:443" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;" edge="1" source="stage5" target="harbor" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins → GitHub (git push) -->
+    <mxCell id="e7" value="git push&#xa;(Update Manifest)" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;fontColor=#b85450;fontSize=10;" edge="1" source="stage7" target="github" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Jenkins → MinIO -->
+    <mxCell id="e8" value="mc cp&#xa;:9000" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;fontColor=#9673a6;fontSize=10;" edge="1" source="stage8" target="minio-ext" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- GitHub → ArgoCD (poll) -->
+    <mxCell id="e9" value="감지 (poll)&#xa;:443" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;" edge="1" source="github" target="argocd-repo" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ArgoCD → K8s -->
+    <mxCell id="e10" value="kubectl apply&#xa;:6443" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=10;strokeWidth=2;" edge="1" source="argocd-controller" target="k8s-zone" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Harbor → K8s (imagePull) -->
+    <mxCell id="e11" value="imagePull&#xa;:443" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;dashed=1;" edge="1" source="harbor" target="bns" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>

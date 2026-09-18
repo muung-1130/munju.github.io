@@ -23,4 +23,4 @@ for (const [slug, {start, end}] of Object.entries(periods)) {
   await writeFile(file, detail);
 }
 await writeFile(new URL('index.html', root), index);
-console.log('Project periods updated in six cards and six detail pages.');
+console.log(`Project periods updated in ${Object.keys(periods).length} cards and detail pages.`);
