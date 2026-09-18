@@ -14,7 +14,11 @@
   const controls = document.createElement('div');
   controls.className = 'project-view-controls';
   controls.innerHTML = '<div><span class="project-view-label">PROJECT VIEW</span><div role="group" aria-label="프로젝트 보기 방식"><button type="button" data-view="page">A · 스크롤 기억</button><button type="button" data-view="popup">B · 팝업으로 보기</button></div></div><p aria-live="polite"></p>';
-  work.querySelector('.filters').after(controls);
+  const viewOptions = document.createElement('details');
+  viewOptions.className = 'focus-view-options';
+  viewOptions.innerHTML = '<summary>프로젝트 보기 방식 설정</summary>';
+  viewOptions.append(controls);
+  work.querySelector('.filters').after(viewOptions);
   const choices = [...controls.querySelectorAll('button')];
   function select(value) {
     mode = value;

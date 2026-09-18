@@ -45,11 +45,11 @@
   shell.append(status);
   const hero = sections[0];
   hero.querySelector('.circle-link').textContent = '↗';
-  hero.querySelector('.hero-index').innerHTML = '<span>01 / INTRODUCTION</span><span>위쪽 파일 탭을 눌러 작업을 살펴보세요.</span>';
+  hero.querySelector('.hero-index').innerHTML = '<span>01 / INTRODUCTION</span><span>배포 · 연결과 권한 · 복구의 기록</span>';
   const stamp = document.createElement('div');
   stamp.className = 'file-stamp';
   stamp.setAttribute('aria-hidden', 'true');
-  stamp.innerHTML = '<span>PERSONAL ARCHIVE</span><b>M.</b><span>CLOUD / DEVOPS</span>';
+  stamp.innerHTML = '<span>PERSONAL ARCHIVE</span><b>M.</b><span>SYSTEMS / INFRA</span>';
   hero.append(stamp);
   function activate(index, updateURL) {
     if (index < 0) index = 0;

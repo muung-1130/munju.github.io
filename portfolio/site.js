@@ -16,6 +16,9 @@ document.querySelectorAll('[data-filter]').forEach(button => {
       project.hidden = filter !== 'all' && project.dataset.project !== filter;
       if (!project.hidden) visible++;
     });
+    document.querySelectorAll('[data-project-group]').forEach(group => {
+      group.hidden = ![...group.querySelectorAll('[data-project]')].some(project => !project.hidden);
+    });
     const empty = document.querySelector('.empty-work');
     if (empty) empty.hidden = visible !== 0;
     const foot = document.querySelector('.work-foot');
@@ -27,32 +30,18 @@ const toolkit = document.querySelector('.compact-toolkit');
 if (toolkit) {
   const switches = [...document.querySelectorAll('[data-toolkit-view]')];
   const feedback = document.querySelector('.toolkit-feedback');
-  const confirm = document.querySelector('.toolkit-confirm');
-  const labels = {cards: 'A · 카드형', list: 'B · 목록형'};
+  const labels = {cards: '카드 보기', list: '목록 보기'};
   let savedView;
   try { savedView = localStorage.getItem('munju-toolkit-view'); } catch {}
-  function preview(view) {
+  function showView(view) {
     toolkit.dataset.view = view;
     switches.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.toolkitView === view)));
-    feedback.textContent = savedView === view ? `${labels[view]}을 선택했습니다. 이 브라우저에 저장됩니다.` : `${labels[view]} 미리보기 · 마음에 들면 ‘이 구성 선택’을 눌러주세요.`;
-    confirm.textContent = savedView === view ? '선택 취소 ↺' : '이 구성 선택 ↗';
+    if (feedback) feedback.textContent = `${labels[view]} · 같은 기술 목록을 표시합니다.`;
   }
-  switches.forEach(button => button.addEventListener('click', () => preview(button.dataset.toolkitView)));
-  confirm.addEventListener('click', () => {
-    const view = toolkit.dataset.view;
-    try {
-      if (savedView === view) {
-        localStorage.removeItem('munju-toolkit-view');
-        savedView = undefined;
-        preview(view);
-        return;
-      }
-      localStorage.setItem('munju-toolkit-view', view);
-      savedView = view;
-      preview(view);
-    } catch {
-      feedback.textContent = `${labels[view]}을 적용했습니다. 브라우저 저장은 사용할 수 없습니다.`;
-    }
-  });
-  if (Object.hasOwn(labels, savedView)) preview(savedView);
+  switches.forEach(button => button.addEventListener('click', () => {
+    const view = button.dataset.toolkitView;
+    showView(view);
+    try { localStorage.setItem('munju-toolkit-view', view); } catch {}
+  }));
+  showView(Object.hasOwn(labels, savedView) ? savedView : 'cards');
 }
