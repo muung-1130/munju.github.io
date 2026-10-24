@@ -57,6 +57,13 @@
 }
 
 .archive-mode #work .filters{margin-bottom:22px}
+.archive-mode .file-index{height:66px}
+.archive-mode .index-tab{transform:none;transition:height .24s cubic-bezier(.2,.7,.3,1),background .2s}
+.archive-mode .index-tab::after{display:none}
+@media(hover:hover) and (pointer:fine){.archive-mode .index-tab:hover{height:56px}.archive-mode .index-tab[aria-selected=true]:hover{height:66px}}
+.archive-mode .index-tab:focus-visible{height:56px}.archive-mode .index-tab[aria-selected=true]:focus-visible{height:66px}
+@media(max-width:600px){.archive-mode .file-index{height:58px}.archive-mode .index-tab:focus-visible{height:50px}.archive-mode .index-tab[aria-selected=true]:focus-visible{height:58px}}
+@media(prefers-reduced-motion:reduce){.archive-mode .index-tab{transition:none}}
 
 /* A clear first step, with the credential beside the introduction. */
 .cka-badge{display:flex;align-items:center;gap:12px;width:fit-content;max-width:100%;padding:12px 16px;border:1px solid #c3d3e8;border-radius:10px;background:#f3f7fc;color:#243c59;margin:12px 0 20px;text-decoration:none}
@@ -69,3 +76,82 @@
 .certification-label{font-size:9px;letter-spacing:1.5px;color:#435b78}.certification-card h3{font-size:24px;margin:9px 0}.certification-card h3 span{font-size:14px;font-weight:500;margin-left:8px}.certification-card p{font-size:12px!important;line-height:1.7!important;margin:0!important;color:#435b78}
 @media(min-width:801px){.archive-mode .hero .cka-badge{grid-column:1;grid-row:5;margin:4px 0}.archive-mode .hero .hero-bottom{grid-row:6;gap:18px}.archive-mode .hero .focus-strengths{grid-row:2/7}}
 @media(max-width:600px){.certification-card{align-items:flex-start;flex-direction:column;padding:20px;gap:14px}.certification-card h3 span{display:block;margin:5px 0 0;line-height:1.6}.archive-mode .hero .hero-bottom{gap:18px}.cka-badge{padding:10px 12px}.cka-badge small{font-size:10px}}
+/* A portrait ID card with woven lanyard and metal swivel clasp. */
+.archive-mode #contact{position:relative;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);column-gap:30px;overflow:hidden;padding-top:26px;padding-bottom:24px;grid-template-rows:44px minmax(410px,1fr)}
+.archive-mode #contact[hidden]{display:none}
+.archive-mode #contact .section-head{grid-column:1/-1;margin-bottom:12px}
+.archive-mode #contact .about-content{margin:0;max-width:none;align-self:center;padding:10px 0}
+.contact-badge-stage{position:relative;min-height:410px;display:flex;justify-content:center;align-items:flex-start}
+.contact-badge-rig{position:relative;width:238px;transform-origin:50% -100px}
+.badge-lanyard{width:54px;height:93px;margin:-75px auto 0;background:repeating-linear-gradient(125deg,#171717 0px,#171717 1px,#292929 1px,#292929 2px);border-left:1px solid #393939;border-right:1px solid #111;box-shadow:9px 3px 9px #0002;position:relative;z-index:3;border-radius:0 0 3px 3px}
+.badge-hardware{display:block;position:relative;z-index:2;width:72px;height:99px;margin:-10px auto -24px;filter:drop-shadow(4px 3px 2px #0003)}
+.contact-badge{height:380px;position:relative;box-sizing:border-box;padding:39px 20px 17px;background:linear-gradient(105deg,#fff,#fafafa 75%,#f2f2f2);border:1px solid #eeeded;border-radius:13px;box-shadow:8px 10px 7px #0002,16px 20px 22px #0000000c,inset -2px -2px 2px #fff;transform:rotate(-1deg);display:flex;flex-direction:column;align-items:flex-start}
+.badge-slot{width:52px;height:11px;border-radius:9px;background:linear-gradient(#8a8a88,#b4b4b0);box-shadow:inset 0 2px 2px #0003,0 1px white;position:absolute;top:16px;left:calc(50% - 26px)}
+.contact-badge h4{margin:0 0 12px;display:flex;align-items:flex-end;justify-content:space-between;width:100%;gap:12px;color:#090909}
+.contact-badge h4 span{font-family:Impact,'Arial Narrow',sans-serif;font-stretch:condensed;font-size:40px;font-weight:900;letter-spacing:-1.5px;line-height:.94}
+.contact-badge h4 small{font-size:13px;font-weight:600;letter-spacing:-.5px;margin-bottom:3px}
+.contact-badge img{display:block;width:88px;height:113px;object-fit:contain;align-self:flex-end;background:white;border:1px solid #e9e9e9;border-radius:0;filter:none;margin:0}
+.archive-mode #contact .badge-role{font-size:7px;letter-spacing:.6px;line-height:1.4;margin:9px 0;color:#555}
+.archive-mode #contact .badge-message{font-size:14px;line-height:1.5;font-weight:600;letter-spacing:-.4px;margin:2px 0 0}
+.badge-bottom{margin-top:auto;width:100%;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;color:#111}
+.badge-bottom b{font-size:35px;letter-spacing:-5px;font-weight:900;line-height:1}.badge-bottom span{font-size:6px;font-weight:700;letter-spacing:.4px;padding-bottom:2px}
+@media(max-width:760px){.archive-mode #contact{grid-template-columns:1fr;grid-template-rows:auto}.archive-mode #contact .about-content{padding-bottom:30px}.contact-badge-stage{min-height:530px;padding-top:65px}.badge-lanyard{height:100px;margin-top:-75px}}
+@media(prefers-reduced-motion:reduce){.contact-badge-rig{transform:none!important;opacity:1!important}}
+@media(min-width:761px){.badge-lanyard{height:78px}}
+.contact-badge h4 span{font-weight:400;letter-spacing:-.5px}
+/* ID content follows the reading order of a real employee card. */
+.contact-badge{align-items:center;text-align:center;padding:39px 20px 22px}
+.archive-mode #contact .badge-role{font-size:12px;line-height:1.35;font-weight:750;letter-spacing:1.2px;color:#171717;margin:0 0 18px}
+.contact-badge img{width:102px;height:131px;align-self:center;object-fit:contain}
+.contact-badge h4{display:block;width:auto;font-family:inherit;font-size:24px;font-weight:650;letter-spacing:1px;margin:17px 0 14px}
+.archive-mode #contact .badge-message{font-size:14px;line-height:1.65;font-weight:500;margin:0;color:#444}
+/* Use the actual certificate artwork, with its white and cobalt palette. */
+.cka-badge{position:relative;gap:16px;padding:12px 17px 12px 12px;border:1px solid #d9e1f1;border-radius:5px;background:#fff;color:#202b43;box-shadow:0 3px 10px #294e8510;overflow:hidden}
+.cka-badge::before{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:#4077f5}
+.cka-preview{width:104px;height:80px;object-fit:contain;box-shadow:0 2px 6px #15377424;border:1px solid #edf0f6}
+.cka-copy .cka-overline{font-size:8px;letter-spacing:1.25px;color:#4775ca;display:block;margin-bottom:6px}
+.cka-copy strong{font-size:25px;line-height:1;letter-spacing:-.5px;color:#1b2a48}.cka-copy strong span{font-size:10px;font-weight:500;letter-spacing:0;margin-left:5px}
+.cka-copy small{font-size:10px;line-height:1.5;margin-top:6px;color:#526078}.cka-open{align-self:flex-start;font-size:15px;color:#4775ca}
+.cka-badge:hover{background:white;border-color:#4077f5}
+.certification-card{position:relative;justify-content:flex-start;gap:28px;padding:25px 28px;background:#fff;border:1px solid #d9e1f1;border-radius:7px;box-shadow:0 4px 14px #294e8508;border-top:3px solid #4077f5}
+.certificate-preview-link{display:block;flex:0 0 190px;transition:transform .2s}.certificate-preview-link:hover{transform:translateY(-3px)}
+.certificate-preview-link img{display:block;width:190px;height:auto;border:1px solid #e5eaf5;box-shadow:0 5px 13px #193a7020}
+.certification-copy{flex:1}.certification-label{font-size:9px;letter-spacing:1.5px;color:#4077f5}.certification-card h3{font-size:32px;margin:10px 0}.certification-card h3 span{display:block;font-size:15px;line-height:1.5;margin:5px 0 0;color:#33415b}.certification-card p{color:#637086!important}.certification-card>.certificate-link{font-size:11px;color:#315eb5}
+@media(max-width:700px){.certification-card{flex-wrap:wrap;padding:20px;gap:20px;align-items:center;flex-direction:row}.certificate-preview-link{flex-basis:125px}.certificate-preview-link img{width:125px}.certification-copy{min-width:140px}.certification-card>.certificate-link{margin-left:auto}.cka-preview{width:86px;height:67px}.cka-badge{gap:12px}}
+@media(prefers-reduced-motion:reduce){.certificate-preview-link{transition:none}}
+/* A quiet credential link in Toolkit; the full certificate stays on Cover. */
+.toolkit-credential{display:inline-flex;align-items:center;gap:12px;margin:0 0 8px;color:#526078;font-size:11px;text-decoration:none}
+.cka-logo-crop{position:relative;display:block;width:50px;height:50px;overflow:hidden;background:white;border-radius:4px}
+.cka-logo-crop img{position:absolute;width:174px;max-width:none;height:auto;left:-62px;top:-3px}
+.toolkit-credential:hover{color:#315eb5}.toolkit-credential:focus-visible{outline:2px solid #315eb5;outline-offset:5px}
+.archive-mode #contact .badge-role{align-self:stretch;margin:0 -20px 18px;padding:11px 12px;background:transparent;color:#171717;font-size:11px;line-height:1.4;letter-spacing:1.25px}
+.archive-mode #contact .badge-message{white-space:nowrap;font-size:12px;letter-spacing:-.45px;line-height:1.6}
+/* Slow front/back rotation, separate from the entry drop. */
+.badge-flip-toggle{display:block;position:relative;width:238px;height:380px;padding:0;border:0;background:none;color:inherit;font:inherit;transform-style:preserve-3d;cursor:pointer;text-align:initial}
+.badge-flip-inner{display:block;position:relative;width:100%;height:100%;transform-style:preserve-3d}
+.badge-flip-toggle .contact-badge{position:absolute;inset:0;width:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:rotateY(0);margin:0}
+.badge-flip-toggle .badge-back{transform:rotateY(180deg)}
+.badge-back-monogram{font-size:39px;font-weight:750;letter-spacing:-2px;margin:28px 0 22px}
+.contact-badge.badge-back h4{font-size:23px;letter-spacing:.6px;margin:12px 0 16px}
+.archive-mode #contact .badge-back-message{font-size:15px;line-height:1.65;margin:0;color:#444}
+.archive-mode #contact .badge-back-email{font-size:10px;letter-spacing:.2px;margin:auto 0 0;color:#666}
+.badge-flip-toggle:focus-visible{outline:2px solid #555;outline-offset:7px;border-radius:13px}
+.badge-assembly:has(.is-manual){animation:none;transform:rotateY(0);transition:transform 1s ease-in-out}
+.badge-assembly:has(.is-manual.show-back){transform:rotateY(180deg)}
+@keyframes badge-turn{0%,32%{transform:rotateY(0)}43%,78%{transform:rotateY(180deg)}89%,100%{transform:rotateY(0)}}
+@media(prefers-reduced-motion:reduce){.badge-assembly{animation:none!important;transition:none!important}}
+
+.contact-badge-rig{perspective:1200px}
+.badge-assembly{position:relative;transform-style:preserve-3d;transform-origin:50% 0;animation:badge-turn 14s ease-in-out 3s infinite}
+/* Full-width file page with compact horizontal indices. */
+.archive-shell{display:flex;flex-direction:column}
+.archive-mode .file-index{display:flex;align-items:flex-end;flex-direction:row;height:66px;gap:5px;padding-right:22%;background:transparent;isolation:isolate}
+.archive-mode .index-tab{position:relative;flex:1;height:50px;margin-bottom:-1px;padding:0 19px;border:1px solid #555;border-radius:15px 20px 0 0;background:var(--paper);color:#111;box-shadow:none;transform:none;transition:height .24s cubic-bezier(.2,.7,.3,1),background .2s}
+.archive-mode .index-tab::before,.archive-mode .index-tab::after{display:none}
+.archive-mode .index-tab[aria-selected=true]{height:60px;background:#111;color:#fff;border-color:#111;z-index:3}
+@media(hover:hover) and (pointer:fine){.archive-mode .index-tab:hover{height:56px;background:#f5e8ed}.archive-mode .index-tab[aria-selected=true]:hover{height:66px;background:#111}}
+.archive-mode .index-tab:focus-visible{height:56px}.archive-mode .index-tab[aria-selected=true]:focus-visible{height:66px}
+.archive-mode main{border-radius:0 18px 18px 18px}
+@media(max-width:900px){.archive-mode .file-index{padding-right:6%}.archive-mode .index-tab{padding:0 13px}}
+@media(max-width:600px){.archive-mode .file-index{height:58px;padding-right:0;gap:3px}.archive-mode .index-tab{height:44px;padding:0 9px;font-size:11px}.archive-mode .index-tab[aria-selected=true]{height:52px}.archive-mode .index-tab:focus-visible{height:50px}.archive-mode .index-tab[aria-selected=true]:focus-visible{height:58px}.archive-mode main{border-radius:0 0 14px 14px}}
+@media(prefers-reduced-motion:reduce){.archive-mode .index-tab{transition:none}}

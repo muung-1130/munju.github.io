@@ -47,6 +47,7 @@ if (toolkit) {
 }
 
 const copyEmail = document.querySelector('.copy-email');
+import('./chatbot.js');
 copyEmail?.addEventListener('click', async () => {
   const status = document.querySelector('.copy-status');
   try {
@@ -55,4 +56,30 @@ copyEmail?.addEventListener('click', async () => {
   } catch {
     status.textContent = '아래 이메일 주소를 선택해 복사해주세요.';
   }
+});
+
+// Replay the hanging card on Contact entry; cancel pending motion on exit.
+const contactRig = document.querySelector('.contact-badge-rig');
+if (contactRig) {
+  let badgeMotion;
+  document.addEventListener('archive:change', () => {
+    badgeMotion?.cancel();
+    const visible = !document.querySelector('#contact').hidden;
+    if (!visible || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    badgeMotion = contactRig.animate([
+      {transform:'translateY(-650px) rotate(-12deg)',opacity:0,offset:0},
+      {opacity:1,offset:.08},
+      {transform:'translateY(12px) rotate(7deg)',opacity:1,offset:.48},
+      {transform:'translateY(-9px) rotate(-5deg)',offset:.67},
+      {transform:'translateY(3px) rotate(2deg)',offset:.84},
+      {transform:'translateY(0) rotate(0)',opacity:1,offset:1}
+    ], {delay:500,duration:1250,easing:'cubic-bezier(.22,.6,.36,1)',fill:'both'});
+  });
+}
+
+const badgeFlip = document.querySelector('.badge-flip-toggle');
+badgeFlip?.addEventListener('click', () => {
+  badgeFlip.classList.add('is-manual');
+  const back = badgeFlip.classList.toggle('show-back');
+  badgeFlip.setAttribute('aria-label', back ? '사원증 앞면 보기' : '사원증 영어 뒷면 보기');
 });
